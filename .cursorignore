@@ -1,0 +1,18 @@
+# 패키지 락 파일 (가장 흔한 원인)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 빌드 결과물 및 의존성
+node_modules/
+.next/
+dist/
+build/
+out/
+
+# 대용량 로그 및 데이터
+*.log
+*.csv
+*.jsonl
+*.sql
+public/

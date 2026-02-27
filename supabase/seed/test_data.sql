@@ -1,0 +1,155 @@
+-- ============================================================
+-- CallLink ShoppingMaster 테스트 데이터 시딩
+-- 기준: TEST_PLAN.md §3
+-- ============================================================
+
+-- ============================================================
+-- 1. 파트너 시딩
+-- ============================================================
+INSERT INTO public.partners (id, subdomain, business_registration_number, company_name, representative, address, email, verification_status, verified_at)
+VALUES 
+  ('11111111-1111-1111-1111-111111111111', 'yenmidang', '123-45-67890', '주식회사 연미당', '김대표', '서울시 강남구 테헤란로 123', 'admin@yenmidang.com', 'verified', now()),
+  ('22222222-2222-2222-2222-222222222222', 'wooribugo', '234-56-78901', '주식회사 우리부고', '이대표', '서울시 서초구 반포대로 456', 'admin@wooribugo.com', 'verified', now())
+ON CONFLICT (id) DO NOTHING;
+
+-- 미검증 파트너 (테스트용)
+INSERT INTO public.partners (id, subdomain, business_registration_number, company_name, representative, address, email, verification_status)
+VALUES 
+  ('33333333-3333-3333-3333-333333333333', 'newpartner', '345-67-89012', '신규파트너', '박대표', '서울시 마포구', 'new@partner.com', 'pending')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 2. 거래처 시딩
+-- ============================================================
+-- 연미당 거래처
+INSERT INTO public.clients (id, partner_id, slug, name, business_registration_number, verification_status, contact_name, contact_phone, contact_email)
+VALUES 
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'samsungelec', '삼성전자', '111-22-33333', 'verified', '김담당', '010-1111-2222', 'kim@samsung.com'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 'lgdisplay', 'LG디스플레이', '222-33-44444', 'verified', '이담당', '010-2222-3333', 'lee@lg.com'),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', '11111111-1111-1111-1111-111111111111', 'hyundaimotor', '현대자동차', '333-44-55555', 'verified', '박담당', '010-3333-4444', 'park@hyundai.com')
+ON CONFLICT (id) DO NOTHING;
+
+-- 우리부고 거래처
+INSERT INTO public.clients (id, partner_id, slug, name, business_registration_number, verification_status, contact_name)
+VALUES 
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', '22222222-2222-2222-2222-222222222222', 'skhynix', 'SK하이닉스', '444-55-66666', 'verified', '최담당'),
+  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '22222222-2222-2222-2222-222222222222', 'naver', '네이버', '555-66-77777', 'verified', '정담당')
+ON CONFLICT (id) DO NOTHING;
+
+-- 비활성 거래처 (만료 테스트)
+INSERT INTO public.clients (id, partner_id, slug, name, verification_status)
+VALUES 
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', '11111111-1111-1111-1111-111111111111', 'expiredclient', '만료거래처', 'rejected')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 3. 카테고리 시딩
+-- ============================================================
+-- 연미당 카테고리
+INSERT INTO public.product_categories (id, partner_id, parent_id, name, slug, sort_order)
+VALUES 
+  ('ca110001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', NULL, 'Flowers', 'flowers', 1),
+  ('ca110001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'ca110001-0000-0000-0000-000000000001', '꽃다발', 'bouquet', 1),
+  ('ca110001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'ca110001-0000-0000-0000-000000000001', '꽃바구니', 'basket', 2),
+  ('ca110001-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'ca110001-0000-0000-0000-000000000001', '플라워박스', 'flowerbox', 3),
+  ('ca110001-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', NULL, 'Best Seller', 'best', 2),
+  ('ca110001-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111111', NULL, 'New Arrivals', 'new', 3)
+ON CONFLICT (id) DO NOTHING;
+
+-- 우리부고 카테고리
+INSERT INTO public.product_categories (id, partner_id, parent_id, name, slug, sort_order)
+VALUES 
+  ('ca220001-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', NULL, '부고용품', 'bugo', 1),
+  ('ca220001-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', NULL, '조화', 'johwa', 2)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 4. 상품 시딩 (다양한 상태)
+-- ============================================================
+INSERT INTO public.products (id, partner_id, name, slug, short_description, sale_price, base_price, stock_qty, safety_stock, status, sticker_options, delivery_methods, allow_delivery_date)
+VALUES 
+  -- 정상 상품
+  ('pr110001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', '베이비핑크 수국 꽃다발', 'baby-pink-hydrangea', '상큼한 봄의 향기', 34100, 39900, 50, 10, 'active', '["best","new"]', '["parcel","dawn"]', true),
+  ('pr110001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', '레드 로즈 바스켓', 'red-rose-basket', '사랑을 전하는 꽃바구니', 59000, 69000, 30, 5, 'active', '["best"]', '["parcel","quick"]', true),
+  ('pr110001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', '화이트 플라워박스', 'white-flowerbox', '순수한 마음을 담아', 45000, NULL, 20, 5, 'active', '["new"]', '["parcel","dawn","pickup"]', true),
+  ('pr110001-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', '프리미엄 혼합 꽃다발', 'premium-mixed', '특별한 날을 위한 선택', 89000, 99000, 15, 3, 'active', '["hit","sale"]', '["parcel","quick"]', true),
+  
+  -- 재고 부족 (Safety Stock 알림 테스트)
+  ('pr110001-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', '미니 장미 부케', 'mini-rose', '소중한 마음 한 다발', 25000, NULL, 8, 10, 'active', '[]', '["parcel"]', true),
+  
+  -- 품절 상품
+  ('pr110001-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111111', '한정판 오키드', 'limited-orchid', '희귀 난초', 150000, 180000, 0, 5, 'sold_out', '["hot"]', '["quick"]', false),
+  
+  -- 초안 (미공개)
+  ('pr110001-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111111', '신상품 테스트', 'draft-product', '미공개 상품', 10000, NULL, 100, 10, 'draft', '[]', '["parcel"]', true),
+  
+  -- 할인 상품 (할인율 계산 테스트)
+  ('pr110001-0000-0000-0000-000000000008', '11111111-1111-1111-1111-111111111111', '50% 할인 부케', 'half-price-bouquet', '특가 세일', 25000, 50000, 100, 20, 'active', '["sale","hot"]', '["parcel","dawn"]', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 상품-카테고리 매핑
+INSERT INTO public.product_category_mappings (product_id, category_id)
+VALUES 
+  ('pr110001-0000-0000-0000-000000000001', 'ca110001-0000-0000-0000-000000000002'),
+  ('pr110001-0000-0000-0000-000000000001', 'ca110001-0000-0000-0000-000000000005'),
+  ('pr110001-0000-0000-0000-000000000001', 'ca110001-0000-0000-0000-000000000006'),
+  ('pr110001-0000-0000-0000-000000000002', 'ca110001-0000-0000-0000-000000000003'),
+  ('pr110001-0000-0000-0000-000000000002', 'ca110001-0000-0000-0000-000000000005'),
+  ('pr110001-0000-0000-0000-000000000003', 'ca110001-0000-0000-0000-000000000004'),
+  ('pr110001-0000-0000-0000-000000000004', 'ca110001-0000-0000-0000-000000000002'),
+  ('pr110001-0000-0000-0000-000000000005', 'ca110001-0000-0000-0000-000000000002'),
+  ('pr110001-0000-0000-0000-000000000006', 'ca110001-0000-0000-0000-000000000006'),
+  ('pr110001-0000-0000-0000-000000000008', 'ca110001-0000-0000-0000-000000000002')
+ON CONFLICT DO NOTHING;
+
+-- 상품 옵션
+INSERT INTO public.product_options (id, product_id, name, value, price_adjustment, sort_order)
+VALUES 
+  ('op110001-0000-0000-0000-000000000001', 'pr110001-0000-0000-0000-000000000001', '색상', '핑크', 0, 1),
+  ('op110001-0000-0000-0000-000000000002', 'pr110001-0000-0000-0000-000000000001', '색상', '화이트', 0, 2),
+  ('op110001-0000-0000-0000-000000000003', 'pr110001-0000-0000-0000-000000000001', '색상', '퍼플', 3000, 3),
+  ('op110001-0000-0000-0000-000000000004', 'pr110001-0000-0000-0000-000000000002', '크기', 'M', 0, 1),
+  ('op110001-0000-0000-0000-000000000005', 'pr110001-0000-0000-0000-000000000002', '크기', 'L', 15000, 2),
+  ('op110001-0000-0000-0000-000000000006', 'pr110001-0000-0000-0000-000000000002', '크기', 'XL', 30000, 3)
+ON CONFLICT (id) DO NOTHING;
+
+-- 상품 이미지
+INSERT INTO public.product_images (id, product_id, url, sort_order)
+VALUES 
+  ('im110001-0000-0000-0000-000000000001', 'pr110001-0000-0000-0000-000000000001', 'https://via.placeholder.com/400x400/FFB6C1/FFFFFF?text=Baby+Pink', 1),
+  ('im110001-0000-0000-0000-000000000002', 'pr110001-0000-0000-0000-000000000001', 'https://via.placeholder.com/400x400/FFB6C1/FFFFFF?text=Side+View', 2),
+  ('im110001-0000-0000-0000-000000000003', 'pr110001-0000-0000-0000-000000000002', 'https://via.placeholder.com/400x400/FF6B6B/FFFFFF?text=Red+Rose', 1),
+  ('im110001-0000-0000-0000-000000000004', 'pr110001-0000-0000-0000-000000000003', 'https://via.placeholder.com/400x400/FFFFFF/333333?text=White+Box', 1)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 5. 배너 시딩
+-- ============================================================
+INSERT INTO public.banners (id, partner_id, image_url, link_url, sort_order, is_active)
+VALUES 
+  ('bn110001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'https://via.placeholder.com/430x200/FFB6C1/FFFFFF?text=Spring+Sale', '/products?category=sale', 1, true),
+  ('bn110001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'https://via.placeholder.com/430x200/87CEEB/FFFFFF?text=New+Arrivals', '/products?category=new', 2, true),
+  ('bn110001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'https://via.placeholder.com/430x200/DDA0DD/FFFFFF?text=Best+Seller', '/products?category=best', 3, true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 6. 공지 시딩
+-- ============================================================
+INSERT INTO public.notices (id, partner_id, client_id, title, content, is_pinned)
+VALUES 
+  ('no110001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', NULL, '[전체 공지] 2026년 설 연휴 배송 안내', '설 연휴 기간(2/7~2/12) 배송이 지연될 수 있습니다.', true),
+  ('no110001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '[삼성전자 전용] 2월 임직원 특가 안내', '삼성전자 임직원 대상 10% 추가 할인 진행 중입니다.', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 사용자, 주문, 장바구니 등은 auth.users 연동 후 별도 시딩
+-- 개발 시 NextAuth 콜백 또는 Supabase Auth Hook에서 public.users 자동 생성
+-- ============================================================
+
+-- ============================================================
+-- 완료 메시지
+-- ============================================================
+DO $$
+BEGIN
+  RAISE NOTICE '테스트 데이터 시딩 완료: partners(3), clients(6), categories(8), products(8), banners(3), notices(2)';
+END $$;

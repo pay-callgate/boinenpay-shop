@@ -1,0 +1,108 @@
+-- Call-Link Shopping Mall: ENUMs and core tables (partners, users, clients, partner_admins, user_clients, client_call_070_configs)
+-- ERD v1.0, IMPLEMENTATION_PLAN Phase 0 T0-2
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TYPE verification_status AS ENUM ('pending', 'verified', 'rejected');
+CREATE TYPE user_role AS ENUM ('partner_admin', 'client_staff', 'end_customer');
+CREATE TYPE user_client_role AS ENUM ('member', 'admin');
+CREATE TYPE product_status AS ENUM ('active', 'sold_out', 'draft');
+CREATE TYPE order_status AS ENUM (
+  'received', 'confirmed', 'shipping', 'delivered',
+  'confirmed_purchase', 'cancelled', 'returned'
+);
+CREATE TYPE order_channel AS ENUM ('link', 'phone');
+CREATE TYPE order_payment_status AS ENUM ('pending', 'paid', 'failed', 'refunded');
+CREATE TYPE payment_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
+
+CREATE TABLE partners (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  subdomain VARCHAR(50) NOT NULL UNIQUE,
+  business_registration_number VARCHAR(12) NOT NULL UNIQUE,
+  company_name VARCHAR(100) NOT NULL,
+  representative VARCHAR(50) NOT NULL,
+  postcode VARCHAR(10),
+  address VARCHAR(255) NOT NULL,
+  business_type VARCHAR(50),
+  contact VARCHAR(20),
+  fax VARCHAR(20),
+  business_category VARCHAR(50),
+  email VARCHAR(100) NOT NULL,
+  trade_categories JSONB,
+  verification_status verification_status NOT NULL DEFAULT 'pending',
+  verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_partners_subdomain ON partners (subdomain);
+CREATE UNIQUE INDEX idx_partners_business_registration_number ON partners (business_registration_number);
+
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(100) NOT NULL UNIQUE,
+  name VARCHAR(50),
+  phone VARCHAR(20),
+  role user_role NOT NULL DEFAULT 'end_customer',
+  provider VARCHAR(20),
+  provider_id VARCHAR(100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_users_provider_provider_id UNIQUE (provider, provider_id)
+);
+CREATE UNIQUE INDEX idx_users_email ON users (email);
+
+CREATE TABLE clients (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  partner_id UUID NOT NULL REFERENCES partners (id) ON DELETE CASCADE,
+  slug VARCHAR(50) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  logo_url VARCHAR(500),
+  business_registration_number VARCHAR(12),
+  verification_status verification_status NOT NULL DEFAULT 'pending',
+  contact_name VARCHAR(50),
+  contact_phone VARCHAR(20),
+  contact_email VARCHAR(100),
+  call_070_connected BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_clients_partner_slug UNIQUE (partner_id, slug)
+);
+CREATE INDEX idx_clients_partner_id ON clients (partner_id);
+
+CREATE TABLE partner_admins (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  partner_id UUID NOT NULL REFERENCES partners (id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_partner_admins_user_partner UNIQUE (user_id, partner_id)
+);
+CREATE INDEX idx_partner_admins_partner_id ON partner_admins (partner_id);
+CREATE INDEX idx_partner_admins_user_id ON partner_admins (user_id);
+
+CREATE TABLE user_clients (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES users (id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
+  role user_client_role DEFAULT 'member',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_user_clients_user_id ON user_clients (user_id);
+CREATE INDEX idx_user_clients_client_id ON user_clients (client_id);
+
+CREATE TABLE client_call_070_configs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_id UUID NOT NULL UNIQUE REFERENCES clients (id) ON DELETE CASCADE,
+  call_070_number VARCHAR(20) NOT NULL,
+  greeting_message VARCHAR(500),
+  industry VARCHAR(50),
+  admin_name VARCHAR(50),
+  admin_email VARCHAR(100),
+  admin_phone VARCHAR(20),
+  sms_text_template TEXT,
+  callcloud_registered BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX idx_client_call_070_configs_client_id ON client_call_070_configs (client_id);

@@ -1,0 +1,94 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createServerSupabase } from "@/lib/supabase/server";
+
+/**
+ * T4-1: 거래처 쇼핑몰 상품 조회 API
+ * GET /api/shop/products?partnerId=xxx&categoryId=xxx&limit=4
+ * - 파트너의 상품 조회 (쇼핑몰용)
+ * - 카테고리별 필터링 지원
+ * - 품절(sold_out) 상품 제외 또는 별도 표시
+ */
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const partnerId = searchParams.get("partnerId");
+    const categoryId = searchParams.get("categoryId");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const offset = parseInt(searchParams.get("offset") || "0");
+    const includeSoldOut = searchParams.get("includeSoldOut") === "true";
+
+    if (!partnerId) {
+      return NextResponse.json(
+        { error: "partnerId가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createServerSupabase();
+
+    // 기본 쿼리
+    let query = supabase
+      .from("products")
+      .select(
+        `
+        *,
+        product_category_mappings!inner (
+          category:product_categories (
+            id,
+            name,
+            slug
+          )
+        )
+      `,
+        { count: "exact" }
+      )
+      .eq("partner_id", partnerId);
+
+    // 품절 제외 옵션
+    if (!includeSoldOut) {
+      query = query.neq("status", "sold_out");
+    }
+
+    // 카테고리 필터
+    if (categoryId) {
+      query = query.eq("product_category_mappings.category_id", categoryId);
+    }
+
+    // 정렬 및 페이지네이션
+    query = query
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data: products, error, count } = await query;
+
+    if (error) {
+      console.error("Shop products fetch error:", error);
+      return NextResponse.json(
+        { error: "상품 조회 실패" },
+        { status: 500 }
+      );
+    }
+
+    // 카테고리 정보 평탄화
+    const formattedProducts = (products || []).map((p) => ({
+      ...p,
+      categories: p.product_category_mappings?.map(
+        (m: { category: { id: string; name: string; slug: string } }) => m.category
+      ) || [],
+    }));
+
+    return NextResponse.json({
+      products: formattedProducts,
+      total: count || 0,
+      limit,
+      offset,
+    });
+  } catch (err) {
+    console.error("Shop products API error:", err);
+    return NextResponse.json(
+      { error: "서버 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "tasks": [
+    {
+      "id": "cf426b99-8079-497c-a650-9f9c7ae0a079",
+      "name": "Phase 0-1: 프로젝트 초기화",
+      "description": "Next.js 14 App Router 프로젝트 생성, Tailwind CSS, Shadcn UI, Lucide Icons 설치. package.json, app/ 디렉토리 구조, tsconfig.json 구성. .env.local.example 기반 환경변수 연동.",
+      "notes": "IMPLEMENTATION_PLAN T0-1. 기존 .env.local.example 활용. app router 사용.",
+      "status": "pending",
+      "dependencies": [],
+      "createdAt": "2026-02-10T02:31:40.607Z",
+      "updatedAt": "2026-02-10T02:31:40.607Z",
+      "relatedFiles": [
+        {
+          "path": ".env.local.example",
+          "type": "REFERENCE",
+          "description": "환경변수 템플릿"
+        },
+        {
+          "path": "rules/ARCHITECTURE_RULES.md",
+          "type": "REFERENCE",
+          "description": "아키텍처 규칙"
+        }
+      ],
+      "implementationGuide": "1) npx create-next-app@14 --typescript --tailwind --app 2) shadcn-ui init 및 필요한 컴포넌트 추가 3) lucide-react 설치 4) app/ 디렉토리에 layout.tsx, page.tsx 기본 구조 생성 5) .env.local에 NEXTAUTH_URL, SUPABASE_URL 등 연동",
+      "verificationCriteria": "npm run dev 실행 시 앱 기동, Tailwind 스타일 적용, Shadcn 컴포넌트 import 가능",
+      "analysisResult": "콜링크 쇼핑몰 플랫폼 개발. IMPLEMENTATION_PLAN, PROJECT_RULES, docs 기반. 모듈 순서 M0→M1→M2→M3→M3.5→M4→M5→M6. Admin=파트너 어드민 전용. Multi-Tenancy(subdomain+clientSlug) 필수. auth.users→public.users 동기화 필요. POST /api/orders 원자 트랜잭션."
+    },
+    {
+      "id": "71c86a74-ac54-4db0-ae67-fb00a341867b",
+      "name": "Phase 0-2: DB 스키마 마이그레이션 적용",
+      "description": "supabase/migrations/20260210_init_schema.sql을 Supabase 프로젝트에 적용. 기존 스키마 존재 시 DROP 후 실행. 23개 테이블(users, partners, clients, products, orders 등) 생성 확인.",
+      "notes": "IMPLEMENTATION_PLAN T0-2. ERD v1.0 기준. product_inventory 미사용, products.stock_qty 사용.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "cf426b99-8079-497c-a650-9f9c7ae0a079"
+        }
+      ],
+      "createdAt": "2026-02-10T02:31:40.607Z",
+      "updatedAt": "2026-02-10T02:31:40.607Z",
+      "relatedFiles": [
+        {
+          "path": "supabase/migrations/20260210_init_schema.sql",
+          "type": "TO_MODIFY",
+          "description": "마이그레이션 SQL"
+        },
+        {
+          "path": "docs/ERD.md",
+          "type": "REFERENCE",
+          "description": "ERD 명세"
+        }
+      ],
+      "implementationGuide": "1) Supabase MCP apply_migration 또는 supabase db push 2) 기존 public 스키마 충돌 시 DROP CASCADE 후 재실행 3) RLS 정책, 인덱스 생성 확인 4) client_call_070_configs, carts, cart_items 등 Decision Log 반영 테이블 포함",
+      "verificationCriteria": "Supabase Table Editor에서 23개 테이블 존재 확인. list_tables API 성공",
+      "analysisResult": "콜링크 쇼핑몰 플랫폼 개발. IMPLEMENTATION_PLAN, PROJECT_RULES, docs 기반. 모듈 순서 M0→M1→M2→M3→M3.5→M4→M5→M6. Admin=파트너 어드민 전용. Multi-Tenancy(subdomain+clientSlug) 필수. auth.users→public.users 동기화 필요. POST /api/orders 원자 트랜잭션."
+    },
+    {
+      "id": "48a392b5-ba9f-4399-842a-00135a598e5a",
+      "name": "Phase 0-3: 인증 설정 (NextAuth + auth.users 동기화)",
+      "description": "NextAuth.js 설정, SNS OAuth(구글/카카오/네이버) Provider 연동. auth.users INSERT 시 public.users 자동 생성 트리거 또는 NextAuth signIn 콜백 구현.",
+      "notes": "IMPLEMENTATION_PLAN T0-3. auth.users와 public.users id 동기화 필수. role 기본값 end_customer.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "71c86a74-ac54-4db0-ae67-fb00a341867b"
+        }
+      ],
+      "createdAt": "2026-02-10T02:31:40.607Z",
+      "updatedAt": "2026-02-10T02:31:40.607Z",
+      "relatedFiles": [
+        {
+          "path": "docs/API_SPEC.md",
+          "type": "REFERENCE",
+          "description": "인증 관련 API"
+        },
+        {
+          "path": "supabase/migrations/20260210_init_schema.sql",
+          "type": "REFERENCE",
+          "description": "users 테이블 정의"
+        }
+      ],
+      "implementationGuide": "1) next-auth 설치, app/api/auth/[...nextauth]/route.ts 생성 2) Providers: Google, Kakao, Naver OAuth 설정 3) Supabase에서 auth.users INSERT 트리거로 public.users INSERT 또는 NextAuth callbacks.redirect/signIn에서 Supabase client로 users upsert 4) session에 user id, role 포함",
+      "verificationCriteria": "OAuth 로그인 성공, public.users에 레코드 생성, session.user.id 존재",
+      "analysisResult": "콜링크 쇼핑몰 플랫폼 개발. IMPLEMENTATION_PLAN, PROJECT_RULES, docs 기반. 모듈 순서 M0→M1→M2→M3→M3.5→M4→M5→M6. Admin=파트너 어드민 전용. Multi-Tenancy(subdomain+clientSlug) 필수. auth.users→public.users 동기화 필요. POST /api/orders 원자 트랜잭션."
+    },
+    {
+      "id": "bca4925b-51d9-4b44-9ac3-2f85eaa80e56",
+      "name": "Phase 0-4: Multi-Tenant 유틸",
+      "description": "subdomain, clientSlug 파싱 및 partner_id, client_id 추출 유틸 구현. lib/middleware 또는 lib/tenant.ts. Supabase 쿼리 시 tenant 필터 헬퍼.",
+      "notes": "IMPLEMENTATION_PLAN T0-4. PROJECT_RULES: 모든 쿼리에 partner_id, client_id 필터 필수.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "71c86a74-ac54-4db0-ae67-fb00a341867b"
+        }
+      ],
+      "createdAt": "2026-02-10T02:31:40.607Z",
+      "updatedAt": "2026-02-10T02:31:40.607Z",
+      "relatedFiles": [
+        {
+          "path": "rules/PROJECT_RULES.md",
+          "type": "REFERENCE",
+          "description": "Multi-Tenancy 규칙"
+        },
+        {
+          "path": "docs/PAGE_STRUCTURE_FLOW.md",
+          "type": "REFERENCE",
+          "description": "라우팅 구조"
+        }
+      ],
+      "implementationGuide": "1) getPartnerFromSubdomain(subdomain): partners 테이블 조회 2) getClientFromSlug(partnerId, slug): clients 테이블 조회 3) createTenantContext(req): partner_id, client_id 반환 4) API 라우트에서 tenant 필터 적용 헬퍼 사용",
+      "verificationCriteria": "subdomain→partner_id, (partner_id, slug)→client_id 매핑 정상 동작",
+      "analysisResult": "콜링크 쇼핑몰 플랫폼 개발. IMPLEMENTATION_PLAN, PROJECT_RULES, docs 기반. 모듈 순서 M0→M1→M2→M3→M3.5→M4→M5→M6. Admin=파트너 어드민 전용. Multi-Tenancy(subdomain+clientSlug) 필수. auth.users→public.users 동기화 필요. POST /api/orders 원자 트랜잭션."
+    },
+    {
+      "id": "115d02aa-9702-4b67-8c47-35d0efde6bb5",
+      "name": "Phase 0-5: 루트 라우팅 및 Middleware",
+      "description": "Next.js Middleware 구현. 프로덕션: shopping.com→CallGate 리다이렉트, {subdomain}.shopping.com/admin→/{subdomain}/admin. 개발: localhost:3000/→yenmidang/ 리다이렉트. Admin 경로 보안 가드.",
+      "notes": "IMPLEMENTATION_PLAN T0-5, TRD. Admin=파트너 어드민만. Super Admin 없음.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "48a392b5-ba9f-4399-842a-00135a598e5a"
+        },
+        {
+          "taskId": "bca4925b-51d9-4b44-9ac3-2f85eaa80e56"
+        }
+      ],
+      "createdAt": "2026-02-10T02:31:40.607Z",
+      "updatedAt": "2026-02-10T02:31:40.607Z",
+      "relatedFiles": [
+        {
+          "path": "docs/TRD.md",
+          "type": "REFERENCE",
+          "description": "기술 요구사항"
+        },
+        {
+          "path": "docs/PAGE_STRUCTURE_FLOW.md",
+          "type": "REFERENCE",
+          "description": "라우팅 규칙"
+        }
+      ],
+      "implementationGuide": "1) middleware.ts 루트에 생성 2) request.nextUrl.hostname 파싱하여 subdomain 추출 3) 개발: localhost 루트 → /yenmidang redirect 4) /{subdomain}/admin 경로: 인증 체크, partner_admin 검증 5) next.config rewrites/redirects 설정",
+      "verificationCriteria": "localhost 루트 접속 시 /yenmidang 리다이렉트. /{sub}/admin 미인증 시 로그인 유도",
+      "analysisResult": "콜링크 쇼핑몰 플랫폼 개발. IMPLEMENTATION_PLAN, PROJECT_RULES, docs 기반. 모듈 순서 M0→M1→M2→M3→M3.5→M4→M5→M6. Admin=파트너 어드민 전용. Multi-Tenancy(subdomain+clientSlug) 필수. auth.users→public.users 동기화 필요. POST /api/orders 원자 트랜잭션."
+    },
+    {
+      "id": "99945bfa-2092-46d9-a45a-77c3751450ac",
+      "name": "Phase 1-1: 파트너 로그인 및 어드민 진입",
+      "description": "app/[subdomain]/admin 레이아웃 및 로그인 페이지. 미인증 시 /{subdomain}/admin 접근 시 로그인 리다이렉트. SNS 로그인 버튼, 콜백 후 어드민 대시보드 진입.",
+      "notes": "IMPLEMENTATION_PLAN T1-1. Admin=파트너 어드민 전용. Super Admin 없음.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "115d02aa-9702-4b67-8c47-35d0efde6bb5"
+        }
+      ],
+      "createdAt": "2026-02-10T02:31:40.607Z",
+      "updatedAt": "2026-02-10T02:31:40.607Z",
+      "relatedFiles": [
+        {
+          "path": "docs/IMPLEMENTATION_PLAN.md",
+          "type": "REFERENCE",
+          "description": "T1-1 상세"
+        },
+        {
+          "path": "app/[subdomain]/admin",
+          "type": "CREATE",
+          "description": "어드민 라우트"
+        }
+      ],
+      "implementationGuide": "1) app/[subdomain]/admin/layout.tsx 생성 2) layout에서 getServerSession, 미인증 시 redirect to signin 3) app/[subdomain]/admin/page.tsx 대시보드 플레이스홀더 4) signin 페이지에서 subdomain 쿼리 유지하여 callbackUrl 구성",
+      "verificationCriteria": "미인증 /yenmidang/admin → 로그인 페이지. 로그인 후 대시보드 표시",
+      "analysisResult": "콜링크 쇼핑몰 플랫폼 개발. IMPLEMENTATION_PLAN, PROJECT_RULES, docs 기반. 모듈 순서 M0→M1→M2→M3→M3.5→M4→M5→M6. Admin=파트너 어드민 전용. Multi-Tenancy(subdomain+clientSlug) 필수. auth.users→public.users 동기화 필요. POST /api/orders 원자 트랜잭션."
+    },
+    {
+      "id": "615ef8f5-c91b-4d3b-99e6-a735130284f4",
+      "name": "Phase 1-2: 파트너 기업 등록 및 검증",
+      "description": "기업 등록 폼(사업자번호, 사업자명, 대표자, 주소 등). POST /api/verify/business-registration 연동. partners 테이블 verification_status 업데이트. 미검증 시 기업 등록 화면만 노출.",
+      "notes": "IMPLEMENTATION_PLAN T1-2, T1-3, T1-5. 기업 검증 필수.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "99945bfa-2092-46d9-a45a-77c3751450ac"
+        }
+      ],
+      "createdAt": "2026-02-10T02:31:40.607Z",
+      "updatedAt": "2026-02-10T02:31:40.607Z",
+      "relatedFiles": [
+        {
+          "path": "docs/API_SPEC.md",
+          "type": "REFERENCE",
+          "description": "사업자 검증 API"
+        },
+        {
+          "path": "docs/IMPLEMENTATION_PLAN.md",
+          "type": "REFERENCE",
+          "description": "T1-2, T1-3"
+        }
+      ],
+      "implementationGuide": "1) app/[subdomain]/admin/onboarding/partner/page.tsx 기업 등록 폼 2) POST /api/verify/business-registration: 사업자 API 연동, verification_status 반영 3) middleware/guard: partner verification_status pending 시 onboarding만 허용 4) partner_admins, partners 연결",
+      "verificationCriteria": "기업 등록 폼 제출, 검증 성공 시 verification_status=verified. 미검증 시 onboarding만 접근 가능",
+      "analysisResult": "콜링크 쇼핑몰 플랫폼 개발. IMPLEMENTATION_PLAN, PROJECT_RULES, docs 기반. 모듈 순서 M0→M1→M2→M3→M3.5→M4→M5→M6. Admin=파트너 어드민 전용. Multi-Tenancy(subdomain+clientSlug) 필수. auth.users→public.users 동기화 필요. POST /api/orders 원자 트랜잭션."
+    }
+  ]
+}

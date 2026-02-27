@@ -1,0 +1,41 @@
+-- =====================================================
+-- Migration: Add new columns to partners table
+-- Date: 2026-02-11
+-- Purpose: 파트너 등록 폼 UI 개선에 따른 신규 컬럼 추가
+-- =====================================================
+
+-- 1. 가맹점명 (Franchise Name) 추가
+ALTER TABLE partners 
+ADD COLUMN IF NOT EXISTS franchise_name VARCHAR(100);
+
+-- 2. 법인등록번호 (Corporate Registration Number) 추가
+ALTER TABLE partners 
+ADD COLUMN IF NOT EXISTS corporate_registration_number VARCHAR(15);
+
+-- 3. 대표자 생년월일 (Representative Date of Birth) 추가
+ALTER TABLE partners 
+ADD COLUMN IF NOT EXISTS representative_dob DATE;
+
+-- 4. Owner ID 추가 (파트너 생성자의 user_id)
+ALTER TABLE partners 
+ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id);
+
+-- 5. 컬럼 코멘트 추가 (문서화)
+COMMENT ON COLUMN partners.franchise_name IS '가맹점명';
+COMMENT ON COLUMN partners.corporate_registration_number IS '법인등록번호 (13자리)';
+COMMENT ON COLUMN partners.representative_dob IS '대표자 생년월일';
+COMMENT ON COLUMN partners.owner_id IS '파트너 생성자 (users 테이블 FK)';
+
+-- 6. 기존 컬럼 코멘트 추가 (명확성)
+COMMENT ON COLUMN partners.business_registration_number IS '사업자등록번호 (10자리)';
+COMMENT ON COLUMN partners.company_name IS '사업자명 (법인명)';
+COMMENT ON COLUMN partners.representative IS '대표자명';
+COMMENT ON COLUMN partners.email IS '대표자 이메일';
+COMMENT ON COLUMN partners.contact IS '대표자 연락처';
+COMMENT ON COLUMN partners.business_type IS '업태 (예: 도소매업)';
+COMMENT ON COLUMN partners.business_category IS '업종 (예: 외식업)';
+
+-- 7. 인덱스 추가 (성능 최적화)
+CREATE INDEX IF NOT EXISTS idx_partners_franchise_name ON partners (franchise_name) WHERE franchise_name IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_partners_corporate_registration_number ON partners (corporate_registration_number) WHERE corporate_registration_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_partners_owner_id ON partners (owner_id);
