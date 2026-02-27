@@ -45,30 +45,48 @@ export default function ProfilePage() {
     if (!partner?.id || !client?.id) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/mypage/profile?clientId=${client.id}`)
-      .then(async (res) => {
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/mypage/profile?clientId=${client.id}`);
+        if (cancelled) return;
+
+        if (res.status === 401 || res.status === 403) {
+          const err = await res.json().catch(() => ({}));
+          console.error("[mypage/profile] 권한 오류:", res.status, err?.error ?? res.statusText);
+          alert("로그인이 만료되었거나 접근 권한이 없습니다.\n다시 로그인해주세요.");
+          router.push(`/${subdomain}/${clientSlug}`);
+          return;
+        }
+
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           console.error("[mypage/profile] 조회 실패:", res.status, err?.error ?? res.statusText);
-          return null;
+          return;
         }
-        return res.json();
-      })
-      .then((data) => {
-        if (cancelled || !data?.user) return;
+
+        const data = await res.json();
+        if (!data?.user) return;
+
         setUser(data.user);
         setFormData({
           name: data.user.name,
           phone: data.user.phone || "",
         });
-      })
-      .finally(() => {
+      } catch (e) {
+        if (!cancelled) {
+          console.error("[mypage/profile] 네트워크 오류:", e);
+          alert("네트워크 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.");
+        }
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [partner?.id, client?.id]);
+  }, [partner?.id, client?.id, router, subdomain, clientSlug]);
 
   // 회원정보 저장
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,50 +178,23 @@ export default function ProfilePage() {
 
   return (
     <OrderGuard partnerId={partner.id}>
-      <div
-        style={{
-          maxWidth: "430px",
-          margin: "0 auto",
-          minHeight: "100vh",
-          backgroundColor: "#F5F5F5",
-          paddingBottom: "80px",
-        }}
-      >
+      <div className="flex flex-col min-h-screen bg-slate-50 max-w-[430px] mx-auto pb-[76px] relative">
         {/* 헤더 */}
-        <header
-          style={{
-            padding: "16px",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            backgroundColor: "#fff",
-            borderBottom: "1px solid #E5E7EB",
-          }}
-        >
+        <header className="shrink-0 flex items-center gap-3 px-4 py-4 bg-white border-b border-gray-200">
           <button
+            type="button"
             onClick={() => router.push(`/${subdomain}/${clientSlug}/mypage`)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className="p-0 border-0 bg-transparent cursor-pointer"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="#333"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-800">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <h1 style={{ fontSize: "1.125rem", fontWeight: 700, flex: 1 }}>
-            회원정보 수정
-          </h1>
+          <h1 className="text-lg font-bold flex-1">회원정보 수정</h1>
         </header>
 
+        {/* 메인 콘텐츠 */}
+        <main className="flex-1 bg-white">
         {/* 프로필 카드 */}
         <div
           style={{
@@ -348,23 +339,10 @@ export default function ProfilePage() {
             </button>
           </form>
         </div>
+        </main>
 
         {/* Bottom Nav */}
-        <nav
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            maxWidth: "430px",
-            margin: "0 auto",
-            backgroundColor: "#FDF2F8",
-            display: "flex",
-            justifyContent: "space-around",
-            padding: "12px 0",
-            borderTop: "1px solid #E5E7EB",
-          }}
-        >
+        <nav className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white flex justify-around py-3 border-t border-gray-200">
           {[
             { icon: "🏠", label: "홈", path: "" },
             { icon: "📂", label: "카테고리", path: "/products" },
@@ -376,18 +354,8 @@ export default function ProfilePage() {
               onClick={() =>
                 router.push(`/${subdomain}/${clientSlug}${item.path}`)
               }
-              style={{
-                background: "none",
-                border: "none",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "4px",
-                cursor: "pointer",
-                fontSize: "0.75rem",
-                color: item.active ? "#D6A8E0" : "#666",
-                fontWeight: item.active ? 600 : 400,
-              }}
+              className="flex flex-col items-center gap-1 cursor-pointer text-xs border-0 bg-transparent"
+              style={{ color: item.active ? "#D6A8E0" : "#666", fontWeight: item.active ? 600 : 400 }}
             >
               <span style={{ fontSize: "1.25rem" }}>{item.icon}</span>
               <span>{item.label}</span>

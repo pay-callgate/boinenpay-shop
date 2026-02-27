@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, Search, ShoppingBag, ChevronLeft } from "lucide-react";
+import { Menu, Search, ShoppingBag } from "lucide-react";
 import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
 import { SideMenu } from "./SideMenu";
 
@@ -85,7 +85,6 @@ function SmartHeader({
   const pathname = usePathname();
   const router = useRouter();
   const base = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
-  const isRoot = pathname === base || pathname === base + "/";
 
   const homeHref = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;
   const cartHref = base + "/cart";
@@ -152,25 +151,17 @@ function SmartHeader({
       style={{ height: HEADER_HEIGHT }}
     >
       <div className="relative mx-auto flex h-full max-w-[430px] items-center justify-between px-4">
-        {isRoot ? (
+        {/* 좌측: 항상 햄버거 메뉴 (w-16로 우측 영역과 폭 통일, -ml-2로 좌측 밀착) */}
+        <div className="-ml-2 flex h-10 w-16 shrink-0 items-center justify-start">
           <button
             type="button"
             onClick={onMenuClick}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[#333333] hover:bg-[#F3F4F6]"
+            className="flex h-10 min-w-10 items-center justify-center rounded-md py-2 pl-0 pr-2 text-[#333333] hover:bg-[#F3F4F6]"
             aria-label="메뉴"
           >
-            <Menu strokeWidth={1.5} className="h-6 w-6" />
+            <Menu strokeWidth={1.5} className="h-6 w-6 shrink-0" />
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[#333333] hover:bg-[#F3F4F6]"
-            aria-label="뒤로"
-          >
-            <ChevronLeft strokeWidth={1.5} className="h-6 w-6" />
-          </button>
-        )}
+        </div>
         <Link
           href={homeHref}
           className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5"
@@ -180,7 +171,8 @@ function SmartHeader({
             <span className="text-[12px] text-gray-600">{displayName}</span>
           )}
         </Link>
-        <div className="flex shrink-0 items-center gap-1">
+        {/* 우측: 검색 + 장바구니 (좌측과 동일한 w-16 폭으로 중앙 CI 정렬 유지) */}
+        <div className="flex h-10 w-16 shrink-0 items-center justify-end gap-1">
           <button
             type="button"
             className="flex h-10 w-10 items-center justify-center rounded-md text-[#333333] hover:bg-[#F3F4F6]"

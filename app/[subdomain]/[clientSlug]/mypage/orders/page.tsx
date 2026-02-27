@@ -60,7 +60,26 @@ export default function MyOrdersPage() {
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
-  const statusFilter = searchParams?.get("status");
+  const statusFilter = searchParams?.get("status") ?? null;
+
+  const ORDER_TABS = [
+    { key: "all", label: "전체" },
+    { key: "pending_payment", label: "입금대기" },
+    { key: "preparing", label: "배송준비중" },
+    { key: "shipping", label: "배송중" },
+    { key: "delivered", label: "배송완료" },
+  ] as const;
+
+  const activeTabKey = statusFilter && ORDER_TABS.some((t) => t.key === statusFilter) ? statusFilter : "all";
+
+  const handleTabClick = (key: string) => {
+    const base = `/${subdomain}/${clientSlug}/mypage/orders`;
+    if (key === "all") {
+      router.push(base);
+    } else {
+      router.push(`${base}?status=${key}`);
+    }
+  };
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +92,7 @@ export default function MyOrdersPage() {
     setLoading(true);
     (async () => {
       let url = `/api/mypage/orders?clientId=${client.id}&limit=50`;
-      if (statusFilter) url += `&status=${statusFilter}`;
+      if (statusFilter && statusFilter !== "all") url += `&status=${statusFilter}`;
       const res = await fetch(url);
       if (cancelled) return;
       if (res.ok) {
@@ -133,54 +152,55 @@ export default function MyOrdersPage() {
 
   return (
     <OrderGuard partnerId={partner.id}>
-      <div
-        style={{
-          maxWidth: "430px",
-          margin: "0 auto",
-          minHeight: "100vh",
-          backgroundColor: "#F5F5F5",
-          paddingBottom: "80px",
-        }}
-      >
+      <div className="flex flex-col min-h-screen bg-slate-50 max-w-[430px] mx-auto pb-[76px] relative">
         {/* 헤더 */}
-        <header
-          style={{
-            padding: "16px",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            backgroundColor: "#fff",
-            borderBottom: "1px solid #E5E7EB",
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-          }}
-        >
+        <header className="sticky top-0 z-10 shrink-0 flex items-center gap-3 px-4 py-4 bg-white border-b border-gray-200">
           <button
+            type="button"
             onClick={() => router.push(`/${subdomain}/${clientSlug}/mypage`)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className="p-0 border-0 bg-transparent cursor-pointer"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="#333"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-800">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <h1 style={{ fontSize: "1.125rem", fontWeight: 700, flex: 1 }}>
-            주문 조회
-          </h1>
+          <h1 className="text-lg font-bold flex-1">주문 조회</h1>
         </header>
 
+        {/* 상태별 탭 네비게이션 */}
+        <div
+          className="sticky top-[57px] z-[9] flex w-full overflow-x-auto border-b border-gray-200 bg-white"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          <style
+            dangerouslySetInnerHTML={{
+              __html: ".order-tabs-scroll::-webkit-scrollbar { display: none; }",
+            }}
+          />
+          <div className="order-tabs-scroll flex min-w-0 shrink-0 gap-0 px-4 py-3">
+            {ORDER_TABS.map((tab) => {
+              const isActive = activeTabKey === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => handleTabClick(tab.key)}
+                  className="shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors"
+                  style={{
+                    color: isActive ? "#D6A8E0" : "#6B7280",
+                    borderBottom: isActive ? "2px solid #D6A8E0" : "2px solid transparent",
+                    fontWeight: isActive ? 700 : 500,
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* 주문 목록 */}
+        <main className="flex-1 bg-white">
         {loading ? (
           <div
             style={{
@@ -208,7 +228,9 @@ export default function MyOrdersPage() {
               <path d="M9 11l2 2 4-4" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" />
             </svg>
             <p style={{ fontSize: "1rem", color: "#666", marginBottom: "24px" }}>
-              주문 내역이 없습니다
+              {activeTabKey !== "all"
+                ? `${STATUS_LABELS[activeTabKey] || activeTabKey} 상태의 주문이 없습니다`
+                : "주문 내역이 없습니다"}
             </p>
             <button
               onClick={() => router.push(`/${subdomain}/${clientSlug}/products`)}
@@ -293,23 +315,10 @@ export default function MyOrdersPage() {
             ))}
           </div>
         )}
+        </main>
 
         {/* Bottom Nav */}
-        <nav
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            maxWidth: "430px",
-            margin: "0 auto",
-            backgroundColor: "#fff",
-            display: "flex",
-            justifyContent: "space-around",
-            padding: "12px 0",
-            borderTop: "1px solid #E5E7EB",
-          }}
-        >
+        <nav className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white flex justify-around py-3 border-t border-gray-200">
           {[
             { icon: "🏠", label: "홈", path: "" },
             { icon: "📂", label: "카테고리", path: "/products" },
@@ -321,18 +330,8 @@ export default function MyOrdersPage() {
               onClick={() =>
                 router.push(`/${subdomain}/${clientSlug}${item.path}`)
               }
-              style={{
-                background: "none",
-                border: "none",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "4px",
-                cursor: "pointer",
-                fontSize: "0.75rem",
-                color: item.active ? "#D6A8E0" : "#666",
-                fontWeight: item.active ? 600 : 400,
-              }}
+              className="flex flex-col items-center gap-1 cursor-pointer text-xs border-0 bg-transparent"
+              style={{ color: item.active ? "#D6A8E0" : "#666", fontWeight: item.active ? 600 : 400 }}
             >
               <span style={{ fontSize: "1.25rem" }}>{item.icon}</span>
               <span>{item.label}</span>

@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
       .eq("user_id", session.user.id)
       .eq("client_id", clientId);
 
-    // 상태 필터
-    if (status) {
+    // 상태 필터: status가 없거나 'all'이면 전체 조회, 그 외에는 정확히 .eq('status', status)
+    if (status && status !== "all") {
       query = query.eq("status", status);
     }
 

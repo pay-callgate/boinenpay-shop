@@ -125,62 +125,24 @@ export default function WishlistPage() {
 
   return (
     <OrderGuard partnerId={partner.id}>
-      <div
-        style={{
-          maxWidth: "430px",
-          margin: "0 auto",
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "#F5F5F5",
-          paddingBottom: "80px",
-        }}
-      >
+      <div className="flex flex-col min-h-screen bg-slate-50 max-w-[430px] mx-auto pb-[76px] relative">
         {/* 헤더 */}
-        <header
-          style={{
-            padding: "16px",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            backgroundColor: "#fff",
-            borderBottom: "1px solid #E5E7EB",
-          }}
-        >
+        <header className="shrink-0 flex items-center gap-3 px-4 py-4 bg-white border-b border-gray-200">
           <button
+            type="button"
             onClick={() => router.push(`/${subdomain}/${clientSlug}/mypage`)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className="p-0 border-0 bg-transparent cursor-pointer"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="#333"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-800">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <h1 style={{ fontSize: "1.125rem", fontWeight: 700, flex: 1 }}>
-            관심상품
-          </h1>
-          <span style={{ fontSize: "0.875rem", color: "#666" }}>
-            {items.length}개
-          </span>
+          <h1 className="text-lg font-bold flex-1">관심상품</h1>
+          <span className="text-sm text-gray-500">{items.length}개</span>
         </header>
 
         {/* 관심상품 목록 */}
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "#fff",
-          }}
-        >
+        <main className="flex-1 bg-white">
         {loading ? (
           <div
             style={{
@@ -392,24 +354,10 @@ export default function WishlistPage() {
             </div>
           </div>
         )}
-        </div>
+        </main>
 
         {/* Bottom Nav */}
-        <nav
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            maxWidth: "430px",
-            margin: "0 auto",
-            backgroundColor: "#fff",
-            display: "flex",
-            justifyContent: "space-around",
-            padding: "12px 0",
-            borderTop: "1px solid #E5E7EB",
-          }}
-        >
+        <nav className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white flex justify-around py-3 border-t border-gray-200">
           {[
             { icon: "🏠", label: "홈", path: "" },
             { icon: "📂", label: "카테고리", path: "/products" },
@@ -421,18 +369,8 @@ export default function WishlistPage() {
               onClick={() =>
                 router.push(`/${subdomain}/${clientSlug}${item.path}`)
               }
-              style={{
-                background: "none",
-                border: "none",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "4px",
-                cursor: "pointer",
-                fontSize: "0.75rem",
-                color: item.active ? "#D6A8E0" : "#666",
-                fontWeight: item.active ? 600 : 400,
-              }}
+              className="flex flex-col items-center gap-1 cursor-pointer text-xs border-0 bg-transparent"
+              style={{ color: item.active ? "#D6A8E0" : "#666", fontWeight: item.active ? 600 : 400 }}
             >
               <span style={{ fontSize: "1.25rem" }}>{item.icon}</span>
               <span>{item.label}</span>
