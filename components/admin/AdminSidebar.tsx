@@ -33,6 +33,11 @@ export function AdminSidebar({
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // 서브메뉴(2차): 정확히 일치할 때만 활성화 (한 개만 파란색 하이라이트)
+  const isSubmenuActive = (href: string) => pathname === href;
+  // 1차 메뉴 아코디언: 해당 섹션 하위에 활성 서브메뉴가 있을 때만 강조/열림용
+  const hasActiveChild = (items: { href: string }[]) => items.some((item) => isSubmenuActive(item.href));
+
   const navSections: {
     key: string;
     label: string;
@@ -86,21 +91,6 @@ export function AdminSidebar({
       ],
     },
   ];
-
-  // 모든 하위 메뉴 링크 추출
-  const allLinks = navSections.flatMap((s) => s.items.map((i) => i.href));
-
-  // 현재 pathname과 일치하거나, 하위 경로이면서 '가장 길이가 긴' URL을 Best Match로 선택
-  const activeLink =
-    allLinks
-      .filter((href) => pathname === href || pathname.startsWith(href + "/"))
-      .sort((a, b) => b.length - a.length)[0] ?? null;
-
-  // 2차 메뉴 활성화 조건: 가장 길게 매칭된 딱 하나의 링크만 활성화
-  const isSubmenuActive = (href: string) => href === activeLink;
-
-  // 1차 메뉴 아코디언 열림 조건
-  const hasActiveChild = (items: { href: string }[]) => items.some((item) => isSubmenuActive(item.href));
 
   return (
     <aside className="w-64 shrink-0 border-r border-slate-800 bg-slate-900">

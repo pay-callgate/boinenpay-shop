@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 
@@ -37,7 +38,7 @@ interface Order {
   total_amount: number;
   shipping_name: string;
   created_at: string;
-  client: Client;
+  client?: Client | null;
   order_items: OrderItem[];
 }
 
@@ -50,9 +51,13 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "취소됨",
 };
 
+const SESSION_EXPIRED_MESSAGE =
+  "안전한 이용을 위해 세션이 만료되었습니다. 다시 로그인해 주세요.";
+
 export default function MyOrdersPage() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const template = useShopTemplate();
   const partner = template?.partner ?? null;
@@ -84,17 +89,27 @@ export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 주문 목록 조회 (Context의 client.id 사용)
+  // 주문 목록 조회 (Context의 client.id 사용, 세션 쿠키 포함)
+  // 401/403 시 세션 만료로 간주 → 알림 후 로그아웃 및 로그인 페이지 리다이렉트
   useEffect(() => {
     if (!client?.id) return;
 
     let cancelled = false;
     setLoading(true);
     (async () => {
-      let url = `/api/mypage/orders?clientId=${client.id}&limit=50`;
-      if (statusFilter && statusFilter !== "all") url += `&status=${statusFilter}`;
-      const res = await fetch(url);
+      let url = `/api/mypage/orders?clientId=${encodeURIComponent(client.id)}&limit=50`;
+      if (statusFilter && statusFilter !== "all") url += `&status=${encodeURIComponent(statusFilter)}`;
+      const res = await fetch(url, { credentials: "include" });
       if (cancelled) return;
+
+      if (res.status === 401 || res.status === 403) {
+        setLoading(false);
+        alert(SESSION_EXPIRED_MESSAGE);
+        const loginUrl = `/${subdomain}/login?callbackUrl=${encodeURIComponent(pathname ?? `/${subdomain}/${clientSlug}/mypage/orders`)}`;
+        await signOut({ redirect: true, callbackUrl: loginUrl });
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
         setOrders(data.orders || []);
@@ -104,7 +119,7 @@ export default function MyOrdersPage() {
     return () => {
       cancelled = true;
     };
-  }, [client?.id, statusFilter]);
+  }, [client?.id, statusFilter, subdomain, clientSlug, pathname]);
 
   // 가격 포맷팅
   const formatPrice = (price: number) => {
@@ -167,17 +182,12 @@ export default function MyOrdersPage() {
           <h1 className="text-lg font-bold flex-1">주문 조회</h1>
         </header>
 
-        {/* 상태별 탭 네비게이션 */}
+        {/* 상태별 탭 네비게이션 - 모바일 가로 스와이프, 스크롤바 숨김 */}
         <div
-          className="sticky top-[57px] z-[9] flex w-full overflow-x-auto border-b border-gray-200 bg-white"
+          className="sticky top-[57px] z-[9] w-full max-w-full overflow-x-auto overflow-y-hidden border-b border-gray-200 bg-white [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
-          <style
-            dangerouslySetInnerHTML={{
-              __html: ".order-tabs-scroll::-webkit-scrollbar { display: none; }",
-            }}
-          />
-          <div className="order-tabs-scroll flex min-w-0 shrink-0 gap-0 px-4 py-3">
+          <div className="flex min-w-max shrink-0 items-stretch gap-0 px-4 py-3">
             {ORDER_TABS.map((tab) => {
               const isActive = activeTabKey === tab.key;
               return (

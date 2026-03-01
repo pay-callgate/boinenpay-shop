@@ -17,7 +17,11 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get("clientId");
+    const rawClientId = searchParams.get("clientId");
+    const clientId =
+      typeof rawClientId === "string" && rawClientId.trim() && rawClientId !== "undefined" && rawClientId !== "null"
+        ? rawClientId.trim()
+        : null;
     const status = searchParams.get("status");
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
@@ -31,18 +35,12 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabase();
 
-    // 기본 쿼리: user_id + client_id 필수 (테넌트 격리)
+    // 기본 쿼리: user_id + client_id (테넌트 격리). client 조인 제거로 FK 조인으로 인한 행 누락 방지
     let query = supabase
       .from("orders")
       .select(
         `
         *,
-        client:clients (
-          id,
-          name,
-          slug,
-          logo_url
-        ),
         order_items (
           id,
           product_id,
