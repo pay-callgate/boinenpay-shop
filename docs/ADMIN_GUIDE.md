@@ -103,16 +103,26 @@
 - **기본 유휴 시간:** 30분. 환경변수 `NEXT_PUBLIC_ADMIN_IDLE_TIMEOUT_MIN`으로 30~60분 등 조정 가능
 - **동작:** 유휴 시간 경과 시 alert → signOut → `/admin/login?callbackUrl=/admin` 리다이렉트
 
-### 4.3 401 전역 인터셉터
+### 4.3 세션 검사 우선순위 (서버 우선)
+
+| 순서 | 위치 | 동작 |
+|------|------|------|
+| 1 | **Middleware** (`middleware.ts`) | `/admin/login` 제외한 `/admin/*` 요청 시 `getToken()`으로 JWT 검사. 토큰 없으면 즉시 `/admin/login?callbackUrl=현재경로` 리다이렉트 (Layout보다 먼저 실행) |
+| 2 | **Layout** (`app/admin/(dashboard)/layout.tsx`) | `getServerSession()` 검사. `export const dynamic = "force-dynamic"`로 레이아웃 캐시 비활성화. 세션 없으면 리다이렉트 |
+| 3 | **adminFetch** (클라이언트) | API 401 수신 시 alert → signOut → `window.location.href`로 로그인 페이지 강제 이동 |
+
+### 4.4 401 전역 인터셉터
 
 - **adminFetch** (`lib/admin-fetch.ts`): 어드민 전용 fetch 래퍼
-- 모든 어드민 API 호출(page.tsx, components/admin)에서 `fetch` 대신 `adminFetch` 사용
-- **401 수신 시:** 세션 만료 alert → signOut → 로그인 페이지 리다이렉트. 빈 화면("등록된 상품이 없습니다") 대신 명시적 로그아웃 처리
+- 모든 어드민 API 호출(page.tsx, components/admin)에서 `fetch` 대신 `adminFetch` 사용 (직접 fetch 사용 금지)
+- **cache: "no-store"** 적용 — 세션 만료 시 캐시된 200 응답 대신 최신 401 수신 보장
+- **401 수신 시:** 세션 만료 alert → signOut(redirect: false) → `window.location.href = "/admin/login?callbackUrl=/admin"`. 빈 화면("등록된 상품이 없습니다") 대신 명시적 로그아웃 처리
 
-### 4.4 적용 범위
+### 4.5 적용 범위
 
 - `app/admin/(dashboard)/**` 페이지
 - `components/admin/*` (ProductRegistrationModal, Call070Modal, ClientRegistrationModal, PartnerRegistrationForm 등)
+- **직접 fetch 사용처:** `orders/shipping` fetch("/api/partner"), `products/[id]/edit`, `products/new` fetch("/api/upload/image"), `ProductRegistrationModal` upload — 모두 adminFetch로 통일됨
 
 ---
 
@@ -122,3 +132,4 @@
 |------------|------|
 | 2026-02-10 | PARTNER_ADMIN_ACCESS_CHECKLIST, PARTNER_REGISTRATION_FIX_GUIDE, MOBILE_SHOP_LOGIN_FIX 병합 → ADMIN_GUIDE.md |
 | 2026-02-10 | Part 4 추가: 어드민 보안 정책 (1시간 세션, 30분 유휴 자동 로그아웃, 401 전역 인터셉터) |
+| 2026-02-10 | Part 4.3~4.5 추가: Middleware getToken 세션 검사(서버 우선), adminFetch cache: no-store, 직접 fetch→adminFetch 통일, 401 시 window.location.href 강제 리다이렉트 |

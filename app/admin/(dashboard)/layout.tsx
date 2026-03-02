@@ -7,6 +7,9 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminIdleGuard } from "@/components/admin/AdminIdleGuard";
 
+/** 세션 만료 시 즉시 리다이렉트 보장 — 레이아웃 캐시로 스냅샷처럼 보이는 현상 방지 */
+export const dynamic = "force-dynamic";
+
 /**
  * T1-1: 미인증 시 로그인 리다이렉트.
  * T1-5: 파트너 미등록 또는 미검증 시 기업 등록(온보딩)만 노출.

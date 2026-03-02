@@ -170,10 +170,10 @@ export function ProductRegistrationModal({
     fd.append("bucket", "products");
     fd.append("partnerId", partnerId);
     fd.append("entityId", "temp-" + Date.now());
-    fetch("/api/upload/image", { method: "POST", body: fd })
+    adminFetch("/api/upload/image", { method: "POST", body: fd })
       .then((res) => res.json())
       .then((data) => {
-        if (data.url) setThumbnailUrl(data.url);
+        if (data?.url) setThumbnailUrl(data.url);
       })
       .catch(() => {});
   };

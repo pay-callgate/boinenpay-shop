@@ -1,19 +1,20 @@
 "use client";
 
 import { signOut } from "next-auth/react";
+import { toast } from "@/components/shop/ToastContext";
 
 const SESSION_EXPIRED_MESSAGE =
   "안전한 이용을 위해 세션이 만료되었습니다. 다시 로그인해 주세요.";
 
 /**
- * 401/403 수신 시 공통 처리: 알림 → 로그아웃 → 로그인 페이지 리다이렉트
+ * 401/403 수신 시 공통 처리: 토스트 알림 → 로그아웃 → 로그인 페이지 리다이렉트
  * (거래처 쇼핑몰 전역 세션 만료 정책)
  */
 async function handleSessionExpiry(): Promise<never> {
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
   const subdomain = pathname.split("/")[1] ?? "shop";
   const loginUrl = `/${subdomain}/login?callbackUrl=${encodeURIComponent(pathname)}`;
-  alert(SESSION_EXPIRED_MESSAGE);
+  toast(SESSION_EXPIRED_MESSAGE, "error");
   await signOut({ redirect: true, callbackUrl: loginUrl });
   throw new Error("SESSION_EXPIRED");
 }

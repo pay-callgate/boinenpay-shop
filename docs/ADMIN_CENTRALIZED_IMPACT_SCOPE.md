@@ -44,6 +44,8 @@
 - 현재는 “경로 첫 세그먼트 = subdomain” 가정으로 동작.
 - 중앙 어드민은 **경로에 subdomain이 없음** → `/admin`, `/admin/login` 등은 subdomain 리라이트/리다이렉트 대상에서 제외해야 함.
 
+**현재 적용 (2026-02-10):** `/admin/login` 제외한 `/admin/*` 요청 시 `getToken()`으로 JWT 검사. 토큰 없으면 즉시 `/admin/login?callbackUrl=현재경로` 리다이렉트 (Layout보다 먼저 실행).
+
 ---
 
 ### 2.3 어드민 레이아웃·인증·파트너 해석

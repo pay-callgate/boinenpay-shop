@@ -52,7 +52,9 @@
 |------|------|
 | **세션 maxAge** | 1시간 (3,600초). lib/auth.ts |
 | **유휴 자동 로그아웃** | 30분 기본. AdminIdleGuard. NEXT_PUBLIC_ADMIN_IDLE_TIMEOUT_MIN으로 조정 |
-| **401 인터셉터** | adminFetch. 모든 어드민 API 호출에 적용. 401 시 alert → signOut → /admin/login |
+| **401 인터셉터** | adminFetch. 모든 어드민 API 호출에 적용. 401 시 alert → signOut(redirect: false) → window.location.href로 /admin/login 강제 이동 |
+| **서버 우선 리다이렉트** | Middleware(getToken) → Layout(getServerSession) → adminFetch 순. 토큰 만료 시 Layout보다 먼저 Middleware에서 리다이렉트 |
+| **캐시 비활성화** | adminFetch에 cache: "no-store". Layout에 dynamic = "force-dynamic". 세션 만료 시 스냅샷/캐시 현상 방지 |
 
 ---
 
@@ -61,3 +63,11 @@
 - CLIENT_FETCH_ERROR = auth API 호출 실패. DB/070과 무관.
 - 어드민: 1시간 세션, 30분 유휴 로그아웃, 401 시 adminFetch가 즉시 로그인 페이지로 이동.
 - 서버 동작·접속 URL 확인 후 `/api/auth/session` 직접 호출로 원인 축소.
+
+---
+
+## 6. 변경 이력
+
+| 날짜 | 내용 |
+|------|------|
+| 2026-02-10 | Section 4 보강: Middleware getToken, Layout force-dynamic, adminFetch cache: no-store, window.location.href 강제 리다이렉트 |

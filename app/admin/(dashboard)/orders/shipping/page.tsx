@@ -78,7 +78,7 @@ export default function OrdersShippingPage() {
 
   useEffect(() => {
     async function fetchPartnerId() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) setPartnerId(result.data.id);

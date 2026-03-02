@@ -1,3 +1,5 @@
+import { toast } from "@/components/shop/ToastContext";
+
 const DAUM_SCRIPT_URL = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
 
 /** Daum 우편번호 스크립트를 동적으로 로드 */
@@ -21,12 +23,12 @@ export function loadDaumPostcodeScript(): Promise<void> {
   });
 }
 
-/** 우편번호 검색 팝업 열기. 스크립트 로드 후 onComplete 호출. onError 미제공 시 alert 사용 */
+/** 우편번호 검색 팝업 열기. 스크립트 로드 후 onComplete 호출. onError 미제공 시 toast 사용 */
 export function openDaumPostcode(
   onComplete: (data: { zonecode: string; address: string }) => void,
   onError?: (msg: string) => void
 ): void {
-  const notify = (msg: string) => (onError ? onError(msg) : alert(msg));
+  const notify = (msg: string) => (onError ? onError(msg) : toast(msg, "error"));
   loadDaumPostcodeScript()
     .then(() => {
       if (!window.daum?.Postcode) {

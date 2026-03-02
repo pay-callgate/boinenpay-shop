@@ -37,7 +37,7 @@ export function setGlobalToast(fn: ((message: string, type?: ToastType) => void)
  */
 export function toast(message: string, type: ToastType = "default") {
   if (globalToast) globalToast(message, type);
-  else if (typeof window !== "undefined") window.alert(message);
+  // ToastProvider 외부 호출 시 아무것도 표시하지 않음 (alert fallback 제거)
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {

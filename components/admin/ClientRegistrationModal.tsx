@@ -81,13 +81,16 @@ export function ClientRegistrationModal({
   const [logoUploading, setLogoUploading] = useState(false);
 
   const openPostcodeSearch = () => {
-    openDaumPostcode(({ zonecode, address }) => {
-      setFormData((prev) => ({
-        ...prev,
-        zipCode: zonecode ?? "",
-        address: address ?? prev.address,
-      }));
-    });
+    openDaumPostcode(
+      ({ zonecode, address }) => {
+        setFormData((prev) => ({
+          ...prev,
+          zipCode: zonecode ?? "",
+          address: address ?? prev.address,
+        }));
+      },
+      (msg) => alert(msg)
+    );
   };
 
   useEffect(() => {

@@ -124,7 +124,7 @@ export default function ProductEditPage() {
     formDataUpload.append("partnerId", partnerId);
     formDataUpload.append("entityId", productId);
 
-    const res = await fetch("/api/upload/image", {
+    const res = await adminFetch("/api/upload/image", {
       method: "POST",
       body: formDataUpload,
     });

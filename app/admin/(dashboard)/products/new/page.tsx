@@ -74,7 +74,7 @@ export default function ProductNewPage() {
     formDataUpload.append("partnerId", partnerId);
     formDataUpload.append("entityId", "temp-" + Date.now()); // 임시 ID
 
-    const res = await fetch("/api/upload/image", {
+    const res = await adminFetch("/api/upload/image", {
       method: "POST",
       body: formDataUpload,
     });
