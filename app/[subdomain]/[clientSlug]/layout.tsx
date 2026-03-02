@@ -1,3 +1,4 @@
+import React from "react";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { ShopGlobalLayout } from "@/components/shop/ShopLayout";
 import { ClientShopProvider } from "@/components/providers/ClientShopProvider";

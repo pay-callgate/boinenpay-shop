@@ -15,6 +15,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") ?? "";
 
+  // 중앙 집중형 어드민: /admin, /admin/* 는 서브도메인 Rewrite 대상에서 제외 (CallLinkShopping.com/admin)
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    return NextResponse.next();
+  }
+
   const isLocalhost =
     host.startsWith("localhost") || host.startsWith("127.0.0.1");
   const isShoppingRoot =
@@ -27,7 +32,7 @@ export function middleware(request: NextRequest) {
     if (rootDomains.includes(host)) {
       return NextResponse.redirect(CALLGATE_REDIRECT_URL);
     }
-    // 프로덕션: yenmidang.shopping.com/samsungelec → /yenmidang/samsungelec Rewrite
+    // 프로덕션: {subdomain}.shopping.com → /{subdomain}/* Rewrite (거래처 쇼핑몰만, 어드민 제외)
     const subdomain = getSubdomainFromRequest(host, pathname);
     if (subdomain) {
       const url = request.nextUrl.clone();

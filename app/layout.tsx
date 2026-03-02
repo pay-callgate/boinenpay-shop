@@ -1,3 +1,4 @@
+import React from "react";
 import type { Metadata } from "next";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";

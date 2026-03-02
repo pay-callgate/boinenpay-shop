@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import React, { useState } from "react";
 import { ChevronDown, LayoutDashboard, Package, Building2, ClipboardList, BarChart3, MessageSquare, User } from "lucide-react";
 
 const BRAND_BLUE = "#2B78C5"; // 로그인 화면 신뢰감 파란색
@@ -11,14 +11,15 @@ const BRAND_BLUE = "#2B78C5"; // 로그인 화면 신뢰감 파란색
  * T1-4: 파트너 어드민 사이드바 (B2B SaaS 스타일)
  * 다크 네이비 배경, 브랜드 블루 액센트, 세련된 아코디언, 넉넉한 패딩
  */
+/** 중앙 집중형: base=/admin, 상단 표시명은 partnerDisplayName(company_name 또는 subdomain) */
 export function AdminSidebar({
-  subdomain,
+  partnerDisplayName,
   userName,
 }: {
-  subdomain: string;
+  partnerDisplayName: string;
   userName?: string | null;
 }) {
-  const base = `/${subdomain}/admin`;
+  const base = "/admin";
   const pathname = usePathname();
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -96,7 +97,7 @@ export function AdminSidebar({
     <aside className="w-64 shrink-0 border-r border-slate-800 bg-slate-900">
       {/* 상단 헤더 - 고객사명 + 사용자 정보 */}
       <div className="border-b border-slate-700/80 bg-slate-800/50 px-4 py-5">
-        <p className="text-lg font-bold text-white mb-3">{subdomain}</p>
+        <p className="text-lg font-bold text-white mb-3">{partnerDisplayName}</p>
         <div className="flex items-center gap-3">
           <div
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"

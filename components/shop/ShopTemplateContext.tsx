@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import React, { createContext, useContext } from "react";
 
 /** 컨텍스트용 타입 (ShopLayout에서 import한 타입과 동일 구조) */
 export interface ShopPartnerContext {
