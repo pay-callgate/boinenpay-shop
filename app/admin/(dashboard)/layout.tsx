@@ -6,6 +6,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminIdleGuard } from "@/components/admin/AdminIdleGuard";
+import { AdminToastWrapper } from "@/components/admin/AdminToastWrapper";
 
 /** 세션 만료 시 즉시 리다이렉트 보장 — 레이아웃 캐시로 스냅샷처럼 보이는 현상 방지 */
 export const dynamic = "force-dynamic";
@@ -64,8 +65,9 @@ export default async function AdminDashboardLayout({
     companyName || partner.subdomain?.trim() || "파트너";
 
   return (
-    <AdminIdleGuard>
-      <div className="flex h-screen flex-col overflow-hidden bg-[#F5F7FA]">
+    <AdminToastWrapper>
+      <AdminIdleGuard>
+        <div className="flex h-screen flex-col overflow-hidden bg-[#F5F7FA]">
         <AdminHeader />
         <div className="flex min-h-0 flex-1">
           <AdminSidebar
@@ -76,5 +78,6 @@ export default async function AdminDashboardLayout({
         </div>
       </div>
     </AdminIdleGuard>
+    </AdminToastWrapper>
   );
 }

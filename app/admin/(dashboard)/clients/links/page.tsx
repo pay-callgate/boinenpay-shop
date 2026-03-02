@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Link as LinkIcon, Phone, Settings } from "lucide-react";
+import { Link as LinkIcon, MessageSquare, Phone, Settings } from "lucide-react";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
 import { Call070Modal } from "@/components/admin/Call070Modal";
+import { LinkNotificationModal } from "@/components/admin/LinkNotificationModal";
 import { adminFetch } from "@/lib/admin-fetch";
 
 /**
@@ -35,6 +36,8 @@ export default function ClientsLinksPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [partnerSubdomain, setPartnerSubdomain] = useState<string>("");
+  const [partnerName, setPartnerName] = useState<string>("");
+  const [partnerContact, setPartnerContact] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +48,8 @@ export default function ClientsLinksPage() {
 
   const [is070ModalOpen, setIs070ModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkModalClient, setLinkModalClient] = useState<Client | null>(null);
 
   const ITEMS_PER_PAGE = 10;
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,6 +62,8 @@ export default function ClientsLinksPage() {
         if (result.success && result.data?.id) {
           setPartnerId(result.data.id);
           setPartnerSubdomain(result.data.subdomain ?? "");
+          setPartnerName(result.data.company_name ?? "");
+          setPartnerContact(result.data.contact ?? "");
         } else setPartnerId(null);
       }
     }
@@ -191,6 +198,26 @@ export default function ClientsLinksPage() {
         />
       )}
 
+      {isLinkModalOpen && linkModalClient && (
+        <LinkNotificationModal
+          isOpen={isLinkModalOpen}
+          onClose={() => {
+            setIsLinkModalOpen(false);
+            setLinkModalClient(null);
+          }}
+          partnerName={partnerName}
+          partnerSubdomain={partnerSubdomain}
+          partnerContact={partnerContact}
+          clientSlug={linkModalClient.slug}
+          assigned070Number={
+            linkModalClient.client_call_070_configs?.[0]?.call_070_number
+              ? format070Display(linkModalClient.client_call_070_configs[0].call_070_number)
+              : ""
+          }
+          recipientPhone={linkModalClient.contact_phone ?? ""}
+        />
+      )}
+
       <div className="min-h-screen bg-slate-50 p-6">
         {/* 헤더 */}
         <div className="mb-6">
@@ -274,6 +301,9 @@ export default function ClientsLinksPage() {
                   <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">
                     CallLink 연동
                   </th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">
+                    고객사 Link 안내
+                  </th>
                   <th className="w-28 px-4 py-3 text-center text-xs font-semibold text-slate-600">
                     관리
                   </th>
@@ -282,13 +312,13 @@ export default function ClientsLinksPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
+                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
                       로딩 중...
                     </td>
                   </tr>
                 ) : displayedClients.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
+                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
                       등록된 거래처가 없습니다.
                     </td>
                   </tr>
@@ -402,6 +432,21 @@ export default function ClientsLinksPage() {
                             </div>
                           );
                         })()}
+                      </td>
+
+                      {/* 고객사 Link 안내 */}
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLinkModalClient(c);
+                            setIsLinkModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-600 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          <MessageSquare className="h-4 w-4 text-slate-600" strokeWidth={2} />
+                          고객사 Link 안내
+                        </button>
                       </td>
 
                       {/* 관리 */}
