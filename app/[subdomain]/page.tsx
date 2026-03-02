@@ -99,7 +99,8 @@ export default function PartnerMainPage() {
         </p>
         <a
           href="/"
-          className="mt-4 rounded-lg bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600"
+          className="mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: "#D6A8E0" }}
         >
           홈으로 이동
         </a>

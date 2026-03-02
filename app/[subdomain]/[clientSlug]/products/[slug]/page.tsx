@@ -502,10 +502,10 @@ export default function ProductDetailPage() {
             <span className="w-16 shrink-0 text-sm font-medium text-gray-900">배송</span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap gap-1.5">
-                <span className="rounded-sm bg-purple-50 px-1.5 py-0.5 text-[11px] font-medium text-purple-700">
+                <span className="rounded-sm px-1.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: "#F8F5FF", color: PRIMARY }}>
                   새벽배송
                 </span>
-                <span className="rounded-sm bg-purple-50 px-1.5 py-0.5 text-[11px] font-medium text-purple-700">
+                <span className="rounded-sm px-1.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: "#F8F5FF", color: PRIMARY }}>
                   전국택배
                 </span>
               </div>
@@ -532,7 +532,7 @@ export default function ProductDetailPage() {
                     setSelectedOptions((prev) => ({ ...prev, [opt.id]: e.target.value }))
                   }
                   disabled={isSoldOut}
-                  className="h-12 w-full rounded-none border border-gray-200 px-4 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-200 disabled:bg-gray-50 disabled:text-gray-400"
+                  className="h-12 w-full rounded-none border border-gray-200 px-4 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#D6A8E0]/40 disabled:bg-gray-50 disabled:text-gray-400"
                 >
                   {(opt.values ?? []).map((val, i) => (
                     <option key={i} value={val}>
@@ -601,10 +601,9 @@ export default function ProductDetailPage() {
                 type="button"
                 onClick={() => scrollToSection(tab.key)}
                 className={`flex-1 text-sm transition-colors ${
-                  activeTab === tab.key
-                    ? "font-bold text-purple-700 border-b-2 border-purple-700"
-                    : "text-gray-500"
+                  activeTab === tab.key ? "font-bold border-b-2" : "text-gray-500"
                 }`}
+                style={activeTab === tab.key ? { color: PRIMARY, borderBottomColor: PRIMARY } : undefined}
               >
                 {tab.label}
               </button>

@@ -245,7 +245,8 @@ export default function ProductListPage() {
         <button
           type="button"
           onClick={() => router.push(`/${subdomain}/${clientSlug}`)}
-          className="mt-4 rounded-lg bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600"
+          className="mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: PRIMARY }}
         >
           홈으로
         </button>

@@ -129,7 +129,8 @@ export default function ClientShopPage() {
         <button
           type="button"
           onClick={() => router.push(`/${subdomain}`)}
-          className="mt-6 rounded-lg bg-purple-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-600"
+          className="mt-6 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: "#D6A8E0" }}
         >
           홈으로 이동
         </button>
@@ -142,7 +143,8 @@ export default function ClientShopPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-6">
         <div
-          className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-purple-500"
+          className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200"
+          style={{ borderTopColor: "#D6A8E0" }}
           aria-hidden
         />
         <p className="mt-4 text-sm text-slate-600">거래처 정보를 등록하는 중...</p>
