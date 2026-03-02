@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * 거래처 등록/수정 모달
@@ -148,7 +149,7 @@ export function ClientRegistrationModal({
       fd.append("bucket", "clients");
       fd.append("partnerId", partnerId);
       if (initialData?.id) fd.append("entityId", initialData.id);
-      const res = await fetch("/api/upload/image", { method: "POST", body: fd });
+      const res = await adminFetch("/api/upload/image", { method: "POST", body: fd });
       const data = await res.json();
       if (data?.url) setFormData((prev) => ({ ...prev, logoUrl: data.url }));
       else alert(data?.error || "로고 업로드에 실패했습니다.");
@@ -197,7 +198,7 @@ export function ClientRegistrationModal({
             addressDetail: formData.addressDetail.trim() || null,
           };
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

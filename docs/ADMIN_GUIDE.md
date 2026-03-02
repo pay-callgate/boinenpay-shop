@@ -10,6 +10,7 @@
 1. [Part 1. 파트너 어드민 접속 플로우](#part-1-파트너-어드민-접속-플로우)
 2. [Part 2. 파트너 등록 API 수정 및 DB 마이그레이션](#part-2-파트너-등록-api-수정-및-db-마이그레이션)
 3. [Part 3. 모바일 쇼핑몰 로그인 수정](#part-3-모바일-쇼핑몰-로그인-수정)
+4. [Part 4. 어드민 보안 정책 (1시간 세션 + 유휴 감지)](#part-4-어드민-보안-정책-1시간-세션--유휴-감지)
 
 ---
 
@@ -86,8 +87,38 @@
 
 ---
 
+## Part 4. 어드민 보안 정책 (1시간 세션 + 유휴 감지)
+
+**목적:** 서버 부하 절감 및 보안 강화. 장시간 비활동 시 세션 종료로 리소스 절약.
+
+### 4.1 세션 만료 시간
+
+- **lib/auth.ts:** `session.maxAge = 60 * 60` (1시간 = 3,600초)
+- NextAuth JWT 전략 적용. 1시간 경과 시 세션 무효화.
+
+### 4.2 유휴 시간 감지 및 자동 로그아웃
+
+- **AdminIdleGuard** (`components/admin/AdminIdleGuard.tsx`): 어드민 대시보드 레이아웃에 적용
+- **감지 이벤트:** mousedown, mousemove, keydown, scroll, touchstart
+- **기본 유휴 시간:** 30분. 환경변수 `NEXT_PUBLIC_ADMIN_IDLE_TIMEOUT_MIN`으로 30~60분 등 조정 가능
+- **동작:** 유휴 시간 경과 시 alert → signOut → `/admin/login?callbackUrl=/admin` 리다이렉트
+
+### 4.3 401 전역 인터셉터
+
+- **adminFetch** (`lib/admin-fetch.ts`): 어드민 전용 fetch 래퍼
+- 모든 어드민 API 호출(page.tsx, components/admin)에서 `fetch` 대신 `adminFetch` 사용
+- **401 수신 시:** 세션 만료 alert → signOut → 로그인 페이지 리다이렉트. 빈 화면("등록된 상품이 없습니다") 대신 명시적 로그아웃 처리
+
+### 4.4 적용 범위
+
+- `app/admin/(dashboard)/**` 페이지
+- `components/admin/*` (ProductRegistrationModal, Call070Modal, ClientRegistrationModal, PartnerRegistrationForm 등)
+
+---
+
 ## 변경 이력 (병합)
 
 | 날짜 (KST) | 내용 |
 |------------|------|
 | 2026-02-10 | PARTNER_ADMIN_ACCESS_CHECKLIST, PARTNER_REGISTRATION_FIX_GUIDE, MOBILE_SHOP_LOGIN_FIX 병합 → ADMIN_GUIDE.md |
+| 2026-02-10 | Part 4 추가: 어드민 보안 정책 (1시간 세션, 30분 유휴 자동 로그아웃, 401 전역 인터셉터) |

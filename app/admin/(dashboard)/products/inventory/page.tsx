@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T2-4: 재고 관리 페이지
@@ -38,7 +39,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     async function fetchPartner() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) setPartnerId(result.data.id);
@@ -54,7 +55,7 @@ export default function InventoryPage() {
       return;
     }
     setLoading(true);
-    const res = await fetch(`/api/products?partnerId=${partnerId}&limit=100`);
+    const res = await adminFetch(`/api/products?partnerId=${partnerId}&limit=100`);
     if (res.ok) {
       const data = await res.json();
       setProducts(data.products || []);
@@ -85,7 +86,7 @@ export default function InventoryPage() {
   }, [filter]);
 
   const handleSave = async (productId: string) => {
-    const res = await fetch(`/api/products/${productId}`, {
+    const res = await adminFetch(`/api/products/${productId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

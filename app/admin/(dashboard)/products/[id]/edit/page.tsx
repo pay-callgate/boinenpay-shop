@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T2-3: 상품 수정 페이지
@@ -61,7 +62,7 @@ export default function ProductEditPage() {
   // 파트너 정보 조회
   useEffect(() => {
     async function fetchPartner() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) setPartnerId(result.data.id);
@@ -75,7 +76,7 @@ export default function ProductEditPage() {
   useEffect(() => {
     async function fetchCategories() {
       if (!partnerId) return;
-      const res = await fetch(`/api/categories?partnerId=${partnerId}`);
+      const res = await adminFetch(`/api/categories?partnerId=${partnerId}`);
       if (res.ok) {
         const data = await res.json();
         setCategories(data.flat || []);
@@ -88,7 +89,7 @@ export default function ProductEditPage() {
   useEffect(() => {
     async function fetchProduct() {
       if (!productId) return;
-      const res = await fetch(`/api/products/${productId}`);
+      const res = await adminFetch(`/api/products/${productId}`);
       if (res.ok) {
         const data = await res.json();
         const p: Product = data.product;
@@ -143,7 +144,7 @@ export default function ProductEditPage() {
 
     setSaving(true);
 
-    const res = await fetch(`/api/products/${productId}`, {
+    const res = await adminFetch(`/api/products/${productId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

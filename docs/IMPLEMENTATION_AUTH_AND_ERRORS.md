@@ -46,7 +46,18 @@
 
 ---
 
-## 4. 요약
+## 4. 어드민 보안 정책 (2026-02-10 도입)
+
+| 항목 | 내용 |
+|------|------|
+| **세션 maxAge** | 1시간 (3,600초). lib/auth.ts |
+| **유휴 자동 로그아웃** | 30분 기본. AdminIdleGuard. NEXT_PUBLIC_ADMIN_IDLE_TIMEOUT_MIN으로 조정 |
+| **401 인터셉터** | adminFetch. 모든 어드민 API 호출에 적용. 401 시 alert → signOut → /admin/login |
+
+---
+
+## 5. 요약
 
 - CLIENT_FETCH_ERROR = auth API 호출 실패. DB/070과 무관.
+- 어드민: 1시간 세션, 30분 유휴 로그아웃, 401 시 adminFetch가 즉시 로그인 페이지로 이동.
 - 서버 동작·접속 URL 확인 후 `/api/auth/session` 직접 호출로 원인 축소.

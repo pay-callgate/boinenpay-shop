@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link as LinkIcon, Phone, Settings } from "lucide-react";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
 import { Call070Modal } from "@/components/admin/Call070Modal";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T3-3: 링크 생성/배포 페이지
@@ -50,7 +51,7 @@ export default function ClientsLinksPage() {
 
   useEffect(() => {
     async function fetchPartner() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) {
@@ -70,7 +71,7 @@ export default function ClientsLinksPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/clients?partnerId=${partnerId}`);
+      const res = await adminFetch(`/api/clients?partnerId=${partnerId}`);
       if (res.ok) {
         const data = await res.json();
         setClients(data.clients || []);
@@ -154,7 +155,7 @@ export default function ClientsLinksPage() {
   // 거래처 삭제
   const handleDelete = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까? 연결된 사용자 매핑도 함께 삭제됩니다.")) return;
-    const res = await fetch(`/api/clients/${id}`, { method: "DELETE" });
+    const res = await adminFetch(`/api/clients/${id}`, { method: "DELETE" });
     if (res.ok) fetchClients();
     else {
       const data = await res.json();

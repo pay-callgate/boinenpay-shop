@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 /**
  * 매출 분석 페이지 (파트너 어드민)
  * /admin/stats/sales (중앙 집중형)
@@ -32,7 +33,7 @@ export default function StatsSalesPage() {
 
   useEffect(() => {
     async function fetchPartnerId() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) setPartnerId(result.data.id);
@@ -51,7 +52,7 @@ export default function StatsSalesPage() {
       else if (period === "month") startDate.setMonth(startDate.getMonth() - 1);
       else if (period === "year") startDate.setFullYear(startDate.getFullYear() - 1);
 
-      const res = await fetch(
+      const res = await adminFetch(
         `/api/orders/stats?partnerId=${partnerId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
       );
       if (res.ok) {

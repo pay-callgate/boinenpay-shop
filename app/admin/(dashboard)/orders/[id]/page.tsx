@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -147,7 +148,7 @@ export default function OrderDetailPage() {
       if (!orderId) return;
 
       setLoading(true);
-      const res = await fetch(`/api/partner/orders/${orderId}`);
+      const res = await adminFetch(`/api/partner/orders/${orderId}`);
       if (res.ok) {
         const data = await res.json();
         setOrder(data.order);
@@ -170,7 +171,7 @@ export default function OrderDetailPage() {
     setUpdating(true);
 
     try {
-      const res = await fetch(`/api/partner/orders/${orderId}`, {
+      const res = await adminFetch(`/api/partner/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

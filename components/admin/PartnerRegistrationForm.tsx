@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface PartnerRegistrationFormProps {
   subdomain: string;
@@ -46,7 +47,7 @@ export function PartnerRegistrationForm({
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/partner/register", {
+      const res = await adminFetch("/api/partner/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

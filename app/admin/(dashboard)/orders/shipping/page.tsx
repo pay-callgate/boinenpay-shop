@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * 배송 관리 페이지 (파트너 어드민)
@@ -89,7 +90,7 @@ export default function OrdersShippingPage() {
   useEffect(() => {
     async function fetchClients() {
       if (!partnerId) return;
-      const res = await fetch(`/api/clients?partnerId=${partnerId}`);
+      const res = await adminFetch(`/api/clients?partnerId=${partnerId}`);
       if (res.ok) {
         const data = await res.json();
         setClients(data.clients || []);
@@ -108,7 +109,7 @@ export default function OrdersShippingPage() {
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
 
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       if (res.ok) {
         const data = await res.json();
         setOrders(data.orders || []);
@@ -130,7 +131,7 @@ export default function OrdersShippingPage() {
     if (!editOrder) return;
     setUpdating(true);
     try {
-      const res = await fetch(`/api/partner/orders/${editOrder.id}`, {
+      const res = await adminFetch(`/api/partner/orders/${editOrder.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

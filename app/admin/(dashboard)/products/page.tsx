@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ProductRegistrationModal } from "@/components/admin/ProductRegistrationModal";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T2-2: 상품 목록 페이지 (모바일 쇼핑몰 Admin UI)
@@ -55,7 +56,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     async function fetchPartner() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) {
@@ -70,7 +71,7 @@ export default function ProductsPage() {
   useEffect(() => {
     async function fetchCategories() {
       if (!partnerId) return;
-      const res = await fetch(`/api/categories?partnerId=${partnerId}`);
+      const res = await adminFetch(`/api/categories?partnerId=${partnerId}`);
       if (res.ok) {
         const data = await res.json();
         setCategories(data.flat || []);
@@ -96,7 +97,7 @@ export default function ProductsPage() {
       if (categoryId) params.append("categoryId", categoryId);
       if (status) params.append("status", status);
 
-      const res = await fetch(`/api/products?${params}`);
+      const res = await adminFetch(`/api/products?${params}`);
       if (res.ok) {
         const data = await res.json();
         setProducts(data.products || []);
@@ -114,7 +115,7 @@ export default function ProductsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
-    const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+    const res = await adminFetch(`/api/products/${id}`, { method: "DELETE" });
     if (res.ok) fetchProducts();
     else {
       const data = await res.json();

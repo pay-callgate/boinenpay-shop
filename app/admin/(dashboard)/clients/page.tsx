@@ -6,6 +6,7 @@ import { Phone, Settings } from "lucide-react";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
 import { Call070Modal } from "@/components/admin/Call070Modal";
 import { getStorefrontUrl } from "@/lib/app-url";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T3-1: 거래처 목록 페이지 (고급 UI)
@@ -63,7 +64,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     async function fetchPartner() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) {
@@ -84,7 +85,7 @@ export default function ClientsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/clients?partnerId=${partnerId}`);
+      const res = await adminFetch(`/api/clients?partnerId=${partnerId}`);
       if (res.ok) {
         const data = await res.json();
         setClients(data.clients || []);
@@ -129,7 +130,7 @@ export default function ClientsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까? 연결된 사용자 매핑도 함께 삭제됩니다.")) return;
-    const res = await fetch(`/api/clients/${id}`, { method: "DELETE" });
+    const res = await adminFetch(`/api/clients/${id}`, { method: "DELETE" });
     if (res.ok) fetchClients();
     else {
       const data = await res.json();

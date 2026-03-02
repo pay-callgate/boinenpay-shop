@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * 취소/반품 페이지 (파트너 어드민)
@@ -61,7 +62,7 @@ export default function OrdersReturnsPage() {
 
   useEffect(() => {
     async function fetchPartnerId() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) setPartnerId(result.data.id);
@@ -73,7 +74,7 @@ export default function OrdersReturnsPage() {
   useEffect(() => {
     async function fetchClients() {
       if (!partnerId) return;
-      const res = await fetch(`/api/clients?partnerId=${partnerId}`);
+      const res = await adminFetch(`/api/clients?partnerId=${partnerId}`);
       if (res.ok) {
         const data = await res.json();
         setClients(data.clients || []);
@@ -91,7 +92,7 @@ export default function OrdersReturnsPage() {
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
 
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       if (res.ok) {
         const data = await res.json();
         setOrders(data.orders || []);

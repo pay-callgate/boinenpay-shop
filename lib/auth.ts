@@ -142,7 +142,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 60 * 60, // 1시간 (어드민 보안 정책: 1시간 세션 유지)
   },
   pages: {
     signIn: "/login",

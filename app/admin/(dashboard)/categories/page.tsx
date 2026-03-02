@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Switch } from "@/components/ui/switch";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T2-1: 카테고리 관리 페이지 (모던 SaaS 스타일)
@@ -56,7 +57,7 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     async function fetchPartner() {
-      const res = await fetch("/api/partner");
+      const res = await adminFetch("/api/partner");
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.id) setPartnerId(result.data.id);
@@ -73,7 +74,7 @@ export default function CategoriesPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/categories?partnerId=${partnerId}`);
+      const res = await adminFetch(`/api/categories?partnerId=${partnerId}`);
       if (res.ok) {
         const data = await res.json();
         setCategories(data.categories || []);
@@ -101,7 +102,7 @@ export default function CategoriesPage() {
       : "/api/categories";
     const method = editingCategory ? "PUT" : "POST";
 
-    const res = await fetch(url, {
+    const res = await adminFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -124,7 +125,7 @@ export default function CategoriesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
-    const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
+    const res = await adminFetch(`/api/categories/${id}`, { method: "DELETE" });
     if (res.ok) {
       resetForm();
       fetchCategories();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T3-4: 070번호 연결 팝업 (TRD §7.2)
@@ -53,7 +54,7 @@ export function Call070Modal({
     if (!isOpen || !clientId) return;
 
     async function fetchConfig() {
-      const res = await fetch(`/api/clients/${clientId}/070`);
+      const res = await adminFetch(`/api/clients/${clientId}/070`);
       if (res.ok) {
         const data = await res.json();
         if (data.config) {
@@ -84,7 +85,7 @@ export function Call070Modal({
 
     setSaving(true);
 
-    const res = await fetch(`/api/clients/${clientId}/070`, {
+    const res = await adminFetch(`/api/clients/${clientId}/070`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -130,7 +131,7 @@ export function Call070Modal({
     setRegistering(true);
 
     try {
-      const res = await fetch(`/api/clients/${clientId}/070/register`, {
+      const res = await adminFetch(`/api/clients/${clientId}/070/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

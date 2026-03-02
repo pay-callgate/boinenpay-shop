@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const deliveryOptions = [
   { id: "parcel", label: "택배" },
@@ -109,7 +110,7 @@ export function ProductRegistrationModal({
 
   useEffect(() => {
     if (!partnerId || !open) return;
-    fetch(`/api/categories?partnerId=${partnerId}`)
+    adminFetch(`/api/categories?partnerId=${partnerId}`)
       .then((res) => res.json())
       .then((data) => setCategories(data.flat || []));
   }, [partnerId, open]);
@@ -195,7 +196,7 @@ export function ProductRegistrationModal({
 
       const isEdit = !!initialData?.id;
       const url = isEdit ? `/api/products/${initialData!.id}` : "/api/products";
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(isEdit ? payload : { partnerId, ...payload }),
