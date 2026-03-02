@@ -338,6 +338,7 @@ export function ShopLayout({
             partner={partner}
             client={client}
             orderAllowed={orderAllowed}
+            onSearchClick={() => setSearchOpen(true)}
           />
           <ShopHeader
             partner={partner}
@@ -430,6 +431,7 @@ export function ShopGlobalLayout({
               partner={partner}
               client={client}
               orderAllowed={orderAllowed}
+              onSearchClick={() => setSearchOpen(true)}
             />
           )}
           <SmartHeader

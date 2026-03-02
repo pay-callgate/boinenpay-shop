@@ -692,7 +692,7 @@ export default function ProductDetailPage() {
         <div style={{ height: BOTTOM_NAV_HEIGHT + 56 }} />
       </div>
 
-      {/* 관심상품담기 모달 — 브랜드 컬러(PRIMARY) 및 쇼핑몰 표준 버튼 스타일 */}
+      {/* 관심상품담기 모달 — 컴팩트 슬림 UI, 브랜드 컬러(PRIMARY) 유지 */}
       {showWishlistModal && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
@@ -700,44 +700,44 @@ export default function ProductDetailPage() {
           aria-modal="true"
           aria-labelledby="wishlist-modal-title"
         >
-          <div className="w-full max-w-[340px] rounded-xl overflow-hidden bg-white shadow-xl">
+          <div className="w-full max-w-[300px] rounded-xl overflow-hidden bg-white shadow-xl">
             <header
-              className="flex items-center justify-between px-5 py-4 text-white"
+              className="flex items-center justify-between px-4 py-2.5 text-white"
               style={{ backgroundColor: PRIMARY }}
             >
-              <h2 id="wishlist-modal-title" className="text-lg font-bold">
+              <h2 id="wishlist-modal-title" className="text-base font-bold">
                 관심상품담기
               </h2>
               <button
                 type="button"
                 onClick={() => setShowWishlistModal(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/20 active:opacity-80"
+                className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-white/20 active:opacity-80"
                 aria-label="닫기"
               >
-                <span className="text-xl leading-none">×</span>
+                <span className="text-lg leading-none">×</span>
               </button>
             </header>
-            <div className="px-5 py-8 text-center">
+            <div className="px-4 py-5 text-center">
               <Heart
                 fill={PRIMARY}
                 stroke={PRIMARY}
                 strokeWidth={1.5}
-                className="mx-auto mb-4 h-14 w-14"
+                className="mx-auto mb-3 h-12 w-12"
               />
-              <p className="text-[15px] leading-relaxed text-gray-700">
+              <p className="text-sm leading-relaxed text-gray-700">
                 선택하신 상품을 관심상품에 담았습니다.
                 <br />
                 지금 관심상품을 확인하시겠습니까?
               </p>
             </div>
-            <div className="flex gap-2 px-5 pb-6">
+            <div className="flex gap-2 px-4 pb-4">
               <button
                 type="button"
                 onClick={() => {
                   setShowWishlistModal(false);
                   router.push(`/${subdomain}/${clientSlug}/mypage/wishlist`);
                 }}
-                className="flex-1 rounded-lg py-3.5 text-lg font-medium text-white active:opacity-90"
+                className="flex-1 rounded-lg py-2 text-sm font-medium text-white active:opacity-90"
                 style={{ backgroundColor: PRIMARY }}
               >
                 관심상품 확인
@@ -745,7 +745,7 @@ export default function ProductDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowWishlistModal(false)}
-                className="flex-1 rounded-lg border border-gray-300 py-3.5 text-lg font-medium text-gray-700 hover:bg-gray-50 active:opacity-90"
+                className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 active:opacity-90"
               >
                 쇼핑 계속하기
               </button>

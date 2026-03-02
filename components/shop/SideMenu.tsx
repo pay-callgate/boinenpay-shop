@@ -69,6 +69,8 @@ export interface SideMenuProps {
   partner: ShopPartner;
   client: ShopClient | null;
   orderAllowed: boolean;
+  /** 좌측 메뉴 내 Search 버튼 클릭 시 호출 (검색 모달 열기). 전달 시 Search 버튼이 동작함 */
+  onSearchClick?: () => void;
 }
 
 export function SideMenu({
@@ -79,6 +81,7 @@ export function SideMenu({
   partner,
   client,
   orderAllowed,
+  onSearchClick,
 }: SideMenuProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -222,6 +225,10 @@ export function SideMenu({
             </Link>
             <button
               type="button"
+              onClick={() => {
+                onClose();
+                onSearchClick?.();
+              }}
               className="flex flex-col items-center justify-center gap-1 py-4 text-white"
               aria-label="검색"
             >
