@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
           id,
           name,
           slug,
-          price,
-          discount_rate,
+          base_price,
+          sale_price,
           thumbnail_url,
           status
         )

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * T6-3: 배송지 관리 (통합 배송지 — clientId 미사용)
@@ -46,32 +47,41 @@ export default function AddressesPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 배송지 목록 조회 (Context 준비 후 실행, 통합 배송지이므로 clientId 미전달)
-  const refetchAddresses = () => {
+  // 배송지 목록 조회 (전역 shopFetch 사용 — 401/403 시 자동 세션 만료 처리)
+  const refetchAddresses = async () => {
     setLoading(true);
-    fetch(`/api/mypage/addresses`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setAddresses(data?.addresses ?? []))
-      .finally(() => setLoading(false));
+    try {
+      const res = await shopFetch(`/api/mypage/addresses`);
+      if (res.ok) {
+        const data = await res.json();
+        setAddresses(data?.addresses ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    if (!partner?.id || !client?.id) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/mypage/addresses`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+    (async () => {
+      try {
+        const res = await shopFetch(`/api/mypage/addresses`);
         if (cancelled) return;
-        setAddresses(data?.addresses ?? []);
-      })
-      .finally(() => {
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) setAddresses(data?.addresses ?? []);
+        }
+      } catch {
+        // SESSION_EXPIRED 등 — 전역에서 이미 알림·리다이렉트 처리
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [partner?.id, client?.id]);
+  }, []);
 
   // 폼 초기화
   const resetForm = () => {
@@ -113,7 +123,7 @@ export default function AddressesPage() {
     try {
       if (editingAddress) {
         // 수정
-        const res = await fetch(`/api/mypage/addresses/${editingAddress.id}`, {
+        const res = await shopFetch(`/api/mypage/addresses/${editingAddress.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
@@ -129,7 +139,7 @@ export default function AddressesPage() {
         }
       } else {
         // 추가
-        const res = await fetch(`/api/mypage/addresses`, {
+        const res = await shopFetch(`/api/mypage/addresses`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
@@ -153,7 +163,7 @@ export default function AddressesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("이 배송지를 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/mypage/addresses/${id}`, { method: "DELETE" });
+      const res = await shopFetch(`/api/mypage/addresses/${id}`, { method: "DELETE" });
       if (res.ok) {
         alert("배송지가 삭제되었습니다.");
         refetchAddresses();

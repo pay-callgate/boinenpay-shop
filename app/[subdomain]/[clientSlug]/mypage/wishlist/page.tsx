@@ -1,22 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { Heart } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
+import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * T6-5: 관심상품(Wishlist)
  * /{subdomain}/{clientSlug}/mypage/wishlist
- * partner/client는 ShopTemplateContext에서 사용.
+ * UI: 최근 본 상품 페이지와 동일 레이아웃·Tailwind 재활용 + 체크박스, 전체선택, 선택삭제, 전체상품주문
  */
 
 interface Product {
   id: string;
   name: string;
   slug: string;
-  price: number;
-  discount_rate: number;
+  base_price: number;
+  sale_price: number | null;
   thumbnail_url: string | null;
   status: string;
 }
@@ -27,357 +31,412 @@ interface WishlistItem {
   product: Product;
 }
 
+const PRIMARY = "#D6A8E0";
+
+function formatPrice(price: number): string {
+  const n = Number(price);
+  if (Number.isNaN(n)) return "0";
+  return new Intl.NumberFormat("ko-KR").format(n);
+}
+
+function getDiscountRate(basePrice: number, salePrice: number | null): number | null {
+  const base = Number(basePrice);
+  const sale = salePrice != null ? Number(salePrice) : null;
+  if (Number.isNaN(base) || sale == null || sale >= base) return null;
+  return Math.round(((base - sale) / base) * 100);
+}
+
 export default function WishlistPage() {
   const params = useParams();
   const router = useRouter();
   const template = useShopTemplate();
-  const partner = template?.partner ?? null;
-  const client = template?.client ?? null;
+  const partner = (template?.partner ?? null) as ShopPartner | null;
+  const client = (template?.client ?? null) as ShopClient | null;
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
 
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // 관심상품 목록 조회 (Context 준비 후 실행)
-  useEffect(() => {
-    if (!partner?.id || !client?.id) return;
-    let cancelled = false;
-    setLoading(true);
-    fetch(`/api/mypage/wishlist?clientId=${client.id}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled) return;
-        setItems(data?.items ?? []);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [partner?.id, client?.id]);
+  const base = `/${subdomain}/${clientSlug}`;
 
-  // 관심상품 목록 다시 불러오기
-  const refetchWishlist = () => {
+  const refetchWishlist = useCallback(() => {
     if (!client?.id) return;
     setLoading(true);
-    fetch(`/api/mypage/wishlist?clientId=${client.id}`)
+    shopFetch(`/api/mypage/wishlist?clientId=${client.id}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setItems(data?.items ?? []))
       .finally(() => setLoading(false));
+  }, [client?.id]);
+
+  useEffect(() => {
+    if (!client?.id) return;
+    refetchWishlist();
+  }, [client?.id, refetchWishlist]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  // 관심상품 삭제
+  const toggleSelectAll = () => {
+    if (selectedIds.size >= items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("관심상품에서 삭제하시겠습니까?")) return;
-
     try {
-      const res = await fetch(`/api/mypage/wishlist/${id}`, {
-        method: "DELETE",
-      });
-
+      const res = await shopFetch(`/api/mypage/wishlist/${id}`, { method: "DELETE" });
       if (res.ok) {
-        alert("관심상품에서 삭제되었습니다.");
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
         refetchWishlist();
       } else {
-        const error = await res.json();
-        alert(error.error || "삭제에 실패했습니다.");
+        const err = await res.json();
+        alert(err.error || "삭제에 실패했습니다.");
       }
     } catch {
       alert("네트워크 오류가 발생했습니다.");
     }
   };
 
-  // 가격 포맷팅
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("ko-KR").format(price);
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) {
+      alert("삭제할 항목을 선택해 주세요.");
+      return;
+    }
+    if (!confirm(`선택한 ${selectedIds.size}개 항목을 관심상품에서 삭제하시겠습니까?`)) return;
+    const idsToDelete = new Set(selectedIds);
+    try {
+      const results = await Promise.all(
+        Array.from(idsToDelete).map((id) =>
+          shopFetch(`/api/mypage/wishlist/${id}`, { method: "DELETE" }).then((r) => ({ id, ok: r.ok }))
+        )
+      );
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        alert("일부 삭제에 실패했습니다.");
+      }
+      setSelectedIds(new Set());
+      setItems((prev) => prev.filter((item) => !idsToDelete.has(item.id)));
+    } catch {
+      alert("일부 삭제에 실패했습니다.");
+    }
   };
 
-  // 할인율 계산
-  const getDiscountRate = (price: number, discountRate: number) => {
-    if (!discountRate || discountRate <= 0) return null;
-    return discountRate;
+  const handleAddToCart = async (productId: string) => {
+    if (!template?.orderAllowed) {
+      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      return;
+    }
+    const clientIdCookie = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("client_source_id="))
+      ?.split("=")[1];
+    if (!clientIdCookie) {
+      alert("거래처 정보를 찾을 수 없습니다.");
+      return;
+    }
+    try {
+      const res = await shopFetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
+      });
+      if (res.ok) {
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
+        alert("장바구니에 추가되었습니다.");
+      } else {
+        const err = await res.json();
+        alert(err.error || "장바구니 추가에 실패했습니다.");
+      }
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    }
   };
 
-  // 할인가 계산
-  const getDiscountedPrice = (price: number, discountRate: number) => {
-    if (!discountRate || discountRate <= 0) return price;
-    return price * (1 - discountRate / 100);
+  const handleOrderNow = async (productId: string) => {
+    if (!template?.orderAllowed) {
+      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      return;
+    }
+    const clientIdCookie = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("client_source_id="))
+      ?.split("=")[1];
+    if (!clientIdCookie) {
+      alert("거래처 정보를 찾을 수 없습니다.");
+      return;
+    }
+    try {
+      const res = await shopFetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
+      });
+      if (res.ok) {
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
+        router.push(`${base}/checkout`);
+      } else {
+        const err = await res.json();
+        alert(err.error ?? "장바구니 추가에 실패했습니다.");
+      }
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    }
   };
 
-  if (template == null || !partner || !client) {
+  const handleOrderAll = async () => {
+    if (items.length === 0) return;
+    if (!template?.orderAllowed) {
+      alert("마스터 템플릿 미리보기 상태에서는 주문이 불가능합니다.");
+      return;
+    }
+    const clientIdCookie = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("client_source_id="))
+      ?.split("=")[1];
+    if (!clientIdCookie) {
+      alert("거래처 정보를 찾을 수 없습니다.");
+      return;
+    }
+    try {
+      for (const item of items) {
+        await shopFetch("/api/cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId: clientIdCookie,
+            productId: item.product.id,
+            quantity: 1,
+          }),
+        });
+      }
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
+      router.push(`${base}/checkout`);
+    } catch {
+      alert("장바구니 담기 중 오류가 발생했습니다.");
+    }
+  };
+
+  if (template == null) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#F5F5F5",
-        }}
-      >
-        <p style={{ color: "#666" }}>로딩 중...</p>
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-gray-500">로딩 중...</p>
       </div>
     );
   }
 
-  return (
-    <OrderGuard partnerId={partner.id}>
-      <div className="flex flex-col min-h-screen bg-slate-50 max-w-[430px] mx-auto pb-[76px] relative">
-        {/* 헤더 */}
-        <header className="shrink-0 flex items-center gap-3 px-4 py-4 bg-white border-b border-gray-200">
+  if (!partner || !client) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6">
+        <p className="mb-4 text-gray-500">정보를 불러올 수 없습니다.</p>
+        <button
+          type="button"
+          onClick={() => router.push(`${base}`)}
+          className="rounded-xl px-6 py-3 text-sm font-semibold text-white"
+          style={{ backgroundColor: PRIMARY }}
+        >
+          홈으로
+        </button>
+      </div>
+    );
+  }
+
+  const content = (
+    <div className="min-h-full bg-white">
+      <div className="border-b border-gray-100 px-4 py-4">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => router.push(`/${subdomain}/${clientSlug}/mypage`)}
-            className="p-0 border-0 bg-transparent cursor-pointer"
+            onClick={() => router.push(`${base}/mypage`)}
+            className="p-1 -ml-1 rounded hover:bg-gray-100"
+            aria-label="뒤로"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-800">
               <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <h1 className="text-lg font-bold flex-1">관심상품</h1>
-          <span className="text-sm text-gray-500">{items.length}개</span>
-        </header>
+          <h1 className="text-xl font-bold tracking-tight text-gray-900 flex-1">관심상품</h1>
+        </div>
+      </div>
 
-        {/* 관심상품 목록 */}
-        <main className="flex-1 bg-white">
-        {loading ? (
-          <div
-            style={{
-              padding: "40px 16px",
-              textAlign: "center",
-            }}
+      {loading ? (
+        <div className="px-4 py-16 text-center">
+          <p className="text-gray-500">로딩 중...</p>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center px-4 py-16">
+          <Heart
+            className="mb-4 h-14 w-14 text-gray-300"
+            strokeWidth={1.25}
+            fill="none"
+            aria-hidden
+          />
+          <p className="mb-6 text-[15px] text-gray-600">관심상품이 없습니다</p>
+          <button
+            type="button"
+            onClick={() => router.push(`${base}/products`)}
+            className="rounded-xl px-6 py-3 text-sm font-semibold text-white"
+            style={{ backgroundColor: PRIMARY }}
           >
-            <p style={{ color: "#999" }}>로딩 중...</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div
-            style={{
-              padding: "60px 16px",
-              textAlign: "center",
-            }}
-          >
-            <svg
-              width="80"
-              height="80"
-              viewBox="0 0 24 24"
-              fill="none"
-              style={{ margin: "0 auto 16px" }}
-            >
-              <path
-                d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
-                stroke="#D1D5DB"
-                strokeWidth="2"
-                fill="none"
+            쇼핑하러 가기
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* 전체선택 / 선택삭제 */}
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 bg-gray-50">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={items.length > 0 && selectedIds.size === items.length}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-gray-300"
               />
-            </svg>
-            <p style={{ fontSize: "1rem", color: "#666", marginBottom: "24px" }}>
-              관심상품이 없습니다
-            </p>
+              <span className="text-sm font-medium text-gray-700">전체선택</span>
+            </label>
             <button
-              onClick={() => router.push(`/${subdomain}/${clientSlug}/products`)}
-              style={{
-                padding: "12px 24px",
-                backgroundColor: "#D6A8E0",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                fontSize: "0.9375rem",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              type="button"
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.size === 0}
+              className="rounded border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              쇼핑하러 가기
+              선택삭제
             </button>
           </div>
-        ) : (
-          <div style={{ padding: "16px" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px",
-              }}
-            >
-              {items.map((item) => {
-                const product = item.product;
-                const isSoldOut = product.status === "sold_out";
-                const discountRate = getDiscountRate(product.price, product.discount_rate);
-                const finalPrice = getDiscountedPrice(product.price, product.discount_rate);
 
-                return (
-                  <div
-                    key={item.id}
-                    style={{
-                      backgroundColor: "#fff",
-                      borderRadius: "8px",
-                      overflow: "hidden",
-                      border: "1px solid #E5E7EB",
-                      position: "relative",
-                    }}
+          <ul className="flex flex-col gap-4 px-4 pb-8 pt-4">
+            {items.map((item) => {
+              const p = item.product;
+              const basePrice = Number(p.base_price) || 0;
+              const salePrice = p.sale_price != null ? Number(p.sale_price) : null;
+              const discountRate = getDiscountRate(basePrice, salePrice);
+              const finalPrice = salePrice != null && salePrice < basePrice ? salePrice : basePrice;
+              const isSoldOut = p.status === "sold_out";
+              const savedAmount =
+                discountRate != null && discountRate > 0
+                  ? Math.round((basePrice * discountRate) / 100)
+                  : null;
+
+              return (
+                <li
+                  key={item.id}
+                  className="flex flex-row gap-3 rounded-lg border border-gray-100 bg-white p-3"
+                >
+                  <div className="flex shrink-0 items-start pt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                  </div>
+                  <Link
+                    href={`${base}/products/${p.slug}`}
+                    className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-gray-100"
                   >
-                    {/* 상품 이미지 */}
-                    <div
-                      onClick={() =>
-                        router.push(`/${subdomain}/${clientSlug}/products/${product.slug}`)
-                      }
-                      style={{
-                        position: "relative",
-                        paddingBottom: "100%",
-                        backgroundColor: "#F3F4F6",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {product.thumbnail_url && (
-                        <img
-                          src={product.thumbnail_url}
-                          alt={product.name}
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            opacity: isSoldOut ? 0.5 : 1,
-                          }}
-                        />
+                    {p.thumbnail_url ? (
+                      <img
+                        src={p.thumbnail_url}
+                        alt={p.name}
+                        className={`h-full w-full object-cover ${isSoldOut ? "opacity-50" : ""}`}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+                        No Image
+                      </div>
+                    )}
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <Link href={`${base}/products/${p.slug}`} className="block">
+                      <p className="line-clamp-2 text-[15px] font-normal leading-tight text-gray-800">
+                        {p.name}
+                      </p>
+                    </Link>
+                    <div className="mt-1 flex flex-wrap items-baseline gap-1">
+                      {discountRate != null && discountRate > 0 && (
+                        <span className="text-sm font-bold text-red-500">{discountRate}%</span>
                       )}
-                      {isSoldOut && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            backgroundColor: "rgba(0,0,0,0.7)",
-                            color: "#fff",
-                            padding: "8px 16px",
-                            borderRadius: "4px",
-                            fontSize: "0.875rem",
-                            fontWeight: 600,
-                          }}
-                        >
-                          품절
-                        </div>
-                      )}
-                      {/* 삭제 버튼 */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(item.id);
-                        }}
-                        style={{
-                          position: "absolute",
-                          top: "8px",
-                          right: "8px",
-                          width: "28px",
-                          height: "28px",
-                          borderRadius: "50%",
-                          backgroundColor: "rgba(0,0,0,0.5)",
-                          color: "#fff",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "1rem",
-                        }}
+                      <span className="text-xs text-gray-400 line-through">
+                        {formatPrice(basePrice)}원
+                      </span>
+                      <span
+                        className={`text-[15px] font-bold ${
+                          isSoldOut ? "text-gray-400" : "text-gray-900"
+                        }`}
                       >
-                        ✕
+                        {formatPrice(finalPrice)}원
+                      </span>
+                    </div>
+                    {savedAmount != null && savedAmount > 0 && (
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {formatPrice(savedAmount)}원 ({discountRate}%)
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item.id)}
+                        className="rounded border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600"
+                      >
+                        삭제
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(p.id)}
+                        disabled={isSoldOut}
+                        className="rounded border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-50"
+                      >
+                        장바구니 담기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOrderNow(p.id)}
+                        disabled={isSoldOut}
+                        className="ml-auto rounded bg-slate-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                      >
+                        주문하기
                       </button>
                     </div>
-
-                    {/* 상품 정보 */}
-                    <div
-                      onClick={() =>
-                        router.push(`/${subdomain}/${clientSlug}/products/${product.slug}`)
-                      }
-                      style={{
-                        padding: "12px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <p
-                        style={{
-                          fontSize: "0.875rem",
-                          marginBottom: "8px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                        }}
-                      >
-                        {product.name}
-                      </p>
-                      <div>
-                        {discountRate && (
-                          <div style={{ marginBottom: "4px" }}>
-                            <span
-                              style={{
-                                fontSize: "0.875rem",
-                                fontWeight: 700,
-                                color: "#EF4444",
-                                marginRight: "4px",
-                              }}
-                            >
-                              {discountRate}%
-                            </span>
-                            <span
-                              style={{
-                                fontSize: "0.75rem",
-                                color: "#999",
-                                textDecoration: "line-through",
-                              }}
-                            >
-                              {formatPrice(product.price)}원
-                            </span>
-                          </div>
-                        )}
-                        <p
-                          style={{
-                            fontSize: "1rem",
-                            fontWeight: 700,
-                            color: isSoldOut ? "#999" : "#333",
-                          }}
-                        >
-                          {formatPrice(finalPrice)}원
-                        </p>
-                      </div>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        </main>
+                </li>
+              );
+            })}
+          </ul>
 
-        {/* Bottom Nav */}
-        <nav className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white flex justify-around py-3 border-t border-gray-200">
-          {[
-            { icon: "🏠", label: "홈", path: "" },
-            { icon: "📂", label: "카테고리", path: "/products" },
-            { icon: "🛒", label: "장바구니", path: "/cart" },
-            { icon: "👤", label: "마이페이지", path: "/mypage", active: true },
-          ].map((item, i) => (
+          {/* 전체상품주문 — 브랜드 메인 테마(보라색 계열) */}
+          <div className="border-t border-gray-100 px-4 py-4">
             <button
-              key={i}
-              onClick={() =>
-                router.push(`/${subdomain}/${clientSlug}${item.path}`)
-              }
-              className="flex flex-col items-center gap-1 cursor-pointer text-xs border-0 bg-transparent"
-              style={{ color: item.active ? "#D6A8E0" : "#666", fontWeight: item.active ? 600 : 400 }}
+              type="button"
+              onClick={handleOrderAll}
+              className="w-full rounded-xl py-4 text-base font-bold text-white disabled:opacity-50"
+              style={{ backgroundColor: PRIMARY }}
             >
-              <span style={{ fontSize: "1.25rem" }}>{item.icon}</span>
-              <span>{item.label}</span>
+              전체상품주문
             </button>
-          ))}
-        </nav>
-      </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <OrderGuard partnerId={partner.id}>
+      {content}
     </OrderGuard>
   );
 }

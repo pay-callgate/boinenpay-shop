@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Calendar } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * 주문서(Checkout) 페이지 - 8대 섹션, 아코디언, 파스텔 연보라 디자인 시스템
@@ -183,7 +184,7 @@ export default function CheckoutPage() {
         return;
       }
       setLoading(true);
-      const res = await fetch(`/api/cart?clientId=${clientId}`);
+      const res = await shopFetch(`/api/cart?clientId=${clientId}`);
       if (res.ok) {
         const data = await res.json();
         const all = (data.items || []) as CartItem[];
@@ -202,7 +203,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!session?.user?.id) return;
     (async () => {
-      const res = await fetch("/api/mypage/profile");
+      const res = await shopFetch("/api/mypage/profile");
       if (res.ok) {
         const data = await res.json();
         const phone = data.user?.phone ?? "";
@@ -213,7 +214,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     async function loadAddresses() {
-      const res = await fetch("/api/mypage/addresses");
+      const res = await shopFetch("/api/mypage/addresses");
       if (res.ok) {
         const data = await res.json();
         const list = data.addresses || [];
@@ -296,7 +297,7 @@ export default function CheckoutPage() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/orders", {
+      const res = await shopFetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Heart, Share2 } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
 import { addRecentProduct } from "@/lib/recent-products";
 
 /**
@@ -71,6 +72,9 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<"detail" | "review" | "qna" | "delivery">("detail");
   const [addingToCart, setAddingToCart] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [showWishlistModal, setShowWishlistModal] = useState(false);
+  const [wishlistChecking, setWishlistChecking] = useState(false);
 
   const sectionDetailRef = useRef<HTMLDivElement>(null);
   const sectionReviewRef = useRef<HTMLDivElement>(null);
@@ -85,7 +89,7 @@ export default function ProductDetailPage() {
       }
       setLoading(true);
       try {
-        const res = await fetch(`/api/shop/products/${productSlug}?partnerId=${partnerId}`);
+        const res = await shopFetch(`/api/shop/products/${productSlug}?partnerId=${partnerId}`);
         if (res.ok) {
           const data = await res.json();
           const prod = data?.product ?? null;
@@ -113,7 +117,7 @@ export default function ProductDetailPage() {
             .find((row) => row.startsWith("client_source_id="))
             ?.split("=")[1];
           if (clientIdCookie && prod?.id) {
-            fetch("/api/mypage/product-views", {
+            shopFetch("/api/mypage/product-views", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ productId: prod.id, clientId: clientIdCookie }),
@@ -130,6 +134,49 @@ export default function ProductDetailPage() {
     }
     fetchProduct();
   }, [partnerId, productSlug]);
+
+  const clientId = template?.client?.id ?? null;
+  useEffect(() => {
+    if (!clientId || !product?.id) return;
+    let cancelled = false;
+    shopFetch(`/api/mypage/wishlist?clientId=${clientId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const items = data?.items ?? [];
+        setIsInWishlist(items.some((i: { product: { id: string } }) => i.product?.id === product?.id));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [clientId, product?.id]);
+
+  const addToWishlist = async () => {
+    if (!product?.id || !clientId) {
+      alert("로그인 후 이용해 주세요.");
+      return;
+    }
+    setWishlistChecking(true);
+    try {
+      const res = await shopFetch("/api/mypage/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, clientId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setIsInWishlist(true);
+        setShowWishlistModal(true);
+      } else if (data.message?.includes("이미")) {
+        setIsInWishlist(true);
+      } else {
+        alert(data.error || "관심상품 담기에 실패했습니다.");
+      }
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setWishlistChecking(false);
+    }
+  };
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("ko-KR").format(price);
@@ -165,7 +212,7 @@ export default function ProductDetailPage() {
     }
     setAddingToCart(true);
     try {
-      const res = await fetch("/api/cart", {
+      const res = await shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -206,7 +253,7 @@ export default function ProductDetailPage() {
     }
     setAddingToCart(true);
     try {
-      const res = await fetch("/api/cart", {
+      const res = await shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -381,10 +428,17 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-2 text-gray-400">
               <button
                 type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 active:opacity-80"
+                onClick={addToWishlist}
+                disabled={wishlistChecking}
+                className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 active:opacity-80 disabled:opacity-50"
                 aria-label="찜"
               >
-                <Heart strokeWidth={1.5} className="h-5 w-5" />
+                <Heart
+                  strokeWidth={1.5}
+                  className="h-5 w-5"
+                  fill={isInWishlist ? ROSE : "none"}
+                  style={{ color: isInWishlist ? ROSE : undefined }}
+                />
               </button>
               <button
                 type="button"
@@ -565,10 +619,17 @@ export default function ProductDetailPage() {
           <div className="mx-auto flex h-14 max-w-[430px]">
           <button
             type="button"
-            className="flex w-14 shrink-0 items-center justify-center border-r border-gray-200 bg-white text-gray-500 hover:bg-gray-50 active:opacity-80"
+            onClick={addToWishlist}
+            disabled={wishlistChecking}
+            className="flex w-14 shrink-0 items-center justify-center border-r border-gray-200 bg-white text-gray-500 hover:bg-gray-50 active:opacity-80 disabled:opacity-50"
             aria-label="찜"
           >
-            <Heart strokeWidth={1.5} className="h-6 w-6" />
+            <Heart
+              strokeWidth={1.5}
+              className="h-6 w-6"
+              fill={isInWishlist ? ROSE : "none"}
+              style={{ color: isInWishlist ? ROSE : undefined }}
+            />
           </button>
           <button
             type="button"
@@ -593,6 +654,68 @@ export default function ProductDetailPage() {
         {/* 하단 네비 + CTA 바 높이만큼 패딩 */}
         <div style={{ height: BOTTOM_NAV_HEIGHT + 56 }} />
       </div>
+
+      {/* 관심상품담기 모달 — 브랜드 컬러(PRIMARY) 및 쇼핑몰 표준 버튼 스타일 */}
+      {showWishlistModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wishlist-modal-title"
+        >
+          <div className="w-full max-w-[340px] rounded-xl overflow-hidden bg-white shadow-xl">
+            <header
+              className="flex items-center justify-between px-5 py-4 text-white"
+              style={{ backgroundColor: PRIMARY }}
+            >
+              <h2 id="wishlist-modal-title" className="text-lg font-bold">
+                관심상품담기
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowWishlistModal(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/20 active:opacity-80"
+                aria-label="닫기"
+              >
+                <span className="text-xl leading-none">×</span>
+              </button>
+            </header>
+            <div className="px-5 py-8 text-center">
+              <Heart
+                fill={PRIMARY}
+                stroke={PRIMARY}
+                strokeWidth={1.5}
+                className="mx-auto mb-4 h-14 w-14"
+              />
+              <p className="text-[15px] leading-relaxed text-gray-700">
+                선택하신 상품을 관심상품에 담았습니다.
+                <br />
+                지금 관심상품을 확인하시겠습니까?
+              </p>
+            </div>
+            <div className="flex gap-2 px-5 pb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWishlistModal(false);
+                  router.push(`/${subdomain}/${clientSlug}/mypage/wishlist`);
+                }}
+                className="flex-1 rounded-lg py-3.5 text-lg font-medium text-white active:opacity-90"
+                style={{ backgroundColor: PRIMARY }}
+              >
+                관심상품 확인
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowWishlistModal(false)}
+                className="flex-1 rounded-lg border border-gray-300 py-3.5 text-lg font-medium text-gray-700 hover:bg-gray-50 active:opacity-90"
+              >
+                쇼핑 계속하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </OrderGuard>
   );
 }

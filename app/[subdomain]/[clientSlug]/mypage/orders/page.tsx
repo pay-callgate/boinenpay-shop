@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * T6-2: 마이페이지 주문 목록
@@ -51,13 +51,9 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "취소됨",
 };
 
-const SESSION_EXPIRED_MESSAGE =
-  "안전한 이용을 위해 세션이 만료되었습니다. 다시 로그인해 주세요.";
-
 export default function MyOrdersPage() {
   const params = useParams();
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const template = useShopTemplate();
   const partner = template?.partner ?? null;
@@ -89,37 +85,32 @@ export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 주문 목록 조회 (Context의 client.id 사용, 세션 쿠키 포함)
-  // 401/403 시 세션 만료로 간주 → 알림 후 로그아웃 및 로그인 페이지 리다이렉트
+  // 주문 목록 조회 (전역 shopFetch 사용 — 401/403 시 자동 세션 만료 처리)
   useEffect(() => {
     if (!client?.id) return;
 
     let cancelled = false;
     setLoading(true);
     (async () => {
-      let url = `/api/mypage/orders?clientId=${encodeURIComponent(client.id)}&limit=50`;
-      if (statusFilter && statusFilter !== "all") url += `&status=${encodeURIComponent(statusFilter)}`;
-      const res = await fetch(url, { credentials: "include" });
-      if (cancelled) return;
-
-      if (res.status === 401 || res.status === 403) {
-        setLoading(false);
-        alert(SESSION_EXPIRED_MESSAGE);
-        const loginUrl = `/${subdomain}/login?callbackUrl=${encodeURIComponent(pathname ?? `/${subdomain}/${clientSlug}/mypage/orders`)}`;
-        await signOut({ redirect: true, callbackUrl: loginUrl });
-        return;
+      try {
+        let url = `/api/mypage/orders?clientId=${encodeURIComponent(client.id)}&limit=50`;
+        if (statusFilter && statusFilter !== "all") url += `&status=${encodeURIComponent(statusFilter)}`;
+        const res = await shopFetch(url);
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          setOrders(data.orders || []);
+        }
+      } catch {
+        // SESSION_EXPIRED 등 — 전역에서 이미 알림·리다이렉트 처리
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      if (res.ok) {
-        const data = await res.json();
-        setOrders(data.orders || []);
-      }
-      setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [client?.id, statusFilter, subdomain, clientSlug, pathname]);
+  }, [client?.id, statusFilter]);
 
   // 가격 포맷팅
   const formatPrice = (price: number) => {

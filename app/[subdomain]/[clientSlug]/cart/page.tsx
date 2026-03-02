@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
 
 const PRIMARY = "#D6A8E0";
 
@@ -50,7 +51,7 @@ export default function CartPage() {
       }
       setLoading(true);
       try {
-        const res = await fetch(`/api/cart?clientId=${clientId}`);
+        const res = await shopFetch(`/api/cart?clientId=${clientId}`);
         if (res.ok) {
           const data = await res.json();
           const list = data?.items ?? [];
@@ -77,7 +78,7 @@ export default function CartPage() {
 
   const updateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    const res = await fetch(`/api/cart/${itemId}`, {
+    const res = await shopFetch(`/api/cart/${itemId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantity: newQuantity }),
@@ -93,7 +94,7 @@ export default function CartPage() {
   };
 
   const deleteItem = async (itemId: string) => {
-    const res = await fetch(`/api/cart/${itemId}`, { method: "DELETE" });
+    const res = await shopFetch(`/api/cart/${itemId}`, { method: "DELETE" });
     if (res.ok) {
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
       setItems((prev) => prev.filter((item) => item.id !== itemId));

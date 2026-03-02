@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * T4-2: 상품 목록 페이지 (PLP)
@@ -53,7 +54,7 @@ export default function ProductListPage() {
   useEffect(() => {
     async function fetchCategories() {
       if (!partnerId) return;
-      const res = await fetch(`/api/shop/categories?partnerId=${partnerId}&onlyWithProducts=true`);
+      const res = await shopFetch(`/api/shop/categories?partnerId=${partnerId}&onlyWithProducts=true`);
       if (res.ok) {
         const data = await res.json();
         const list = data?.categories ?? [];
@@ -83,7 +84,7 @@ export default function ProductListPage() {
       }
 
       try {
-        const res = await fetch(url);
+        const res = await shopFetch(url);
         if (res.ok) {
           const data = await res.json();
           const list = data?.products ?? [];

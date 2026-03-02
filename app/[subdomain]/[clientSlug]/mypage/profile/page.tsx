@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * T6-4: 회원정보 수정
@@ -48,17 +49,8 @@ export default function ProfilePage() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/mypage/profile?clientId=${client.id}`);
+        const res = await shopFetch(`/api/mypage/profile?clientId=${client.id}`);
         if (cancelled) return;
-
-        if (res.status === 401 || res.status === 403) {
-          const err = await res.json().catch(() => ({}));
-          console.error("[mypage/profile] 권한 오류:", res.status, err?.error ?? res.statusText);
-          alert("로그인이 만료되었거나 접근 권한이 없습니다.\n다시 로그인해주세요.");
-          router.push(`/${subdomain}/${clientSlug}`);
-          return;
-        }
-
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           console.error("[mypage/profile] 조회 실패:", res.status, err?.error ?? res.statusText);
@@ -86,7 +78,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [partner?.id, client?.id, router, subdomain, clientSlug]);
+  }, [partner?.id, client?.id]);
 
   // 회원정보 저장
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +91,7 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/mypage/profile?clientId=${client!.id}`, {
+      const res = await shopFetch(`/api/mypage/profile?clientId=${client!.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

@@ -7,6 +7,7 @@ import { Clock } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
 import {
   getRecentProducts,
   removeRecentProduct,
@@ -77,7 +78,7 @@ export default function RecentProductsPage() {
       return;
     }
     try {
-      const res = await fetch("/api/cart", {
+      const res = await shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
@@ -109,7 +110,7 @@ export default function RecentProductsPage() {
       return;
     }
     try {
-      const res = await fetch("/api/cart", {
+      const res = await shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),

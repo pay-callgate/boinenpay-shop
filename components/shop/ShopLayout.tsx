@@ -257,9 +257,11 @@ function ShopBottomNav({
       <div className="mx-auto flex h-full max-w-[430px] justify-around py-2">
         {navItems.map((item) => {
           const href = `${base}${item.path}`;
+          const exactPath = `${base}${item.path}`;
           const isActive =
-            pathname === `${base}${item.path}` ||
-            (item.path === "" && (pathname === base || pathname === base + "/"));
+            pathname === exactPath ||
+            (item.path === "" && (pathname === base || pathname === base + "/")) ||
+            (item.path === "/mypage" && (pathname === exactPath || pathname.startsWith(exactPath + "/")));
           return (
             <Link
               key={item.path || "home"}

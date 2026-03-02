@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * T6-2: 마이페이지 주문 상세
@@ -80,7 +81,7 @@ export default function MyOrderDetailPage() {
     if (!orderId || !partner?.id || !client?.id) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/orders/${orderId}`)
+    shopFetch(`/api/orders/${orderId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { openDaumPostcode } from "@/lib/daum-postcode";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * 새 배송지 추가 — 목록 페이지와 동일한 톤앤매너 (밝은 헤더, 파스텔 연보라 CTA)
@@ -38,7 +39,7 @@ export default function NewAddressPage() {
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/mypage/addresses`, {
+      const res = await shopFetch(`/api/mypage/addresses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

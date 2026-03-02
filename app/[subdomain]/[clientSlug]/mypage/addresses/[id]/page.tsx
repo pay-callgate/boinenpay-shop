@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { openDaumPostcode } from "@/lib/daum-postcode";
+import { shopFetch } from "@/lib/shop-fetch";
 
 interface Address {
   id: string;
@@ -47,7 +48,7 @@ export default function EditAddressPage() {
   useEffect(() => {
     if (!id || !partner?.id || !client?.id) return;
     let cancelled = false;
-    fetch(`/api/mypage/addresses/${id}`)
+    shopFetch(`/api/mypage/addresses/${id}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;
@@ -79,7 +80,7 @@ export default function EditAddressPage() {
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/mypage/addresses/${id}`, {
+      const res = await shopFetch(`/api/mypage/addresses/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -102,7 +103,7 @@ export default function EditAddressPage() {
     if (!confirm("이 배송지를 삭제하시겠습니까?")) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/mypage/addresses/${id}`, { method: "DELETE" });
+      const res = await shopFetch(`/api/mypage/addresses/${id}`, { method: "DELETE" });
       if (res.ok) {
         alert("배송지가 삭제되었습니다.");
         router.push(`/${subdomain}/${clientSlug}/mypage/addresses`);

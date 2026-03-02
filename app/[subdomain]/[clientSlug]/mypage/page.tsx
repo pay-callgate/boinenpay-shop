@@ -7,6 +7,7 @@ import { ChevronRight, Package, User, Heart, MapPin, CreditCard, Truck, PackageC
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
 
 /**
  * T6-1: 마이페이지 홈
@@ -50,10 +51,10 @@ export default function MyPage() {
 
   const [stats, setStats] = useState<Stats | null>(null);
 
-  // 주문 현황 통계 (최근 3개월 기준은 API에서 동일 로직 사용)
+  // 주문 현황 통계 (전역 shopFetch — 401/403 시 자동 세션 만료 처리)
   useEffect(() => {
     if (!client?.id) return;
-    fetch(`/api/mypage/stats?clientId=${client.id}`)
+    shopFetch(`/api/mypage/stats?clientId=${client.id}`)
       .then((res) => (res.ok ? res.json() : { stats: null }))
       .then((data) => setStats(data?.stats ?? null))
       .catch(() => setStats(null));
