@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, Search, ShoppingBag } from "lucide-react";
 import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
+import { ToastProvider, toast } from "./ToastContext";
 import { SideMenu } from "./SideMenu";
+import { ProductSearchModal } from "./ProductSearchModal";
 
 function MasterTemplateIcon({ className }: { className?: string }) {
   return (
@@ -74,6 +76,7 @@ function SmartHeader({
   clientSlug,
   orderAllowed,
   onMenuClick,
+  onSearchClick,
 }: {
   partner: ShopPartner | null;
   client: ShopClient | null;
@@ -81,6 +84,7 @@ function SmartHeader({
   clientSlug: string | null;
   orderAllowed: boolean;
   onMenuClick: () => void;
+  onSearchClick?: () => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -175,6 +179,7 @@ function SmartHeader({
         <div className="flex h-10 w-16 shrink-0 items-center justify-end gap-1">
           <button
             type="button"
+            onClick={onSearchClick}
             className="flex h-10 w-10 items-center justify-center rounded-md text-[#333333] hover:bg-[#F3F4F6]"
             aria-label="검색"
           >
@@ -210,6 +215,7 @@ function ShopHeader({
   clientSlug,
   orderAllowed,
   onMenuClick,
+  onSearchClick,
 }: {
   partner: ShopPartner;
   client: ShopClient | null;
@@ -217,6 +223,7 @@ function ShopHeader({
   clientSlug: string | null;
   orderAllowed: boolean;
   onMenuClick: () => void;
+  onSearchClick?: () => void;
 }) {
   return (
     <SmartHeader
@@ -226,6 +233,7 @@ function ShopHeader({
       clientSlug={clientSlug}
       orderAllowed={orderAllowed}
       onMenuClick={onMenuClick}
+      onSearchClick={onSearchClick}
     />
   );
 }
@@ -301,9 +309,10 @@ export function ShopLayout({
   children,
 }: ShopLayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const ensureOrderAllowed = useCallback(() => {
     if (orderAllowed) return true;
-    alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+    toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
     return false;
   }, [orderAllowed]);
 
@@ -318,6 +327,7 @@ export function ShopLayout({
 
   return (
     <ShopTemplateProvider value={contextValue}>
+      <ToastProvider>
       <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
         <div className="relative mx-auto flex min-h-screen w-full max-w-[430px] flex-1 flex-col overflow-hidden bg-white shadow-2xl">
           <SideMenu
@@ -336,6 +346,13 @@ export function ShopLayout({
             clientSlug={clientSlug}
             orderAllowed={orderAllowed}
             onMenuClick={() => setMenuOpen(true)}
+            onSearchClick={() => setSearchOpen(true)}
+          />
+          <ProductSearchModal
+            isOpen={searchOpen}
+            onClose={() => setSearchOpen(false)}
+            subdomain={subdomain}
+            clientSlug={clientSlug}
           />
           <main
             className="flex-1 overflow-auto"
@@ -353,6 +370,7 @@ export function ShopLayout({
           />
         </div>
       </div>
+      </ToastProvider>
     </ShopTemplateProvider>
   );
 }
@@ -382,9 +400,10 @@ export function ShopGlobalLayout({
   const orderAllowed = !!client;
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const ensureOrderAllowed = useCallback(() => {
     if (orderAllowed) return true;
-    alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+    toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
     return false;
   }, [orderAllowed]);
 
@@ -399,6 +418,7 @@ export function ShopGlobalLayout({
 
   return (
     <ShopTemplateProvider value={contextValue}>
+      <ToastProvider>
       <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
         <div className="relative mx-auto flex min-h-screen w-full max-w-[430px] flex-1 flex-col overflow-hidden bg-white shadow-2xl">
           {partner && (
@@ -419,6 +439,13 @@ export function ShopGlobalLayout({
             clientSlug={clientSlug}
             orderAllowed={orderAllowed}
             onMenuClick={() => setMenuOpen(true)}
+            onSearchClick={() => setSearchOpen(true)}
+          />
+          <ProductSearchModal
+            isOpen={searchOpen}
+            onClose={() => setSearchOpen(false)}
+            subdomain={subdomain}
+            clientSlug={clientSlug}
           />
           <main
             className="flex-1 overflow-auto"
@@ -436,6 +463,7 @@ export function ShopGlobalLayout({
           />
         </div>
       </div>
+      </ToastProvider>
     </ShopTemplateProvider>
   );
 }

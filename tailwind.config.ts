@@ -14,6 +14,17 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
       },
+      keyframes: {
+        "toast-in": {
+          "0%": { opacity: "0", transform: "translateY(12px) scale(0.96)" },
+          "12%": { opacity: "1", transform: "translateY(0) scale(1)" },
+          "88%": { opacity: "1", transform: "translateY(0) scale(1)" },
+          "100%": { opacity: "0", transform: "translateY(-8px) scale(0.98)" },
+        },
+      },
+      animation: {
+        "toast-in": "toast-in 2.5s ease-out forwards",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

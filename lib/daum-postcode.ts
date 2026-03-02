@@ -21,12 +21,16 @@ export function loadDaumPostcodeScript(): Promise<void> {
   });
 }
 
-/** 우편번호 검색 팝업 열기. 스크립트 로드 후 onComplete 호출 */
-export function openDaumPostcode(onComplete: (data: { zonecode: string; address: string }) => void): void {
+/** 우편번호 검색 팝업 열기. 스크립트 로드 후 onComplete 호출. onError 미제공 시 alert 사용 */
+export function openDaumPostcode(
+  onComplete: (data: { zonecode: string; address: string }) => void,
+  onError?: (msg: string) => void
+): void {
+  const notify = (msg: string) => (onError ? onError(msg) : alert(msg));
   loadDaumPostcodeScript()
     .then(() => {
       if (!window.daum?.Postcode) {
-        alert("우편번호 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.");
+        notify("우편번호 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.");
         return;
       }
       new window.daum.Postcode({
@@ -37,6 +41,6 @@ export function openDaumPostcode(onComplete: (data: { zonecode: string; address:
       }).open();
     })
     .catch(() => {
-      alert("우편번호 서비스를 불러올 수 없습니다. 주소를 직접 입력해 주세요.");
+      notify("우편번호 서비스를 불러올 수 없습니다. 주소를 직접 입력해 주세요.");
     });
 }

@@ -6,6 +6,7 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
 
 /**
  * T6-3: 배송지 관리 (통합 배송지 — clientId 미사용)
@@ -116,7 +117,7 @@ export default function AddressesPage() {
     e.preventDefault();
 
     if (!formData.name || !formData.phone || !formData.address) {
-      alert("배송지 정보를 모두 입력해주세요.");
+      toast("배송지 정보를 모두 입력해주세요.");
       return;
     }
 
@@ -130,12 +131,12 @@ export default function AddressesPage() {
         });
 
         if (res.ok) {
-          alert("배송지가 수정되었습니다.");
+          toast("배송지가 수정되었습니다.", "success");
           resetForm();
           refetchAddresses();
         } else {
           const error = await res.json();
-          alert(error.error || "배송지 수정에 실패했습니다.");
+          toast(error.error || "배송지 수정에 실패했습니다.", "error");
         }
       } else {
         // 추가
@@ -146,16 +147,16 @@ export default function AddressesPage() {
         });
 
         if (res.ok) {
-          alert("배송지가 추가되었습니다.");
+          toast("배송지가 추가되었습니다.", "success");
           resetForm();
           refetchAddresses();
         } else {
           const error = await res.json();
-          alert(error.error || "배송지 추가에 실패했습니다.");
+          toast(error.error || "배송지 추가에 실패했습니다.", "error");
         }
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     }
   };
 
@@ -165,14 +166,14 @@ export default function AddressesPage() {
     try {
       const res = await shopFetch(`/api/mypage/addresses/${id}`, { method: "DELETE" });
       if (res.ok) {
-        alert("배송지가 삭제되었습니다.");
+        toast("배송지가 삭제되었습니다.", "success");
         refetchAddresses();
       } else {
         const error = await res.json();
-        alert(error.error || "배송지 삭제에 실패했습니다.");
+        toast(error.error || "배송지 삭제에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     }
   };
 

@@ -6,6 +6,7 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { openDaumPostcode } from "@/lib/daum-postcode";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
 
 /**
  * 새 배송지 추가 — 목록 페이지와 동일한 톤앤매너 (밝은 헤더, 파스텔 연보라 CTA)
@@ -34,7 +35,7 @@ export default function NewAddressPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.phone || !formData.address) {
-      alert("배송지 정보를 모두 입력해주세요.");
+      toast("배송지 정보를 모두 입력해주세요.");
       return;
     }
     setSaving(true);
@@ -45,27 +46,30 @@ export default function NewAddressPage() {
         body: JSON.stringify(formData),
       });
       if (res.ok) {
-        alert("배송지가 추가되었습니다.");
+        toast("배송지가 추가되었습니다.", "success");
         router.push(`/${subdomain}/${clientSlug}/mypage/addresses`);
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err?.error || "배송지 추가에 실패했습니다.");
+        toast(err?.error || "배송지 추가에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
       setSaving(false);
     }
   };
 
   const openPostcodeSearch = () => {
-    openDaumPostcode(({ zonecode, address }) => {
-      setFormData((prev) => ({
-        ...prev,
-        postcode: zonecode,
-        address,
-      }));
-    });
+    openDaumPostcode(
+      ({ zonecode, address }) => {
+        setFormData((prev) => ({
+          ...prev,
+          postcode: zonecode,
+          address,
+        }));
+      },
+      toast
+    );
   };
 
   const inputStyle = {

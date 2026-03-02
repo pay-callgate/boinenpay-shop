@@ -8,6 +8,7 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
 
 /**
  * T6-5: 관심상품(Wishlist)
@@ -106,16 +107,16 @@ export default function WishlistPage() {
         refetchWishlist();
       } else {
         const err = await res.json();
-        alert(err.error || "삭제에 실패했습니다.");
+        toast(err.error || "삭제에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     }
   };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) {
-      alert("삭제할 항목을 선택해 주세요.");
+      toast("삭제할 항목을 선택해 주세요.");
       return;
     }
     if (!confirm(`선택한 ${selectedIds.size}개 항목을 관심상품에서 삭제하시겠습니까?`)) return;
@@ -128,18 +129,18 @@ export default function WishlistPage() {
       );
       const failed = results.filter((r) => !r.ok);
       if (failed.length > 0) {
-        alert("일부 삭제에 실패했습니다.");
+        toast("일부 삭제에 실패했습니다.", "error");
       }
       setSelectedIds(new Set());
       setItems((prev) => prev.filter((item) => !idsToDelete.has(item.id)));
     } catch {
-      alert("일부 삭제에 실패했습니다.");
+      toast("일부 삭제에 실패했습니다.", "error");
     }
   };
 
   const handleAddToCart = async (productId: string) => {
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
     const clientIdCookie = document.cookie
@@ -147,7 +148,7 @@ export default function WishlistPage() {
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
     if (!clientIdCookie) {
-      alert("거래처 정보를 찾을 수 없습니다.");
+      toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
     try {
@@ -158,19 +159,19 @@ export default function WishlistPage() {
       });
       if (res.ok) {
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
-        alert("장바구니에 추가되었습니다.");
+        toast("장바구니에 추가되었습니다.", "success");
       } else {
         const err = await res.json();
-        alert(err.error || "장바구니 추가에 실패했습니다.");
+        toast(err.error || "장바구니 추가에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     }
   };
 
   const handleOrderNow = async (productId: string) => {
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
     const clientIdCookie = document.cookie
@@ -178,7 +179,7 @@ export default function WishlistPage() {
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
     if (!clientIdCookie) {
-      alert("거래처 정보를 찾을 수 없습니다.");
+      toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
     try {
@@ -192,17 +193,17 @@ export default function WishlistPage() {
         router.push(`${base}/checkout`);
       } else {
         const err = await res.json();
-        alert(err.error ?? "장바구니 추가에 실패했습니다.");
+        toast(err.error ?? "장바구니 추가에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     }
   };
 
   const handleOrderAll = async () => {
     if (items.length === 0) return;
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문이 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문이 불가능합니다.");
       return;
     }
     const clientIdCookie = document.cookie
@@ -210,7 +211,7 @@ export default function WishlistPage() {
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
     if (!clientIdCookie) {
-      alert("거래처 정보를 찾을 수 없습니다.");
+      toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
     try {
@@ -228,7 +229,7 @@ export default function WishlistPage() {
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
       router.push(`${base}/checkout`);
     } catch {
-      alert("장바구니 담기 중 오류가 발생했습니다.");
+      toast("장바구니 담기 중 오류가 발생했습니다.", "error");
     }
   };
 

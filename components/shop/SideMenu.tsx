@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { X, Heart, ShoppingBag, User, Search, ChevronDown } from "lucide-react";
 import type { ShopPartner, ShopClient } from "./ShopLayout";
@@ -81,6 +81,8 @@ export function SideMenu({
   orderAllowed,
 }: SideMenuProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentCategorySlug = searchParams?.get("category") ?? null;
   const { data: session } = useSession();
   const ensureOrderAllowed = useShopTemplate()?.ensureOrderAllowed;
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
@@ -235,7 +237,7 @@ export function SideMenu({
                 <li key={node.id} className="border-b border-gray-100">
                   {node.children && node.children.length > 0 ? (
                     <>
-                      {/* 부모: 토글 버튼, 배경 항상 투명, 터치 시에만 active 피드백 */}
+                      {/* 부모: 토글 버튼 */}
                       <button
                         type="button"
                         onClick={() => setOpenCategoryId(openCategoryId === node.id ? null : node.id)}
@@ -252,25 +254,32 @@ export function SideMenu({
                           aria-hidden
                         />
                       </button>
-                      {/* 하위(2차) 카테고리: 계단식 들여쓰기(pl-10) + 옅은 회색 배경 */}
+                      {/* 하위(2차) 카테고리: 우아하고 차분한 그레이톤 전체 폭 적용 */}
                       <ul
                         id={`side-menu-sub-${node.id}`}
                         role="region"
                         aria-labelledby={`side-menu-btn-${node.id}`}
-                        className="overflow-hidden bg-slate-50 transition-[height] duration-200 ease-out"
+                        className="overflow-hidden bg-[#fafafa] transition-all duration-200 ease-out"
                       >
                         {openCategoryId === node.id &&
-                          node.children.map((child) => (
-                            <li key={child.id}>
-                              <Link
-                                href={`${base}/products?category=${encodeURIComponent(child.slug)}`}
-                                onClick={() => onClose()}
-                                className="block bg-transparent py-2.5 pl-10 pr-4 text-sm text-gray-700 active:opacity-70"
-                              >
-                                {formatCategoryName(child.name)}
-                              </Link>
-                            </li>
-                          ))}
+                          node.children.map((child) => {
+                            const isSelected = currentCategorySlug === child.slug;
+                            return (
+                              <li key={child.id}>
+                                <Link
+                                  href={`${base}/products?category=${encodeURIComponent(child.slug)}`}
+                                  onClick={() => onClose()}
+                                  className={`block py-3 pl-8 pr-4 text-sm transition-colors active:opacity-80 ${
+                                    isSelected
+                                      ? "font-medium text-gray-900"
+                                      : "text-gray-500 hover:text-gray-900"
+                                  }`}
+                                >
+                                  {formatCategoryName(child.name)}
+                                </Link>
+                              </li>
+                            );
+                          })}
                       </ul>
                     </>
                   ) : (

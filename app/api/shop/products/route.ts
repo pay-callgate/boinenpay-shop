@@ -3,9 +3,9 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 /**
  * T4-1: 거래처 쇼핑몰 상품 조회 API
- * GET /api/shop/products?partnerId=xxx&categoryId=xxx&limit=4
+ * GET /api/shop/products?partnerId=xxx&categoryId=xxx&search=xxx&limit=4
  * - 파트너의 상품 조회 (쇼핑몰용)
- * - 카테고리별 필터링 지원
+ * - 카테고리별 필터링, 상품명/슬러그 검색 지원
  * - 품절(sold_out) 상품 제외 또는 별도 표시
  */
 
@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const partnerId = searchParams.get("partnerId");
     const categoryId = searchParams.get("categoryId");
+    const search = (searchParams.get("search") || searchParams.get("q") || "").trim();
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
     const includeSoldOut = searchParams.get("includeSoldOut") === "true";
@@ -53,6 +54,11 @@ export async function GET(request: NextRequest) {
     // 카테고리 필터
     if (categoryId) {
       query = query.eq("product_category_mappings.category_id", categoryId);
+    }
+
+    // 상품명/슬러그 검색
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,slug.ilike.%${search}%`);
     }
 
     // 정렬 및 페이지네이션

@@ -8,6 +8,7 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
 import {
   getRecentProducts,
   removeRecentProduct,
@@ -66,7 +67,7 @@ export default function RecentProductsPage() {
 
   const handleAddToCart = async (productId: string) => {
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
     const clientIdCookie = document.cookie
@@ -74,7 +75,7 @@ export default function RecentProductsPage() {
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
     if (!clientIdCookie) {
-      alert("거래처 정보를 찾을 수 없습니다.");
+      toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
     try {
@@ -86,19 +87,19 @@ export default function RecentProductsPage() {
       if (res.ok) {
         const data = await res.json();
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
-        alert(data.message || "장바구니에 추가되었습니다.");
+        toast(data.message || "장바구니에 추가되었습니다.", "success");
       } else {
         const err = await res.json();
-        alert(err.error || "장바구니 추가에 실패했습니다.");
+        toast(err.error || "장바구니 추가에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     }
   };
 
   const handleOrderNow = async (productId: string) => {
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
     const clientIdCookie = document.cookie
@@ -106,7 +107,7 @@ export default function RecentProductsPage() {
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
     if (!clientIdCookie) {
-      alert("거래처 정보를 찾을 수 없습니다.");
+      toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
     try {
@@ -121,9 +122,9 @@ export default function RecentProductsPage() {
         return;
       }
       const err = await res.json();
-      alert(err.error ?? "장바구니 추가에 실패했습니다.");
+      toast(err.error ?? "장바구니 추가에 실패했습니다.", "error");
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     }
   };
 
@@ -237,27 +238,30 @@ export default function RecentProductsPage() {
                       {formatPrice(savedAmount)}원 ({discountRate}%)
                     </p>
                   )}
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(item.id)}
-                      className="rounded border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600"
-                    >
-                      삭제
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddToCart(item.id)}
-                      disabled={isSoldOut}
-                      className="rounded border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-50"
-                    >
-                      장바구니 담기
-                    </button>
+                  {/* 반응형: 좁은 화면 = 삭제·장바구니 한 줄 / 주문하기 100% 블록 | 넓은 화면(sm:) = 한 줄 양극 정렬 */}
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(item.id)}
+                        className="whitespace-nowrap rounded border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600"
+                      >
+                        삭제
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(item.id)}
+                        disabled={isSoldOut}
+                        className="whitespace-nowrap rounded border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-50"
+                      >
+                        장바구니 담기
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => handleOrderNow(item.id)}
                       disabled={isSoldOut}
-                      className="ml-auto rounded bg-slate-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                      className="w-full whitespace-nowrap rounded bg-slate-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50 sm:w-auto"
                     >
                       주문하기
                     </button>

@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Heart, ShoppingBag } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
+
+const PRIMARY = "#D6A8E0";
 
 /**
  * T4-2: 상품 목록 페이지 (PLP)
@@ -40,6 +44,7 @@ export default function ProductListPage() {
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
   const categorySlug = searchParams?.get("category");
+  const searchQuery = searchParams?.get("search") || searchParams?.get("q") || "";
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -49,6 +54,91 @@ export default function ProductListPage() {
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
   const limit = 20;
+  const [wishlistProductIds, setWishlistProductIds] = useState<Set<string>>(new Set());
+  const [addingCartId, setAddingCartId] = useState<string | null>(null);
+  const [addingWishlistId, setAddingWishlistId] = useState<string | null>(null);
+
+  const clientId = template?.client?.id ?? null;
+
+  // 관심상품 목록 조회 (아이콘 채움 표시용)
+  useEffect(() => {
+    if (!clientId) return;
+    shopFetch(`/api/mypage/wishlist?clientId=${clientId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const items = data?.items ?? [];
+        setWishlistProductIds(new Set(items.map((i: { product: { id: string } }) => i.product?.id).filter(Boolean)));
+      })
+      .catch(() => {});
+  }, [clientId]);
+
+  const handleAddToWishlist = useCallback(
+    async (e: React.MouseEvent, productId: string) => {
+      e.stopPropagation();
+      if (!clientId) {
+        toast("로그인 후 이용해 주세요.");
+        return;
+      }
+      setAddingWishlistId(productId);
+      try {
+        const res = await shopFetch("/api/mypage/wishlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, clientId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok || data.message?.includes("이미")) {
+          setWishlistProductIds((prev) => new Set(prev).add(productId));
+          if (res.ok) toast("관심상품에 담았습니다.", "success");
+        } else {
+          toast(data.error || "관심상품 담기에 실패했습니다.", "error");
+        }
+      } catch {
+        toast("네트워크 오류가 발생했습니다.", "error");
+      } finally {
+        setAddingWishlistId(null);
+      }
+    },
+    [clientId]
+  );
+
+  const handleAddToCart = useCallback(
+    async (e: React.MouseEvent, productId: string) => {
+      e.stopPropagation();
+      if (!template?.orderAllowed) {
+        toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+        return;
+      }
+      const clientIdCookie = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("client_source_id="))
+        ?.split("=")[1];
+      if (!clientIdCookie) {
+        toast("거래처 정보를 찾을 수 없습니다.");
+        return;
+      }
+      setAddingCartId(productId);
+      try {
+        const res = await shopFetch("/api/cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
+        });
+        if (res.ok) {
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
+          toast("장바구니에 추가되었습니다.", "success");
+        } else {
+          const err = await res.json();
+          toast(err?.error || "장바구니 담기에 실패했습니다.", "error");
+        }
+      } catch {
+        toast("네트워크 오류가 발생했습니다.", "error");
+      } finally {
+        setAddingCartId(null);
+      }
+    },
+    [template?.orderAllowed]
+  );
 
   // 카테고리 목록 조회
   useEffect(() => {
@@ -82,6 +172,9 @@ export default function ProductListPage() {
       if (selectedCategory?.id) {
         url += `&categoryId=${selectedCategory.id}`;
       }
+      if (searchQuery.trim()) {
+        url += `&search=${encodeURIComponent(searchQuery.trim())}`;
+      }
 
       try {
         const res = await shopFetch(url);
@@ -102,7 +195,7 @@ export default function ProductListPage() {
     }
 
     fetchProducts();
-  }, [partnerId, selectedCategory, offset]);
+  }, [partnerId, selectedCategory, searchQuery, offset]);
 
   // 정렬 처리 (클라이언트 사이드)
   const sortedProducts = [...products].sort((a, b) => {
@@ -226,6 +319,22 @@ export default function ProductListPage() {
           ))}
         </div>
 
+        {/* 검색 중일 때 검색어 표시 */}
+        {searchQuery.trim() && (
+          <div
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#F8F5FF",
+              borderBottom: "1px solid #E5E7EB",
+              fontSize: "0.875rem",
+              color: "#D6A8E0",
+              fontWeight: 500,
+            }}
+          >
+            검색: &quot;{searchQuery.trim()}&quot;
+          </div>
+        )}
+
         {/* 정렬 및 결과 수 */}
         <div
           style={{
@@ -345,6 +454,66 @@ export default function ProductListPage() {
                           SOLD OUT
                         </div>
                       )}
+                      {/* 관심상품 / 장바구니 아이콘 (클릭 시 상세 이동 방지) */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "8px",
+                          right: "8px",
+                          display: "flex",
+                          gap: "6px",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => handleAddToWishlist(e, product.id)}
+                          disabled={!!addingWishlistId}
+                          aria-label="관심상품 담기"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "50%",
+                            backgroundColor: "rgba(255,255,255,0.95)",
+                            border: "none",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+                            cursor: addingWishlistId ? "wait" : "pointer",
+                          }}
+                        >
+                          <Heart
+                            strokeWidth={1.5}
+                            className="h-4 w-4"
+                            fill={wishlistProductIds.has(product.id) ? PRIMARY : "none"}
+                            stroke={wishlistProductIds.has(product.id) ? PRIMARY : "#374151"}
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleAddToCart(e, product.id)}
+                          disabled={isSoldOut || !!addingCartId}
+                          aria-label="장바구니 담기"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "50%",
+                            backgroundColor: "rgba(255,255,255,0.95)",
+                            border: "none",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+                            cursor: isSoldOut || addingCartId ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          <ShoppingBag
+                            strokeWidth={1.5}
+                            className="h-4 w-4"
+                            style={{ color: "#374151" }}
+                          />
+                        </button>
+                      </div>
                     </div>
 
                     {/* 상품 정보 */}

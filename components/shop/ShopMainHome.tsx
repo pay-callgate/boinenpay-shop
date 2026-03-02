@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Heart, ShoppingBag } from "lucide-react";
 import { useShopTemplate } from "./ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "./ShopLayout";
 import { PREVIEW_SLUG } from "./ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "./ToastContext";
 
 const PRIMARY = "#D6A8E0";
 
@@ -104,6 +107,12 @@ export function ShopMainHome({
 }: ShopMainHomeProps) {
   const router = useRouter();
   const shop = useShopTemplate();
+  const clientId = shop?.client?.id ?? null;
+  const [wishlistProductIds, setWishlistProductIds] = useState<Set<string>>(new Set());
+  const [wishlistItemIdsByProductId, setWishlistItemIdsByProductId] = useState<Record<string, string>>({});
+  const [addingCartId, setAddingCartId] = useState<string | null>(null);
+  const [addingWishlistId, setAddingWishlistId] = useState<string | null>(null);
+
   // 리프 노드만 노출: 부모 카테고리는 숨기고, 하위 카테고리 + 자식 없는 1차만 표시
   const parentIds = new Set(
     categories.map((c) => c.parent_id).filter(Boolean) as string[]
@@ -113,13 +122,147 @@ export function ShopMainHome({
     displayCategories[0]?.slug ?? null
   );
 
+  // 관심상품 목록 조회 (하트 채움 + 삭제 시 사용할 item id 저장)
+  useEffect(() => {
+    if (!clientId) return;
+    shopFetch(`/api/mypage/wishlist?clientId=${clientId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const items = (data?.items ?? []) as { id: string; product: { id: string } }[];
+        setWishlistProductIds(new Set(items.map((i) => i.product?.id).filter(Boolean)));
+        const byProduct: Record<string, string> = {};
+        items.forEach((i) => {
+          if (i.product?.id && i.id) byProduct[i.product.id] = i.id;
+        });
+        setWishlistItemIdsByProductId(byProduct);
+      })
+      .catch(() => {});
+  }, [clientId]);
+
+  const handleRemoveFromWishlist = useCallback(
+    (e: React.MouseEvent, productId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const itemId = wishlistItemIdsByProductId[productId];
+      if (!itemId) return;
+      setAddingWishlistId(productId);
+      shopFetch(`/api/mypage/wishlist/${itemId}`, { method: "DELETE" })
+        .then((res) => {
+          if (res.ok) {
+            setWishlistProductIds((prev) => {
+              const next = new Set(prev);
+              next.delete(productId);
+              return next;
+            });
+            setWishlistItemIdsByProductId((prev) => {
+              const next = { ...prev };
+              delete next[productId];
+              return next;
+            });
+          } else {
+            return res.json().catch(() => ({})).then((err: { error?: string }) => {
+              toast(err?.error || "관심상품에서 삭제에 실패했습니다.", "error");
+            });
+          }
+        })
+        .catch(() => toast("네트워크 오류가 발생했습니다.", "error"))
+        .finally(() => setAddingWishlistId(null));
+    },
+    [wishlistItemIdsByProductId]
+  );
+
+  const handleAddToWishlist = useCallback(
+    (e: React.MouseEvent, productId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!clientId) {
+        toast("로그인 후 이용해 주세요.");
+        return;
+      }
+      setAddingWishlistId(productId);
+      shopFetch("/api/mypage/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, clientId }),
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({})) as { message?: string; error?: string };
+          if (res.ok) {
+            setWishlistProductIds((prev) => new Set(prev).add(productId));
+            if (!data?.message?.includes("이미")) toast("관심상품에 담았습니다.", "success");
+          } else if (data?.message?.includes("이미")) {
+            setWishlistProductIds((prev) => new Set(prev).add(productId));
+          } else {
+            toast(data?.error || "관심상품 담기에 실패했습니다.", "error");
+            return;
+          }
+          const listRes = await shopFetch(`/api/mypage/wishlist?clientId=${clientId}`);
+          if (listRes.ok) {
+            const listData = await listRes.json();
+            const items = (listData?.items ?? []) as { id: string; product: { id: string } }[];
+            const found = items.find((i) => i.product?.id === productId);
+            if (found) {
+              setWishlistItemIdsByProductId((prev) => ({ ...prev, [productId]: found.id }));
+            }
+          }
+        })
+        .catch(() => toast("네트워크 오류가 발생했습니다.", "error"))
+        .finally(() => setAddingWishlistId(null));
+    },
+    [clientId]
+  );
+
+  const toggleWishlist = useCallback(
+    (e: React.MouseEvent, productId: string) => {
+      if (wishlistProductIds.has(productId)) handleRemoveFromWishlist(e, productId);
+      else handleAddToWishlist(e, productId);
+    },
+    [wishlistProductIds, handleRemoveFromWishlist, handleAddToWishlist]
+  );
+
+  const handleAddToCart = useCallback(
+    (e: React.MouseEvent, productId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!shop?.orderAllowed) {
+        toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+        return;
+      }
+      const clientIdCookie = typeof document !== "undefined"
+        ? document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("client_source_id="))
+            ?.split("=")[1]
+        : null;
+      if (!clientIdCookie) {
+        toast("거래처 정보를 찾을 수 없습니다.");
+        return;
+      }
+      setAddingCartId(productId);
+      shopFetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
+      })
+        .then((res) => {
+          if (res.ok) {
+            if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
+            toast("장바구니에 추가되었습니다.", "success");
+          } else {
+            return res.json().then((err: { error?: string }) => {
+              toast(err?.error || "장바구니 담기에 실패했습니다.", "error");
+            });
+          }
+        })
+        .catch(() => toast("네트워크 오류가 발생했습니다.", "error"))
+        .finally(() => setAddingCartId(null));
+    },
+    [shop?.orderAllowed]
+  );
+
   if (!shop) return null;
 
   const basePath = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
-
-  const handleProductClick = (productSlug: string) => {
-    router.push(`${basePath}/products/${productSlug}`);
-  };
 
   const handleMoreView = (categorySlug: string) => {
     router.push(`${basePath}/products?category=${categorySlug}`);
@@ -221,81 +364,99 @@ export function ShopMainHome({
                     const salePrice = product.sale_price ?? product.base_price;
 
                     return (
-                      <button
-                        key={product.id}
-                        type="button"
-                        onClick={() => handleProductClick(product.slug)}
-                        className="text-left"
-                      >
-                        <div className="relative aspect-[1/1] overflow-hidden rounded-md bg-[#F3F4F6]">
-                          {product.thumbnail_url ? (
-                            <img
-                              src={product.thumbnail_url}
-                              alt={product.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-[15px] text-[#9CA3AF]">
-                              No Image
-                            </div>
-                          )}
-                          {discountRate != null && discountRate > 0 && (
-                            <span
-                              className="absolute left-2 top-2 rounded px-1.5 py-0.5 text-xs font-bold text-white"
-                              style={{ backgroundColor: PRIMARY }}
-                            >
-                              {discountRate}%
-                            </span>
-                          )}
-                          {!discountRate && (
-                            <span className="absolute left-2 top-2 rounded bg-[#333333] px-1.5 py-0.5 text-xs font-medium text-white">
-                              NEW
-                            </span>
-                          )}
-                          {isSoldOut && (
-                            <span className="absolute right-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
-                              품절
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="mt-3">
-                          <p className="line-clamp-2 text-[15px] font-normal leading-tight text-gray-800">
-                            {product.name}
-                          </p>
-                          <div className="mt-1 flex items-baseline gap-1">
+                      <div key={product.id} className="text-left">
+                        <Link
+                          href={`${basePath}/products/${product.slug}`}
+                          className="block"
+                        >
+                          <div className="relative aspect-[1/1] overflow-hidden rounded-md bg-[#F3F4F6]">
+                            {product.thumbnail_url ? (
+                              <img
+                                src={product.thumbnail_url}
+                                alt={product.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-[15px] text-[#9CA3AF]">
+                                No Image
+                              </div>
+                            )}
                             {discountRate != null && discountRate > 0 && (
                               <span
-                                className="font-bold"
-                                style={{ color: PRIMARY }}
+                                className="absolute left-2 top-2 rounded px-1.5 py-0.5 text-xs font-bold text-white"
+                                style={{ backgroundColor: PRIMARY }}
                               >
                                 {discountRate}%
                               </span>
                             )}
-                            <span className="font-bold text-[#111111]">
-                              {formatPrice(salePrice)}원
-                            </span>
-                          </div>
-                          {product.sale_price != null &&
-                            product.sale_price < product.base_price && (
-                              <p className="mt-1 text-xs text-[#9CA3AF] line-through">
-                                {formatPrice(product.base_price)}원
-                              </p>
+                            {!discountRate && (
+                              <span className="absolute left-2 top-2 rounded bg-[#333333] px-1.5 py-0.5 text-xs font-medium text-white">
+                                NEW
+                              </span>
                             )}
-                          <div className="mt-2 flex items-center gap-2 text-[#9CA3AF]">
+                            {isSoldOut && (
+                              <span className="absolute right-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
+                                품절
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-3">
+                            <p className="line-clamp-2 text-[15px] font-normal leading-tight text-gray-800">
+                              {product.name}
+                            </p>
+                            <div className="mt-1 flex items-baseline gap-1">
+                              {discountRate != null && discountRate > 0 && (
+                                <span
+                                  className="font-bold"
+                                  style={{ color: PRIMARY }}
+                                >
+                                  {discountRate}%
+                                </span>
+                              )}
+                              <span className="font-bold text-[#111111]">
+                                {formatPrice(salePrice)}원
+                              </span>
+                            </div>
+                            {product.sale_price != null &&
+                              product.sale_price < product.base_price && (
+                                <p className="mt-1 text-xs text-[#9CA3AF] line-through">
+                                  {formatPrice(product.base_price)}원
+                                </p>
+                              )}
+                          </div>
+                        </Link>
+                        {/* 하트·장바구니: 동그라미 테두리 + 토글(담기/해제) */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => toggleWishlist(e, product.id)}
+                            disabled={!!addingWishlistId}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-800 disabled:opacity-50"
+                            aria-label="관심상품 담기"
+                          >
                             <Heart
                               strokeWidth={1.5}
                               className="h-4 w-4"
-                              aria-hidden
+                              fill={wishlistProductIds.has(product.id) ? PRIMARY : "none"}
+                              stroke={wishlistProductIds.has(product.id) ? PRIMARY : "currentColor"}
                             />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleAddToCart(e, product.id)}
+                            disabled={isSoldOut || !!addingCartId}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="장바구니 담기"
+                          >
                             <ShoppingBag
                               strokeWidth={1.5}
                               className="h-4 w-4"
-                              aria-hidden
+                              style={{ color: "currentColor" }}
                             />
-                          </div>
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

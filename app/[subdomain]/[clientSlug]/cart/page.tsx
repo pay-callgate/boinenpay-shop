@@ -6,6 +6,7 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
 
 const PRIMARY = "#D6A8E0";
 
@@ -122,7 +123,7 @@ export default function CartPage() {
 
   const goToOrder = (selectedOnly: boolean) => {
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
     const ids = selectedOnly ? Array.from(selectedItems) : items.map((i) => i.id);

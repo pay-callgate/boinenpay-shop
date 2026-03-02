@@ -8,6 +8,7 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
 
 /**
  * 주문서(Checkout) 페이지 - 8대 섹션, 아코디언, 파스텔 연보라 디자인 시스템
@@ -260,7 +261,7 @@ export default function CheckoutPage() {
   }, []);
   const openPostcodeSearch = () => {
     if (!window.daum?.Postcode) {
-      alert("주소 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+      toast("주소 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
       return;
     }
     new window.daum.Postcode({
@@ -275,11 +276,11 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
     if (!partnerId || !clientId || items.length === 0) {
-      alert("주문 정보가 올바르지 않습니다.");
+      toast("주문 정보가 올바르지 않습니다.");
       return;
     }
     let name = shippingName;
@@ -292,7 +293,7 @@ export default function CheckoutPage() {
       phone = ordererPhone || shippingPhone;
     }
     if (!name || !phone || !address) {
-      alert("배송지 정보를 모두 입력해주세요.");
+      toast("배송지 정보를 모두 입력해주세요.");
       return;
     }
     setSubmitting(true);
@@ -318,14 +319,14 @@ export default function CheckoutPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        alert("주문이 완료되었습니다!\n주문번호: " + data.order.order_no);
+        toast("주문이 완료되었습니다! 주문번호: " + data.order.order_no, "success");
         router.push(`/${subdomain}/${clientSlug}`);
       } else {
         const err = await res.json();
-        alert(err.error || "주문에 실패했습니다.");
+        toast(err.error || "주문에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
       setSubmitting(false);
     }

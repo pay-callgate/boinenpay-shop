@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
 
 /**
  * T6-4: 회원정보 수정
@@ -68,7 +69,7 @@ export default function ProfilePage() {
       } catch (e) {
         if (!cancelled) {
           console.error("[mypage/profile] 네트워크 오류:", e);
-          alert("네트워크 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.");
+          toast("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "error");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -85,7 +86,7 @@ export default function ProfilePage() {
     e.preventDefault();
 
     if (!formData.name) {
-      alert("이름을 입력해주세요.");
+      toast("이름을 입력해주세요.");
       return;
     }
 
@@ -98,16 +99,16 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        alert("회원정보가 수정되었습니다.");
+        toast("회원정보가 수정되었습니다.", "success");
         const data = await res.json();
         setUser(data.user);
       } else {
         const error = await res.json().catch(() => ({}));
         console.error("[mypage/profile] 수정 실패:", res.status, error?.error ?? res.statusText);
-        alert(error?.error || "회원정보 수정에 실패했습니다.");
+        toast(error?.error || "회원정보 수정에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
       setSaving(false);
     }

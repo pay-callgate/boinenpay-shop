@@ -7,6 +7,7 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
 import { addRecentProduct } from "@/lib/recent-products";
 
 /**
@@ -73,6 +74,7 @@ export default function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState<"detail" | "review" | "qna" | "delivery">("detail");
   const [addingToCart, setAddingToCart] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
+  const [wishlistItemId, setWishlistItemId] = useState<string | null>(null);
   const [showWishlistModal, setShowWishlistModal] = useState(false);
   const [wishlistChecking, setWishlistChecking] = useState(false);
 
@@ -143,8 +145,10 @@ export default function ProductDetailPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;
-        const items = data?.items ?? [];
-        setIsInWishlist(items.some((i: { product: { id: string } }) => i.product?.id === product?.id));
+        const items = (data?.items ?? []) as { id: string; product: { id: string } }[];
+        const found = items.find((i) => i.product?.id === product?.id);
+        setIsInWishlist(!!found);
+        setWishlistItemId(found?.id ?? null);
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -152,7 +156,7 @@ export default function ProductDetailPage() {
 
   const addToWishlist = async () => {
     if (!product?.id || !clientId) {
-      alert("로그인 후 이용해 주세요.");
+      toast("로그인 후 이용해 주세요.");
       return;
     }
     setWishlistChecking(true);
@@ -169,13 +173,46 @@ export default function ProductDetailPage() {
       } else if (data.message?.includes("이미")) {
         setIsInWishlist(true);
       } else {
-        alert(data.error || "관심상품 담기에 실패했습니다.");
+        toast(data.error || "관심상품 담기에 실패했습니다.", "error");
+        setWishlistChecking(false);
+        return;
+      }
+      const listRes = await shopFetch(`/api/mypage/wishlist?clientId=${clientId}`);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const items = (listData?.items ?? []) as { id: string; product: { id: string } }[];
+        const item = items.find((i) => i.product?.id === product.id);
+        if (item) setWishlistItemId(item.id);
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
       setWishlistChecking(false);
     }
+  };
+
+  const removeFromWishlist = async () => {
+    if (!wishlistItemId) return;
+    setWishlistChecking(true);
+    try {
+      const res = await shopFetch(`/api/mypage/wishlist/${wishlistItemId}`, { method: "DELETE" });
+      if (res.ok) {
+        setIsInWishlist(false);
+        setWishlistItemId(null);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast(err?.error || "관심상품에서 삭제에 실패했습니다.", "error");
+      }
+    } catch {
+      toast("네트워크 오류가 발생했습니다.", "error");
+    } finally {
+      setWishlistChecking(false);
+    }
+  };
+
+  const toggleWishlist = () => {
+    if (isInWishlist) removeFromWishlist();
+    else addToWishlist();
   };
 
   const formatPrice = (price: number) =>
@@ -199,7 +236,7 @@ export default function ProductDetailPage() {
   const addToCart = async () => {
     if (!product) return;
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
     const clientIdCookie = document.cookie
@@ -207,7 +244,7 @@ export default function ProductDetailPage() {
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
     if (!clientIdCookie) {
-      alert("거래처 정보를 찾을 수 없습니다.");
+      toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
     setAddingToCart(true);
@@ -225,13 +262,13 @@ export default function ProductDetailPage() {
       if (res.ok) {
         const data = await res.json();
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
-        alert(data.message || "장바구니에 추가되었습니다.");
+        toast(data.message || "장바구니에 추가되었습니다.", "success");
       } else {
         const err = await res.json();
-        alert(err.error || "장바구니 추가에 실패했습니다.");
+        toast(err.error || "장바구니 추가에 실패했습니다.", "error");
       }
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
       setAddingToCart(false);
     }
@@ -240,7 +277,7 @@ export default function ProductDetailPage() {
   const goToBuyNow = async () => {
     if (!product) return;
     if (!template?.orderAllowed) {
-      alert("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
     const clientIdCookie = document.cookie
@@ -248,7 +285,7 @@ export default function ProductDetailPage() {
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
     if (!clientIdCookie) {
-      alert("거래처 정보를 찾을 수 없습니다.");
+      toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
     setAddingToCart(true);
@@ -269,9 +306,9 @@ export default function ProductDetailPage() {
         return;
       }
       const err = await res.json();
-      alert(err.error ?? "장바구니 추가에 실패했습니다.");
+      toast(err.error ?? "장바구니 추가에 실패했습니다.", "error");
     } catch {
-      alert("네트워크 오류가 발생했습니다.");
+      toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
       setAddingToCart(false);
     }
@@ -428,7 +465,7 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-2 text-gray-400">
               <button
                 type="button"
-                onClick={addToWishlist}
+                onClick={toggleWishlist}
                 disabled={wishlistChecking}
                 className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 active:opacity-80 disabled:opacity-50"
                 aria-label="찜"
@@ -436,8 +473,8 @@ export default function ProductDetailPage() {
                 <Heart
                   strokeWidth={1.5}
                   className="h-5 w-5"
-                  fill={isInWishlist ? ROSE : "none"}
-                  style={{ color: isInWishlist ? ROSE : undefined }}
+                  fill={isInWishlist ? PRIMARY : "none"}
+                  style={{ color: isInWishlist ? PRIMARY : undefined }}
                 />
               </button>
               <button
@@ -619,7 +656,7 @@ export default function ProductDetailPage() {
           <div className="mx-auto flex h-14 max-w-[430px]">
           <button
             type="button"
-            onClick={addToWishlist}
+            onClick={toggleWishlist}
             disabled={wishlistChecking}
             className="flex w-14 shrink-0 items-center justify-center border-r border-gray-200 bg-white text-gray-500 hover:bg-gray-50 active:opacity-80 disabled:opacity-50"
             aria-label="찜"
@@ -627,8 +664,8 @@ export default function ProductDetailPage() {
             <Heart
               strokeWidth={1.5}
               className="h-6 w-6"
-              fill={isInWishlist ? ROSE : "none"}
-              style={{ color: isInWishlist ? ROSE : undefined }}
+              fill={isInWishlist ? PRIMARY : "none"}
+              style={{ color: isInWishlist ? PRIMARY : undefined }}
             />
           </button>
           <button

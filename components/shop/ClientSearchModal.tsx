@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "./ToastContext";
 
 /**
  * T3.5-2: 소속 기업 찾기 모달 (수동 검색)
@@ -87,10 +88,10 @@ export function ClientSearchModal({
         setRegistered(true);
       } else {
         const data = await res.json();
-        alert(data.error || "등록 실패");
+        toast(data.error || "등록 실패", "error");
       }
     } catch {
-      alert("네트워크 오류");
+      toast("네트워크 오류", "error");
     } finally {
       setRegistering(false);
     }
