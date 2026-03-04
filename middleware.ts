@@ -27,6 +27,7 @@ export async function middleware(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
     if (!token) {
+      console.log("[MIDDLEWARE] 어드민 인증 없음 → 로그인 리다이렉트", { pathname });
       const loginUrl = new URL("/admin/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname || "/admin");
       return NextResponse.redirect(loginUrl);

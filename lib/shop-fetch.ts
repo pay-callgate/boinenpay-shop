@@ -9,13 +9,21 @@ const SESSION_EXPIRED_MESSAGE =
 /**
  * 401/403 수신 시 공통 처리: 토스트 알림 → 로그아웃 → 로그인 페이지 리다이렉트
  * (거래처 쇼핑몰 전역 세션 만료 정책)
+ * signOut 후에도 리다이렉트가 누락되지 않도록 window.location.replace로 이중 보장.
  */
 async function handleSessionExpiry(): Promise<never> {
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
   const subdomain = pathname.split("/")[1] ?? "shop";
   const loginUrl = `/${subdomain}/login?callbackUrl=${encodeURIComponent(pathname)}`;
   toast(SESSION_EXPIRED_MESSAGE, "error");
-  await signOut({ redirect: true, callbackUrl: loginUrl });
+  try {
+    await signOut({ redirect: false });
+  } catch {
+    // signOut 실패해도 리다이렉트는 수행
+  }
+  if (typeof window !== "undefined") {
+    window.location.replace(loginUrl);
+  }
   throw new Error("SESSION_EXPIRED");
 }
 
@@ -39,10 +47,15 @@ export async function shopFetch(
   const options: RequestInit = {
     credentials: "include",
     ...rest,
+    cache: "no-store", // 캐시 원천 차단 — 항상 최신 응답만 사용
   };
   const res = await fetch(input, options);
 
-  if (doHandle && (res.status === 401 || res.status === 403)) {
+  // 401: 세션 만료로 간주해 전역 로그아웃 처리
+  // 403: 단순 권한 부족이므로 여기서는 세션 만료로 취급하지 않는다.
+  if (doHandle && res.status === 401) {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+    console.warn("[shopFetch] 세션 만료(401/403) → 로그인 페이지로 이동", { url, status: res.status });
     await handleSessionExpiry();
   }
 

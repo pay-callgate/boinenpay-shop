@@ -28,7 +28,14 @@ export const authOptions: NextAuthOptions = {
     async signIn() {
       return true;
     },
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, user }) {
+      // 갱신 시(user/account 없음) 기존 토큰의 커스텀 데이터 보존 — JWT 콜백 버그 방어
+      const existingUserId = (token as JWT & { userId?: string }).userId;
+      if (!account && existingUserId) {
+        (token as JWT & { userId?: string }).userId = existingUserId;
+        return token;
+      }
+
       if (account && profile && (profile as { email?: string }).email) {
         try {
           const { createServerSupabase } = await import("@/lib/supabase/server");
@@ -122,6 +129,11 @@ export const authOptions: NextAuthOptions = {
           throw err;
         }
       }
+
+      // 한 번 더 보존: 갱신 경로에서 token이 덮어씌워졌을 수 있음
+      if (!account && existingUserId) {
+        (token as JWT & { userId?: string }).userId = existingUserId;
+      }
       return token;
     },
     async session({ session, token }) {
@@ -142,7 +154,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 60 * 60, // 1시간 (어드민 보안 정책: 1시간 세션 유지)
+    maxAge: 7200, // 2시간. 실질적 보안 관리는 AdminIdleGuard(유휴 30분)가 담당
   },
   pages: {
     signIn: "/login",

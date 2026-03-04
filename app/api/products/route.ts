@@ -8,12 +8,14 @@ import { createServerSupabase } from "@/lib/supabase/server";
  * GET /api/products?partnerId=xxx&page=1&limit=20&search=xxx&categoryId=xxx&status=xxx
  * POST /api/products - 상품 생성
  */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // GET: 상품 목록 조회
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -26,6 +28,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || "";
 
     if (!partnerId) {
+      console.log("[API /api/products] 400 - partnerId 없음");
       return NextResponse.json(
         { error: "partnerId가 필요합니다." },
         { status: 400 }
@@ -96,6 +99,7 @@ export async function GET(request: NextRequest) {
 
     const total = count ?? 0;
     const totalPages = Math.ceil(total / limit);
+    console.log("[API /api/products] GET", { partnerId, total, page, limit });
 
     return NextResponse.json({
       products: products ?? [],
@@ -119,7 +123,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

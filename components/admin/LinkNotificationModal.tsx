@@ -64,8 +64,11 @@ export function LinkNotificationModal({
       typeof window !== "undefined" && partnerSubdomain && clientSlug
         ? `${window.location.origin}/${partnerSubdomain}/${clientSlug}`
         : "";
-    const filled070 = assigned070Number?.trim() || "미등록";
-    const filled = `안녕하세요. ${partnerDisplayName}입니다.
+    const has070 = !!assigned070Number?.trim();
+    const filled070 = assigned070Number?.trim() || "";
+
+    const filled = has070
+      ? `안녕하세요. ${partnerDisplayName}입니다.
 저희 서비스를 이용해주셔서 감사합니다.
 상품 주문을 위한 전용 링크를 보내드립니다.
 
@@ -74,6 +77,16 @@ ${url || "(링크 준비 중)"}
 
 연동 070 번호:
 ${filled070}
+
+위 링크를 통해 간편하게 주문하실 수 있습니다.
+앞으로도 많은 이용 부탁드립니다.
+감사합니다.`
+      : `안녕하세요. ${partnerDisplayName}입니다.
+저희 서비스를 이용해주셔서 감사합니다.
+상품 주문을 위한 전용 링크를 보내드립니다.
+
+주문 전용 링크:
+${url || "(링크 준비 중)"}
 
 위 링크를 통해 간편하게 주문하실 수 있습니다.
 앞으로도 많은 이용 부탁드립니다.
@@ -163,19 +176,11 @@ ${filled070}
                   )}
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between">
+              <div className="mt-3">
                 <span className="text-xs text-slate-500">
                   [SMS/LMS 자동전환] {byteCount} byte
                   {isLms && <span className="ml-1 font-medium text-slate-600">(장문)</span>}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setMessageEditable((v) => !v)}
-                  className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90"
-                  style={{ backgroundColor: BTN_NAVY }}
-                >
-                  {messageEditable ? "미리보기" : "메시지 내용 수정"}
-                </button>
               </div>
             </div>
 
@@ -240,9 +245,19 @@ ${filled070}
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                   메시지 내용 수정
                 </label>
-                <p className="mb-2 text-xs text-slate-500">
-                  필요 시 내용을 수정할 수 있습니다.
-                </p>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-slate-500">
+                    필요 시 내용을 수정할 수 있습니다.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setMessageEditable((v) => !v)}
+                    className="shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90"
+                    style={{ backgroundColor: BTN_NAVY }}
+                  >
+                    {messageEditable ? "미리보기" : "메시지 내용 수정"}
+                  </button>
+                </div>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}

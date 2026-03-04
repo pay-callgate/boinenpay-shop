@@ -68,17 +68,26 @@ export default function ProductsPage() {
     fetchPartner();
   }, []);
 
-  useEffect(() => {
-    async function fetchCategories() {
-      if (!partnerId) return;
+  const fetchCategories = useCallback(async () => {
+    if (!partnerId) return;
+    try {
       const res = await adminFetch(`/api/categories?partnerId=${partnerId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data.flat || []);
+      if (!res.ok) {
+        // 실패 시 기존 categories 상태는 그대로 유지
+        return;
       }
+      const data = await res.json();
+      if (Array.isArray(data?.flat)) {
+        setCategories(data.flat);
+      }
+    } catch {
+      // 네트워크 오류 등도 기존 상태 유지
     }
-    fetchCategories();
   }, [partnerId]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const fetchProducts = useCallback(
     async (pageOverride?: number) => {
@@ -97,16 +106,30 @@ export default function ProductsPage() {
       if (categoryId) params.append("categoryId", categoryId);
       if (status) params.append("status", status);
 
-      const res = await adminFetch(`/api/products?${params}`);
-      if (res.ok) {
+      try {
+        const res = await adminFetch(`/api/products?${params}`);
+        if (!res.ok) {
+          // 실패 시 기존 products/pagination 상태는 그대로 유지
+          return;
+        }
         const data = await res.json();
-        setProducts(data.products || []);
-        setTotalPages(data.pagination?.totalPages || 1);
-        setTotal(data.pagination?.total || 0);
+        if (Array.isArray(data?.products)) {
+          setProducts(data.products);
+        }
+        const totalFromApi = typeof data?.pagination?.total === "number" ? data.pagination.total : total;
+        const totalPagesFromApi =
+          typeof data?.pagination?.totalPages === "number"
+            ? data.pagination.totalPages
+            : Math.max(1, Math.ceil(totalFromApi / LIMIT));
+        setTotal(totalFromApi);
+        setTotalPages(totalPagesFromApi);
+      } catch {
+        // 네트워크 오류 등도 기존 상태 유지
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     },
-    [partnerId, page, search, categoryId, status]
+    [partnerId, page, search, categoryId, status, total]
   );
 
   useEffect(() => {
@@ -212,7 +235,8 @@ export default function ProductsPage() {
                     setEditingProduct(null);
                     setRegistrationModalOpen(true);
                   }}
-                  className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                  className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
+                  style={{ backgroundColor: "#1e293b" }}
                 >
                   + 상품 등록
                 </button>
@@ -223,11 +247,11 @@ export default function ProductsPage() {
           <p className="mb-3 text-sm text-slate-600">총 {total}개 상품</p>
         </div>
 
-        {/* 테이블 & 페이징: 남는 공간 전부 채움, 본문만 스크롤 */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex-1 overflow-auto min-h-0">
-          <table className="w-full border-collapse relative">
-            <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm shadow-[0_1px_0_#e2e8f0]">
+        {/* 테이블 & 페이징: 거래처/링크 관리와 동일한 스크롤 구조 */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
+            <table className="w-full border-collapse">
+              <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">상품</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">카테고리</th>
@@ -343,9 +367,19 @@ export default function ProductsPage() {
           </table>
         </div>
 
-        {/* 페이징 영역: 테이블 카드 하단에 통합 */}
+        {/* 페이징 영역: 테이블 카드 하단에 통합 (거래처/링크 관리와 동일) */}
         {!loading && total > 0 && (
-          <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-center gap-2">
+          <div className="flex shrink-0 flex-col items-center gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="relative h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="absolute top-0 h-full rounded-full bg-slate-600 transition-all duration-200"
+                style={{
+                  width: `${totalPages > 0 ? 100 / totalPages : 0}%`,
+                  left: `${totalPages > 0 ? ((page - 1) / totalPages) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-center gap-2">
             <button
               type="button"
               onClick={() => setPage(1)}
@@ -393,9 +427,10 @@ export default function ProductsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
               </svg>
             </button>
+            </div>
           </div>
         )}
-      </div>
+        </div>
       </div>
     </>
   );

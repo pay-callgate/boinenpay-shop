@@ -118,6 +118,13 @@ function SmartHeader({
     return () => window.removeEventListener("cart-updated", onCartUpdated);
   }, [refreshCartCount]);
 
+  // 탭 포커스 시 뱃지 재조회 (초기 로드 시 세션 지연으로 401 나온 경우 보완)
+  useEffect(() => {
+    const onFocus = () => refreshCartCount();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshCartCount]);
+
   // 거래처 변경 시 로고 에러 상태 초기화 (멀티테넌트 전환 대응)
   useEffect(() => {
     setLogoLoadError(false);

@@ -122,20 +122,37 @@ export async function POST(request: NextRequest) {
       targetClientId = client.id;
     }
 
-    // 기존 매핑 확인
-    const { data: existing } = await supabase
+    // 기존 매핑 확인 (user_clients는 user_id가 PK/UNIQUE — 1:1)
+    const { data: existingByUser } = await supabase
       .from("user_clients")
-      .select("id")
+      .select(`
+        id,
+        user_id,
+        client_id,
+        role,
+        clients (
+          id,
+          slug,
+          name,
+          logo_url,
+          partner_id
+        )
+      `)
       .eq("user_id", session.user.id)
-      .eq("client_id", targetClientId)
       .maybeSingle();
 
-    if (existing) {
-      // 이미 매핑되어 있으면 성공으로 반환 (중복 생성 방지)
-      return NextResponse.json({
-        userClient: existing,
-        message: "이미 매핑되어 있습니다.",
-      });
+    if (existingByUser) {
+      // 이미 해당 유저의 매핑이 있으면 성공 반환 (동일 client면 그대로, 다르면 "이미 다른 거래처 매핑됨")
+      const sameClient = existingByUser.client_id === targetClientId;
+      return NextResponse.json(
+        {
+          userClient: existingByUser,
+          message: sameClient
+            ? "이미 매핑되어 있습니다."
+            : "이미 다른 거래처에 매핑되어 있습니다. 기존 매핑을 반환합니다.",
+        },
+        { status: 200 }
+      );
     }
 
     // 새 매핑 생성 (user_clients.role CHECK: 'member' | 'admin' 만 허용)
@@ -160,6 +177,29 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      // 중복 키(이미 존재)면 500 대신 기존 행 조회 후 200
+      if (error.code === "23505") {
+        const { data: existing } = await supabase
+          .from("user_clients")
+          .select(`
+            *,
+            clients (
+              id,
+              slug,
+              name,
+              logo_url,
+              partner_id
+            )
+          `)
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        if (existing) {
+          return NextResponse.json({
+            userClient: existing,
+            message: "이미 매핑되어 있습니다.",
+          });
+        }
+      }
       console.error("User-client create error:", error);
       return NextResponse.json(
         { error: "거래처 매핑 생성 실패" },

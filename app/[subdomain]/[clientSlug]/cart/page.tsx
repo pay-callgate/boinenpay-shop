@@ -58,6 +58,10 @@ export default function CartPage() {
           const list = data?.items ?? [];
           setItems(list);
           setSelectedItems(new Set(list.map((item: CartItem) => item.id)));
+          // 헤더 장바구니 뱃지 갱신 (장바구니 페이지 로드 후에도 우측 상단 숫자 반영)
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("cart-updated"));
+          }
         }
       } finally {
         setLoading(false);

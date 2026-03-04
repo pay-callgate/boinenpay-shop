@@ -55,12 +55,21 @@ export default function InventoryPage() {
       return;
     }
     setLoading(true);
-    const res = await adminFetch(`/api/products?partnerId=${partnerId}&limit=100`);
-    if (res.ok) {
+    try {
+      const res = await adminFetch(`/api/products?partnerId=${partnerId}&limit=100`);
+      if (!res.ok) {
+        // 실패 시 기존 products 상태는 그대로 유지
+        return;
+      }
       const data = await res.json();
-      setProducts(data.products || []);
+      if (Array.isArray(data?.products)) {
+        setProducts(data.products);
+      }
+    } catch {
+      // 네트워크 오류 등도 기존 상태 유지
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [partnerId]);
 
   useEffect(() => {

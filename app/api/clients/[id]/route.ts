@@ -66,6 +66,9 @@ export async function PUT(
       logoUrl,
       businessRegistrationNumber,
       verificationStatus,
+      representativeName,
+      representativeEmail,
+      representativePhone,
       contactName,
       contactPhone,
       contactEmail,
@@ -115,6 +118,9 @@ export async function PUT(
       updateData.business_registration_number = businessRegistrationNumber;
     if (verificationStatus !== undefined)
       updateData.verification_status = verificationStatus;
+    if (representativeName !== undefined) updateData.representative_name = representativeName;
+    if (representativeEmail !== undefined) updateData.representative_email = representativeEmail;
+    if (representativePhone !== undefined) updateData.representative_phone = representativePhone;
     if (contactName !== undefined) updateData.contact_name = contactName;
     if (contactPhone !== undefined) updateData.contact_phone = contactPhone;
     if (contactEmail !== undefined) updateData.contact_email = contactEmail;

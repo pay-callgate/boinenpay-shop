@@ -75,12 +75,17 @@ export default function CategoriesPage() {
     setLoading(true);
     try {
       const res = await adminFetch(`/api/categories?partnerId=${partnerId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data.categories || []);
-        setFlatCategories(data.flat || []);
-      } else {
+      if (!res.ok) {
         setError("카테고리 조회 실패");
+        // 실패 시 기존 categories/flatCategories 상태는 유지
+      } else {
+        const data = await res.json();
+        if (Array.isArray(data?.categories)) {
+          setCategories(data.categories);
+        }
+        if (Array.isArray(data?.flat)) {
+          setFlatCategories(data.flat);
+        }
       }
     } catch {
       setError("네트워크 오류");

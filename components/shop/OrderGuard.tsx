@@ -35,12 +35,38 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
   const { isMatched, loading, refresh } = useUserClient(partnerId);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [skipGuard, setSkipGuard] = useState(false);
+  const [loopError, setLoopError] = useState<string | null>(null);
 
   // 미로그인 시 중간 Gate 없이 즉시 거래처 전용 로그인 페이지로 리다이렉트
   useEffect(() => {
+    if (!subdomain) return;
+
+    // 최근에 너무 자주 리다이렉트되었다면 추가 리다이렉트를 중단하고 에러 메시지 노출
+    if (typeof window !== "undefined") {
+      const key = "order_guard_redirect_history";
+      const now = Date.now();
+      const raw = window.sessionStorage.getItem(key);
+      const history: number[] = raw ? JSON.parse(raw) : [];
+      const recent = history.filter((t) => now - t < 10000); // 최근 10초
+      if (recent.length >= 3) {
+        setLoopError("로그인과 주문 페이지 사이에서 반복 이동이 감지되었습니다. 새로고침 후 다시 시도해 주세요. 문제가 계속되면 관리자에게 문의해 주세요.");
+        return;
+      }
+    }
+
     if (status !== "unauthenticated" || !subdomain) return;
     const callbackUrl = typeof window !== "undefined" ? window.location.href : "";
     const url = `/${subdomain}/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+
+    if (typeof window !== "undefined") {
+      const key = "order_guard_redirect_history";
+      const now = Date.now();
+      const raw = window.sessionStorage.getItem(key);
+      const history: number[] = raw ? JSON.parse(raw) : [];
+      history.push(now);
+      window.sessionStorage.setItem(key, JSON.stringify(history.slice(-10)));
+    }
+
     router.replace(url);
   }, [status, subdomain, router]);
 
@@ -79,6 +105,22 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
 
   // 로그인했지만 거래처 미매칭
   if (!isMatched && !skipGuard) {
+    if (loopError) {
+      return (
+        <div
+          style={{
+            padding: "40px 24px",
+            textAlign: "center",
+            color: "#b91c1c",
+            fontSize: "0.9rem",
+            lineHeight: 1.6,
+          }}
+        >
+          {loopError}
+        </div>
+      );
+    }
+
     return (
       <>
         <div

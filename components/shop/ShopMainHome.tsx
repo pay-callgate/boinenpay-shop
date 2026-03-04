@@ -272,16 +272,17 @@ export function ShopMainHome({
     <>
       <HeroCarousel />
 
-      {/* 카테고리 탭: 리프 노드만 노출(부모 숨김, 하위·단일만), 가로 스크롤 */}
+      {/* 카테고리 탭: 리프 노드만 노출(부모 숨김, 하위·단일만), 가로 스크롤/슬라이딩 */}
       {displayCategories.length > 0 && (
         <div
           id="category-tabs"
-          className="sticky top-14 z-[9] w-full border-b border-gray-200 bg-white"
+          className="sticky top-14 z-[9] w-full min-w-0 border-b border-gray-200 bg-white"
           style={{
-            overflowX: "auto",
+            overflowX: "scroll",
             overflowY: "hidden",
             whiteSpace: "nowrap",
             WebkitOverflowScrolling: "touch",
+            touchAction: "pan-x",
             msOverflowStyle: "none",
             scrollbarWidth: "none",
           }}

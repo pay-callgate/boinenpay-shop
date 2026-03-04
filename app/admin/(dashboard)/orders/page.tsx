@@ -192,7 +192,7 @@ export default function OrdersPage() {
           onClick={handleExcelDownload}
           style={{
             padding: "10px 20px",
-            backgroundColor: "#10B981",
+            backgroundColor: "#1e293b",
             color: "#fff",
             border: "none",
             borderRadius: "6px",
@@ -202,12 +202,13 @@ export default function OrdersPage() {
             display: "flex",
             alignItems: "center",
             gap: "8px",
+            transition: "opacity 0.15s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "#059669";
+            e.currentTarget.style.opacity = "0.9";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "#10B981";
+            e.currentTarget.style.opacity = "1";
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

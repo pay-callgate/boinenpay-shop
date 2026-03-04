@@ -201,6 +201,9 @@ export default function ClientsPage() {
           clientId={selected070Client.id}
           clientName={selected070Client.name}
           serviceUrl={getStorefrontUrl(partnerSubdomain, selected070Client.slug)}
+          contactName={selected070Client.contact_name ?? ""}
+          contactPhone={selected070Client.contact_phone ?? ""}
+          contactEmail={selected070Client.contact_email ?? ""}
           isOpen={show070Modal}
           onClose={close070Modal}
           onSuccess={fetchClients}

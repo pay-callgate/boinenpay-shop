@@ -50,7 +50,7 @@ export default function PartnerMainPage() {
         setPartner(partnerFromApi);
 
         const catRes = await fetch(
-          `/api/shop/categories?partnerId=${partnerFromApi.id}&onlyWithProducts=true`
+          `/api/shop/categories?partnerId=${partnerFromApi.id}&onlyWithProducts=false`
         );
         if (!catRes.ok) {
           setLoading(false);

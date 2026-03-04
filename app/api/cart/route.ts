@@ -13,12 +13,21 @@ import { createServerSupabase } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get("clientId");
+
+    // 터미널 로그: 세션·장바구니 요청 추적 (재로그인 후 빈 화면 원인 파악용)
+    console.log("[CART GET]", {
+      hasSession: !!session,
+      userId: session?.user?.id ?? null,
+      clientId,
+      at: new Date().toISOString(),
+    });
+
+    if (!session?.user?.id) {
+      console.log("[CART GET] 401 - 세션 없음");
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
 
     if (!clientId) {
       return NextResponse.json({ error: "clientId가 필요합니다." }, { status: 400 });
@@ -84,9 +93,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "장바구니 항목 조회 실패" }, { status: 500 });
     }
 
+    const itemList = items || [];
+    console.log("[CART GET] 200", { userId: session.user.id, clientId, cartId: cart.id, itemsCount: itemList.length });
+
     return NextResponse.json({
       cart,
-      items: items || [],
+      items: itemList,
     });
   } catch (err) {
     console.error("Cart API error:", err);

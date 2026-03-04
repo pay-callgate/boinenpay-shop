@@ -23,6 +23,12 @@ interface Props {
   clientId: string;
   clientName: string;
   serviceUrl: string;
+  /** 거래처 담당자명 → 관리자명 자동 세팅 */
+  contactName?: string;
+  /** 거래처 담당자 연락처 → 관리자 전화번호 자동 세팅 */
+  contactPhone?: string;
+  /** 거래처 담당자 이메일 → 관리자 이메일 자동 세팅 */
+  contactEmail?: string;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -32,6 +38,9 @@ export function Call070Modal({
   clientId,
   clientName,
   serviceUrl,
+  contactName = "",
+  contactPhone = "",
+  contactEmail = "",
   isOpen,
   onClose,
   onSuccess,
@@ -49,7 +58,7 @@ export function Call070Modal({
   const [registering, setRegistering] = useState(false);
   const [config, setConfig] = useState<Call070Config | null>(null);
 
-  // 기존 설정 로드
+  // 기존 설정 로드 + 담당자 정보로 관리자 필드 자동 세팅
   useEffect(() => {
     if (!isOpen || !clientId) return;
 
@@ -57,23 +66,35 @@ export function Call070Modal({
       const res = await adminFetch(`/api/clients/${clientId}/070`);
       if (res.ok) {
         const data = await res.json();
-        if (data.config) {
-          setConfig(data.config);
+        const c = data.config;
+        const defaultAdminName = c?.admin_name?.trim() || contactName || "";
+        const defaultAdminEmail = c?.admin_email?.trim() || contactEmail || "";
+        const defaultAdminPhone = c?.admin_phone?.trim() || contactPhone || "";
+        if (c) {
+          setConfig(c);
           setFormData({
-            call_070_number: data.config.call_070_number || "",
-            greeting_message: data.config.greeting_message || `안녕하세요 ${clientName}에 전화 주셔서 감사합니다.`,
-            industry: data.config.industry || "화훼",
-            admin_name: data.config.admin_name || "",
-            admin_email: data.config.admin_email || "",
-            admin_phone: data.config.admin_phone || "",
-            sms_text_template: data.config.sms_text_template || `안녕하세요 ${clientName}입니다.`,
-            callcloud_registered: data.config.callcloud_registered || false,
+            call_070_number: c.call_070_number || "",
+            greeting_message: c.greeting_message || `안녕하세요 ${clientName}에 전화 주셔서 감사합니다.`,
+            industry: c.industry || "화훼",
+            admin_name: defaultAdminName,
+            admin_email: defaultAdminEmail,
+            admin_phone: defaultAdminPhone,
+            sms_text_template: c.sms_text_template || `안녕하세요 ${clientName}입니다.`,
+            callcloud_registered: c.callcloud_registered || false,
           });
+        } else {
+          setConfig(null);
+          setFormData((prev) => ({
+            ...prev,
+            admin_name: defaultAdminName,
+            admin_email: defaultAdminEmail,
+            admin_phone: defaultAdminPhone,
+          }));
         }
       }
     }
     fetchConfig();
-  }, [isOpen, clientId, clientName]);
+  }, [isOpen, clientId, clientName, contactName, contactPhone, contactEmail]);
 
   // 저장
   const handleSubmit = async (e: React.FormEvent) => {

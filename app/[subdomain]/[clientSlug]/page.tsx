@@ -52,7 +52,7 @@ export default function ClientShopPage() {
     (async () => {
       try {
         const catRes = await fetch(
-          `/api/shop/categories?partnerId=${partner.id}&onlyWithProducts=true`
+          `/api/shop/categories?partnerId=${partner.id}&onlyWithProducts=false`
         );
         if (cancelled) return;
         if (!catRes.ok) {
@@ -156,6 +156,24 @@ export default function ClientShopPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <p className="text-slate-600">정보를 불러올 수 없습니다.</p>
+      </div>
+    );
+  }
+
+  // 유효하지 않은 거래처 slug: 파트너는 있으나 해당 slug 거래처 없음 (마스터 미리보기는 _preview 사용)
+  if (partner && !client && clientSlug !== "_preview") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-6">
+        <p className="text-center font-medium text-slate-800">해당 거래처 링크를 찾을 수 없습니다.</p>
+        <p className="mt-1 text-center text-sm text-slate-500">주소를 확인하시거나 파트너 홈으로 이동해 주세요.</p>
+        <button
+          type="button"
+          onClick={() => router.push(`/${subdomain}`)}
+          className="mt-6 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: "#D6A8E0" }}
+        >
+          파트너 홈으로 이동
+        </button>
       </div>
     );
   }

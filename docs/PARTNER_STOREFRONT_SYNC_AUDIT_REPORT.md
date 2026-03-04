@@ -1,7 +1,7 @@
 # 거래처 쇼핑몰 주문 전용 URL — 마스터 템플릿 전수 동기화 점검 보고서
 
-**점검 일자:** 2025-02-10  
-**목적:** 거래처 쇼핑몰 주문 전용 URL(예: 기아자동차 `/{subdomain}/{clientSlug}`)의 모든 페이지가 마스터 템플릿과 **100% 동일**하게 적용되었는지 전수 검수. 신규 거래처 등록·전체 기능 테스트에 대비.
+**점검 일자:** 2025-03-03 (최종 갱신: 2026-03-03)  
+**목적:** 거래처 쇼핑몰 주문 전용 URL(예: `/{subdomain}/{clientSlug}`)의 모든 페이지가 마스터 템플릿과 **100% 동일**하게 적용되었는지 전수 검수. 신규 거래처 등록·전체 기능 테스트에 대비.
 
 ---
 
@@ -112,3 +112,40 @@
 - `app/[subdomain]/page.tsx`  
 
 **결론:** 거래처 쇼핑몰 주문 전용 URL(`/{subdomain}/{clientSlug}`)의 모든 페이지는 마스터 템플릿과 **100% 동일한** 레이아웃·OrderGuard·톤앤매너로 동기화되었습니다. 신규 거래처 등록 후 전체 기능 테스트 시 동일한 UX가 적용됩니다.
+
+---
+
+## 6. 2026-02-10 전수 검수 (신규 거래처 대비 마스터 템플릿 검증)
+
+### 6.1 검수 범위
+
+- **기아자동차(knauto)** 샘플 URL: `http://localhost:3000/testpartner/knauto/`
+- **목표:** 해당 URL에 연동된 모든 세부 페이지·마스터 템플릿·소스가 100% 동기화되어 있는지 확인, 신규 거래처 주문 전용 URL 구축 시 동일 템플릿이 적용되도록 보장
+
+### 6.2 수정 사항 (이번 검수에서 반영)
+
+| 파일 | 내용 |
+|------|------|
+| `app/admin/(dashboard)/clients/links/page.tsx` | **하드코딩 제거:** 검증용 테스트 링크 "② 거래처 전용 쇼핑몰" 예시 URL을 `knauto` 고정 → **동적 처리**: `clients[0]` 존재 시 `{partnerSubdomain}/{clients[0].slug}` 링크·문구 표시, 없을 시 `[거래처슬러그]` 플레이스홀더 표시. 마스터 템플릿 기준으로 모든 거래처에 동일하게 동작하도록 수정. |
+
+### 6.3 동기화 검증 결과
+
+| 구분 | 항목 | 결과 |
+|------|------|------|
+| **라우팅** | `app/[subdomain]/[clientSlug]/**` 모든 페이지가 `params.subdomain`, `params.clientSlug`만 사용 | ✅ 하드코딩 없음 |
+| **레이아웃** | `layout.tsx`에서 partner/client를 DB 조회(subdomain, clientSlug 기준) 후 `ShopGlobalLayout`에 전달 | ✅ 단일 마스터 템플릿 |
+| **클라이언트 식별** | checkout, cart, mypage, products 등에서 `clientId`/`client_id`는 모두 `template?.client?.id` 또는 `client?.id` (Context/레이아웃에서 주입) | ✅ URL 기준 동적 |
+| **URL 유틸** | `getStorefrontUrl(subdomain, clientSlug)` — 모든 호출처에서 subdomain·slug 인자로 전달 | ✅ 동적 |
+| **어드민** | 거래처 링크 복사·070 연동·검증용 링크가 `partnerSubdomain` + 각 거래처 `slug` 사용 | ✅ 수정 반영 |
+| **기타** | `middleware`: DEFAULT_SUBDOMAIN=`testpartner`(개발용 리다이렉트만). 로그인 callbackUrl 예시 주석에 `/testpartner/knauto/...` (예시일 뿐) | ✅ 라우팅 로직에는 미사용 |
+
+### 6.4 PRD 연동 확인
+
+- **§4.1 URL 구조:** `https://{Partner_Subdomain}.{Platform_Domain}/{Client_Slug}` — 코드베이스 전반에서 subdomain/clientSlug 동적 사용으로 준수.
+- **§4.2:** 거래처 전용 URL = `/{subdomain}/{clientSlug}` 단일 진입점, 마스터 템플릿 기반 렌더링 — 레이아웃·페이지 구조 일치.
+
+### 6.5 최종 결론
+
+- **기아자동차(knauto)** 주문 전용 URL과 연동된 세부 페이지·마스터 템플릿·소스는 **100% 동기화**되어 있음.
+- **신규 거래처** 등록 시 동일 마스터 템플릿으로 주문 전용 URL(`/{subdomain}/{신규거래처슬러그}`)이 자동 적용되며, 어드민 링크 페이지의 검증용 예시도 첫 번째 등록 거래처 기준으로 동적으로 표시됨.
+- 신규 거래처에 대한 주문 전용 URL 사용자 플로우 전수 테스트 진행 가능 상태임.

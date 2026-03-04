@@ -101,7 +101,7 @@ export function SideMenu({
   useEffect(() => {
     if (!partner?.id) return;
     let cancelled = false;
-    fetch(`/api/shop/categories?partnerId=${partner.id}&onlyWithProducts=true`)
+    fetch(`/api/shop/categories?partnerId=${partner.id}&onlyWithProducts=false`)
       .then((res) => (res.ok ? res.json() : { categories: [] }))
       .then((data) => {
         if (!cancelled) setFlatCategories(data?.categories ?? []);

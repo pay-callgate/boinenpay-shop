@@ -144,7 +144,7 @@ export default function ProductListPage() {
   useEffect(() => {
     async function fetchCategories() {
       if (!partnerId) return;
-      const res = await shopFetch(`/api/shop/categories?partnerId=${partnerId}&onlyWithProducts=true`);
+      const res = await shopFetch(`/api/shop/categories?partnerId=${partnerId}&onlyWithProducts=false`);
       if (res.ok) {
         const data = await res.json();
         const list = data?.categories ?? [];
@@ -265,16 +265,27 @@ export default function ProductListPage() {
           paddingBottom: "80px",
         }}
       >
-        {/* 카테고리 필터 (헤더는 글로벌 SmartHeader에서 제공) */}
+        {/* 카테고리 필터: 가로 슬라이딩(터치 스크롤) */}
         <div
+          className="products-category-tabs w-full min-w-0"
           style={{
             padding: "12px 16px",
             display: "flex",
             gap: "8px",
-            overflowX: "auto",
+            overflowX: "scroll",
+            overflowY: "hidden",
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-x",
             borderBottom: "1px solid #E5E7EB",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
           }}
         >
+          <style
+            dangerouslySetInnerHTML={{
+              __html: ".products-category-tabs::-webkit-scrollbar { display: none; }",
+            }}
+          />
           <button
             onClick={() => {
               setSelectedCategory(null);

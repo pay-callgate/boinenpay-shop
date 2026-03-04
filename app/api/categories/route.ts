@@ -8,12 +8,14 @@ import { createServerSupabase } from "@/lib/supabase/server";
  * GET /api/categories?partnerId=xxx - 카테고리 목록 조회
  * POST /api/categories - 카테고리 생성
  */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // GET: 카테고리 목록 조회
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -21,6 +23,7 @@ export async function GET(request: NextRequest) {
     const partnerId = searchParams.get("partnerId");
 
     if (!partnerId) {
+      console.log("[API /api/categories] 400 - partnerId 없음");
       return NextResponse.json(
         { error: "partnerId가 필요합니다." },
         { status: 400 }
@@ -53,6 +56,8 @@ export async function GET(request: NextRequest) {
       children: childCategories.filter((c) => c.parent_id === root.id),
     }));
 
+    const count = categories?.length ?? 0;
+    console.log("[API /api/categories] GET", { partnerId, count });
     return NextResponse.json({ categories: hierarchical, flat: categories });
   } catch (err) {
     console.error("Categories API error:", err);
@@ -67,7 +72,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

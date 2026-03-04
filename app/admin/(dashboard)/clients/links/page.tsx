@@ -189,6 +189,9 @@ export default function ClientsLinksPage() {
           clientId={selectedClient.id}
           clientName={selectedClient.name}
           serviceUrl={getStorefrontUrl(partnerSubdomain, selectedClient.slug)}
+          contactName={selectedClient.contact_name ?? ""}
+          contactPhone={selectedClient.contact_phone ?? ""}
+          contactEmail={selectedClient.contact_email ?? ""}
           isOpen={is070ModalOpen}
           onClose={() => {
             setIs070ModalOpen(false);
@@ -218,9 +221,9 @@ export default function ClientsLinksPage() {
         />
       )}
 
-      <div className="min-h-screen bg-slate-50 p-6">
-        {/* 헤더 */}
-        <div className="mb-6">
+      <div className="flex flex-1 flex-col overflow-hidden bg-slate-50 p-6">
+        {/* 헤더: 재고 관리와 동일한 여백 */}
+        <div className="mb-6 shrink-0">
           <h1 className="text-2xl font-bold text-slate-800">거래처/링크 관리</h1>
           <p className="mt-1 text-sm text-slate-600">
             거래처 정보 관리, 주문 전용 Link 생성 및 CallLink(070번호) 연동을 통합 관리합니다.
@@ -230,59 +233,57 @@ export default function ClientsLinksPage() {
           </p>
         </div>
 
-        {/* 검색 필터 박스 */}
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-1 items-center gap-2">
-              <div className="relative flex-1 max-w-md">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  placeholder="거래처명 또는 담당자 검색..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-10 w-full rounded-md border border-slate-300 pl-9 pr-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-                />
-              </div>
-              <button
-                type="submit"
-                className="h-10 rounded-md border border-slate-300 bg-slate-800 px-4 text-sm font-medium text-white hover:bg-slate-900"
-              >
-                조회
-              </button>
-            </div>
-            <div className="ml-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingClient(null);
-                  setRegistrationModalOpen(true);
-                }}
-                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-rose-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-rose-700"
-              >
+        {/* 검색 필터: 재고 관리 필터와 동일한 mb-4, gap 정렬 */}
+        <div className="shrink-0 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <form onSubmit={handleSearch} className="flex flex-1 flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                거래처 등록
-              </button>
+              </span>
+              <input
+                type="text"
+                placeholder="거래처명 또는 담당자 검색..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-10 w-full rounded-md border border-slate-300 pl-9 pr-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              />
             </div>
+            <button
+              type="submit"
+              className="h-10 rounded-md px-4 text-sm font-medium text-white transition-colors hover:opacity-90"
+              style={{ backgroundColor: "#1e293b" }}
+            >
+              조회
+            </button>
           </form>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingClient(null);
+              setRegistrationModalOpen(true);
+            }}
+            className="inline-flex h-10 items-center gap-1.5 rounded-md px-4 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
+            style={{ backgroundColor: "#1e293b" }}
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            거래처 등록
+          </button>
         </div>
 
         {error && (
           <p className="mb-3 text-sm text-red-600">{error}</p>
         )}
 
-        {/* 테이블 */}
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
+        {/* 테이블: 재고 관리와 동일한 구조·스타일 */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
             <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80">
+              <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
+                <tr>
                   <th className="w-12 px-4 py-3 text-center text-xs font-semibold text-slate-600">
                     #
                   </th>
@@ -326,7 +327,7 @@ export default function ClientsLinksPage() {
                   displayedClients.map((c, idx) => (
                     <tr
                       key={c.id}
-                      className="border-b border-slate-100 transition-colors hover:bg-slate-50/50"
+                      className="border-b border-slate-100 text-sm transition-colors hover:bg-slate-50/50"
                     >
                       {/* No */}
                       <td className="px-4 py-3 text-center text-sm text-slate-500">
@@ -392,7 +393,7 @@ export default function ClientsLinksPage() {
                         </div>
                       </td>
 
-                      {/* CallLink 연동 */}
+                      {/* CallLink 연동: 소프트 UI (bg-slate-100/200) */}
                       <td className="px-4 py-3 text-center">
                         {(() => {
                           const call070Number =
@@ -405,26 +406,33 @@ export default function ClientsLinksPage() {
                                   setSelectedClient(c);
                                   setIs070ModalOpen(true);
                                 }}
-                                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
                               >
-                                <LinkIcon className="h-4 w-4 text-slate-500" />
-                                CallLink 연동하기
+                                <LinkIcon className="h-3.5 w-3.5" strokeWidth={2} />
+                                070 연동하기
                               </button>
                             );
                           }
                           return (
                             <div className="flex items-center justify-center gap-2">
-                              <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-sm font-medium text-gray-700">
-                                <Phone className="h-3.5 w-3.5 text-gray-500" strokeWidth={2} />
-                                {format070Display(call070Number)}
-                              </span>
                               <button
                                 type="button"
                                 onClick={() => {
                                   setSelectedClient(c);
                                   setIs070ModalOpen(true);
                                 }}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
+                              >
+                                <Phone className="h-3.5 w-3.5" strokeWidth={2} />
+                                {format070Display(call070Number)}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedClient(c);
+                                  setIs070ModalOpen(true);
+                                }}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200"
                                 title="연동 수정"
                               >
                                 <Settings className="h-4 w-4" strokeWidth={2} />
@@ -434,7 +442,7 @@ export default function ClientsLinksPage() {
                         })()}
                       </td>
 
-                      {/* 고객사 Link 안내 */}
+                      {/* 고객사 Link 안내 (헤더) / Link 안내 발송 (버튼) */}
                       <td className="px-4 py-3 text-center">
                         <button
                           type="button"
@@ -442,10 +450,10 @@ export default function ClientsLinksPage() {
                             setLinkModalClient(c);
                             setIsLinkModalOpen(true);
                           }}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-600 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
                         >
-                          <MessageSquare className="h-4 w-4 text-slate-600" strokeWidth={2} />
-                          고객사 Link 안내
+                          <MessageSquare className="h-3.5 w-3.5" strokeWidth={2} />
+                          Link 안내 발송
                         </button>
                       </td>
 
@@ -485,6 +493,70 @@ export default function ClientsLinksPage() {
               </tbody>
             </table>
           </div>
+
+          {/* 페이징: 재고 관리와 동일하게 테이블 카드 하단에 통합 */}
+          {!loading && filteredClients.length > 0 && (
+            <div className="flex shrink-0 flex-col items-center gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="relative h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="absolute top-0 h-full rounded-full bg-slate-600 transition-all duration-200"
+                  style={{
+                    width: `${100 / clientTotalPages}%`,
+                    left: `${((currentPage - 1) / clientTotalPages) * 100}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage <= 1}
+                  className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                  aria-label="맨 처음"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                  aria-label="이전"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <span className="min-w-[4rem] text-center text-sm font-medium text-slate-700">
+                  {currentPage} / {clientTotalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(clientTotalPages, p + 1))}
+                  disabled={currentPage >= clientTotalPages}
+                  className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                  aria-label="다음"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(clientTotalPages)}
+                  disabled={currentPage >= clientTotalPages}
+                  className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                  aria-label="맨 끝"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 하단 안내 박스: 복사 안내 + 검증용 테스트 링크 */}
@@ -521,84 +593,29 @@ export default function ClientsLinksPage() {
               <li className="pt-1">
                 <span className="font-medium text-slate-800">② 거래처 전용 쇼핑몰 (주문 가능)</span>
                 <br />
-                <span className="text-xs text-slate-500">위 테이블의 [복사] 또는 [외부링크]로 각 거래처 URL 확인. 예: 기아자동차(knauto)</span>
+                <span className="text-xs text-slate-500">
+                  위 테이블의 [복사] 또는 [외부링크]로 각 거래처 URL 확인.
+                  {clients[0] ? ` 예: ${clients[0].name}(${clients[0].slug})` : " 거래처 등록 후 테이블에서 URL 확인."}
+                </span>
                 <br />
-                <a
-                  href={`${BASE_URL}/${partnerSubdomain}/knauto`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-0.5 break-all text-purple-600 underline hover:text-purple-700"
-                >
-                  {BASE_URL}/{partnerSubdomain}/knauto
-                </a>
+                {clients[0] ? (
+                  <a
+                    href={`${BASE_URL}/${partnerSubdomain}/${clients[0].slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-0.5 break-all text-purple-600 underline hover:text-purple-700"
+                  >
+                    {BASE_URL}/{partnerSubdomain}/{clients[0].slug}
+                  </a>
+                ) : (
+                  <span className="mt-0.5 inline-block text-slate-500">
+                    {BASE_URL}/{partnerSubdomain}/[거래처슬러그]
+                  </span>
+                )}
               </li>
             </ul>
           </div>
         </div>
-
-        {/* 페이징: 스크롤 라인 + 컨트롤 버튼 */}
-        {!loading && filteredClients.length > 0 && (
-          <div className="mt-6">
-            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="absolute top-0 h-full rounded-full bg-slate-600 transition-all duration-200"
-                style={{
-                  width: `${100 / clientTotalPages}%`,
-                  left: `${((currentPage - 1) / clientTotalPages) * 100}%`,
-                }}
-              />
-            </div>
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage <= 1}
-                className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
-                aria-label="맨 처음"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage <= 1}
-                className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
-                aria-label="이전"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <span className="min-w-[4rem] text-center text-sm font-medium text-slate-700">
-                {currentPage} / {clientTotalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(clientTotalPages, p + 1))}
-                disabled={currentPage >= clientTotalPages}
-                className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
-                aria-label="다음"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage(clientTotalPages)}
-                disabled={currentPage >= clientTotalPages}
-                className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
-                aria-label="맨 끝"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </>
   );

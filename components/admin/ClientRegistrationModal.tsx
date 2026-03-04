@@ -27,6 +27,9 @@ export interface ClientInitialData {
   logo_url?: string | null;
   business_registration_number?: string | null;
   verification_status?: string;
+  representative_name?: string | null;
+  representative_email?: string | null;
+  representative_phone?: string | null;
   contact_name?: string | null;
   contact_phone?: string | null;
   contact_email?: string | null;
@@ -101,10 +104,10 @@ export function ClientRegistrationModal({
         slug: initialData.slug,
         logoUrl: initialData.logo_url ?? "",
         businessRegistrationNumber: initialData.business_registration_number ?? "",
-        representativeName: "",
+        representativeName: initialData.representative_name ?? "",
         businessType: "",
-        representativeEmail: "",
-        representativePhone: "",
+        representativeEmail: initialData.representative_email ?? "",
+        representativePhone: initialData.representative_phone ?? "",
         contactName: initialData.contact_name ?? "",
         contactPhone: initialData.contact_phone ?? "",
         contactEmail: initialData.contact_email ?? "",
@@ -179,6 +182,9 @@ export function ClientRegistrationModal({
             logoUrl: formData.logoUrl.trim() || null,
             businessRegistrationNumber: formData.businessRegistrationNumber || null,
             verificationStatus: formData.verificationStatus,
+            representativeName: formData.representativeName.trim() || null,
+            representativeEmail: formData.representativeEmail.trim() || null,
+            representativePhone: formData.representativePhone.trim() || null,
             contactName: formData.contactName || null,
             contactPhone: formData.contactPhone || null,
             contactEmail: formData.contactEmail || null,
@@ -193,6 +199,9 @@ export function ClientRegistrationModal({
             logoUrl: formData.logoUrl.trim() || null,
             businessRegistrationNumber: formData.businessRegistrationNumber || null,
             verificationStatus: formData.verificationStatus,
+            representativeName: formData.representativeName.trim() || null,
+            representativeEmail: formData.representativeEmail.trim() || null,
+            representativePhone: formData.representativePhone.trim() || null,
             contactName: formData.contactName || null,
             contactPhone: formData.contactPhone || null,
             contactEmail: formData.contactEmail || null,
@@ -529,7 +538,8 @@ export function ClientRegistrationModal({
             type="submit"
             form="client-reg-form"
             disabled={saving}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: "#1e293b" }}
           >
             {saving ? "저장 중..." : initialData ? "수정 저장" : "거래처 등록"}
           </button>
