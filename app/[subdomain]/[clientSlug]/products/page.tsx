@@ -404,8 +404,10 @@ export default function ProductListPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                 gap: "16px",
+                width: "100%",
+                minWidth: 0,
               }}
             >
               {sortedProducts.map((product) => {
@@ -420,6 +422,7 @@ export default function ProductListPage() {
                     }
                     style={{
                       cursor: "pointer",
+                      minWidth: 0,
                     }}
                   >
                     {/* 썸네일 */}

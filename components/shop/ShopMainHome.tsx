@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Heart, ShoppingBag } from "lucide-react";
@@ -121,6 +121,39 @@ export function ShopMainHome({
   const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(
     displayCategories[0]?.slug ?? null
   );
+
+  // 데스크톱 마우스 드래그 투 스크롤 (useRef로 즉각 반응, 렌더링 딜레이 없음)
+  const categoryTabsRef = useRef<HTMLDivElement>(null);
+  const isDragMoved = useRef(false);
+  const dragRef = useRef({ isDragging: false, startX: 0, startScrollLeft: 0 });
+
+  const handleCategoryTabsMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!categoryTabsRef.current) return;
+    isDragMoved.current = false;
+    dragRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startScrollLeft: categoryTabsRef.current.scrollLeft,
+    };
+  };
+
+  const handleCategoryTabsMouseLeave = () => {
+    dragRef.current.isDragging = false;
+  };
+
+  const handleCategoryTabsMouseUp = () => {
+    dragRef.current.isDragging = false;
+  };
+
+  const handleCategoryTabsMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dragRef.current.isDragging || !categoryTabsRef.current) return;
+    const el = categoryTabsRef.current;
+    const dx = e.clientX - dragRef.current.startX;
+    if (Math.abs(dx) > 5) isDragMoved.current = true;
+    const nextScrollLeft = dragRef.current.startScrollLeft - dx;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    el.scrollLeft = Math.max(0, Math.min(nextScrollLeft, maxScroll));
+  };
 
   // 관심상품 목록 조회 (하트 채움 + 삭제 시 사용할 item id 저장)
   useEffect(() => {
@@ -272,11 +305,12 @@ export function ShopMainHome({
     <>
       <HeroCarousel />
 
-      {/* 카테고리 탭: 리프 노드만 노출(부모 숨김, 하위·단일만), 가로 스크롤/슬라이딩 */}
+      {/* 카테고리 탭: 리프 노드만 노출(부모 숨김, 하위·단일만), 가로 스크롤/슬라이딩 + 데스크톱 드래그 투 스크롤 */}
       {displayCategories.length > 0 && (
         <div
+          ref={categoryTabsRef}
           id="category-tabs"
-          className="sticky top-14 z-[9] w-full min-w-0 border-b border-gray-200 bg-white"
+          className="sticky top-14 z-[9] w-full min-w-0 select-none border-b border-gray-200 bg-white"
           style={{
             overflowX: "scroll",
             overflowY: "hidden",
@@ -285,7 +319,12 @@ export function ShopMainHome({
             touchAction: "pan-x",
             msOverflowStyle: "none",
             scrollbarWidth: "none",
+            userSelect: "none",
           }}
+          onMouseDown={handleCategoryTabsMouseDown}
+          onMouseLeave={handleCategoryTabsMouseLeave}
+          onMouseUp={handleCategoryTabsMouseUp}
+          onMouseMove={handleCategoryTabsMouseMove}
         >
           <style
             dangerouslySetInnerHTML={{
@@ -296,6 +335,7 @@ export function ShopMainHome({
             className="flex p-0 m-0 list-none"
             style={{ width: "max-content" }}
             role="tablist"
+            onDragStart={(e) => e.preventDefault()}
           >
             {displayCategories.map((cat) => {
               const isActive = activeCategorySlug === cat.slug;
@@ -305,7 +345,12 @@ export function ShopMainHome({
                     type="button"
                     role="tab"
                     aria-selected={isActive}
-                    onClick={() => {
+                    onClick={(e) => {
+                      if (isDragMoved.current) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                      }
                       setActiveCategorySlug(cat.slug);
                       const el = document.getElementById(cat.id);
                       if (el) {
