@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
+import { logApiRequest } from "@/lib/logger";
 
 /**
  * T4-5 & T5-1: 주문 API
@@ -112,6 +113,13 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
+
+    logApiRequest("INFO", request, {
+      userId: session.user.id,
+      userEmail: session.user.email ?? undefined,
+      action: "orders_create",
+      data: { bodyPreview: await request.clone().json().catch(() => undefined) },
+    });
 
     const body = await request.json();
     const {

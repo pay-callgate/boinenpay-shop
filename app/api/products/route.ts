@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { logApiRequest } from "@/lib/logger";
 
 /**
  * T2-2, T2-3: 상품 API
@@ -126,6 +127,13 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    logApiRequest("INFO", request, {
+      userId: session.user.id,
+      userEmail: session.user.email ?? undefined,
+      action: "products_create",
+      data: { bodyPreview: await request.clone().json().catch(() => undefined) },
+    });
 
     const body = await request.json();
     const {

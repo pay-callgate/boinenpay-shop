@@ -3,6 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import KakaoProvider from "next-auth/providers/kakao";
 import NaverProvider from "next-auth/providers/naver";
 import type { JWT } from "next-auth/jwt";
+import { logger } from "@/lib/logger";
 
 /**
  * NextAuth 설정 (Phase 0 T0-3, Phase 1 T1-1).
@@ -25,7 +26,13 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn() {
+    async signIn({ user, account, profile }) {
+      logger.info("auth_sign_in_attempt", {
+        userEmail: (profile as { email?: string } | null)?.email ?? user?.email ?? undefined,
+        data: {
+          provider: account?.provider,
+        },
+      });
       return true;
     },
     async jwt({ token, account, profile, user }) {
@@ -53,7 +60,10 @@ export const authOptions: NextAuthOptions = {
             .maybeSingle();
 
           if (findError) {
-            console.error("❌ [auth.ts] users 테이블 조회 실패:", findError);
+            logger.error("auth_users_find_failed", {
+              userEmail: email,
+              data: { error: findError },
+            });
             throw new Error("사용자 조회에 실패했습니다.");
           }
 
@@ -61,7 +71,10 @@ export const authOptions: NextAuthOptions = {
 
           if (existingUser) {
             // 🔥 CASE A: 이미 존재하는 유저 → provider 정보 업데이트 후 UUID 가져오기
-            console.log("✅ [auth.ts] 기존 유저 발견:", existingUser.id);
+            logger.info("auth_existing_user_found", {
+              userEmail: email,
+              userId: existingUser.id,
+            });
             
             // Provider 정보가 다를 수 있으니 업데이트 (같은 이메일, 다른 OAuth 계정으로 로그인 시)
             if (existingUser.provider !== provider || existingUser.provider_id !== providerId) {
@@ -76,16 +89,27 @@ export const authOptions: NextAuthOptions = {
                 .eq("id", existingUser.id);
 
               if (updateError) {
-                console.error("❌ [auth.ts] 유저 정보 업데이트 실패:", updateError);
+                logger.error("auth_user_update_failed", {
+                  userEmail: email,
+                  userId: existingUser.id,
+                  data: { error: updateError },
+                });
               } else {
-                console.log("✅ [auth.ts] Provider 정보 업데이트 완료");
+                logger.info("auth_user_provider_updated", {
+                  userEmail: email,
+                  userId: existingUser.id,
+                  data: { provider, providerId },
+                });
               }
             }
 
             finalUserId = existingUser.id;
           } else {
             // 🔥 CASE B: 신규 유저 → Insert 후 UUID 가져오기
-            console.log("🆕 [auth.ts] 신규 유저 생성 시도:", email);
+            logger.info("auth_new_user_create_attempt", {
+              userEmail: email,
+              data: { provider, providerId },
+            });
 
             const { data: newUser, error: insertError } = await supabase
               .from("users")
@@ -100,31 +124,46 @@ export const authOptions: NextAuthOptions = {
               .single();
 
             if (insertError) {
-              console.error("❌ [auth.ts] 신규 유저 생성 실패:", insertError);
+              logger.error("auth_new_user_create_failed", {
+                userEmail: email,
+                data: { error: insertError },
+              });
               throw new Error("사용자 생성에 실패했습니다.");
             }
 
             if (!newUser || !newUser.id) {
-              console.error("❌ [auth.ts] Insert 성공했으나 id가 반환되지 않음");
+              logger.error("auth_new_user_create_missing_id", {
+                userEmail: email,
+              });
               throw new Error("사용자 ID를 가져올 수 없습니다.");
             }
 
-            console.log("✅ [auth.ts] 신규 유저 생성 완료:", newUser.id);
+            logger.info("auth_new_user_created", {
+              userEmail: email,
+              userId: newUser.id,
+            });
             finalUserId = newUser.id;
           }
 
           // 🔥 최종 검증: UUID를 못 가져왔으면 로그인 차단
           if (!finalUserId) {
-            console.error("❌ [auth.ts] 치명적 오류: UUID를 가져오지 못함");
+            logger.error("auth_fatal_missing_user_id", {
+              userEmail: email,
+            });
             throw new Error("인증 처리 중 오류가 발생했습니다.");
           }
 
           // ✅ 토큰에 UUID 저장 (절대 Google ID가 들어가지 않음!)
           (token as JWT & { userId?: string }).userId = finalUserId;
-          console.log("✅ [auth.ts] 토큰에 UUID 저장 완료:", finalUserId);
+          logger.info("auth_token_user_id_set", {
+            userEmail: email,
+            userId: finalUserId,
+          });
 
         } catch (err) {
-          console.error("❌ [auth.ts] 치명적 오류:", err);
+          logger.error("auth_jwt_callback_error", {
+            data: { error: err },
+          });
           // 🔥 에러 발생 시 로그인을 차단 (Google ID를 넣어서 통과시키지 않음!)
           throw err;
         }
@@ -142,12 +181,17 @@ export const authOptions: NextAuthOptions = {
         
         // 🔥 UUID가 없으면 세션 생성 실패
         if (!userId) {
-          console.error("❌ [auth.ts] 세션에 userId가 없음. 로그인 차단!");
+          logger.error("auth_session_missing_user_id", {
+            userEmail: session.user.email ?? undefined,
+          });
           throw new Error("인증 정보가 올바르지 않습니다.");
         }
 
         (session.user as { id?: string }).id = userId;
-        console.log("✅ [auth.ts] 세션 생성 완료. userId:", userId);
+        logger.info("auth_session_created", {
+          userEmail: session.user.email ?? undefined,
+          userId,
+        });
       }
       return session;
     },
@@ -161,4 +205,23 @@ export const authOptions: NextAuthOptions = {
     error: "/login",
   },
   secret: process.env.NEXTAUTH_SECRET,
+  events: {
+    async signIn({ user, account }) {
+      logger.info("auth_sign_in_success", {
+        userEmail: user?.email ?? undefined,
+        data: { userId: (user as { id?: string })?.id, provider: account?.provider },
+      });
+    },
+    async signOut({ token }) {
+      logger.info("auth_sign_out", {
+        userEmail: token?.email ?? undefined,
+        userId: (token as JWT & { userId?: string }).userId,
+      });
+    },
+    async error(error) {
+      logger.error("auth_error_event", {
+        data: { error },
+      });
+    },
+  },
 };
