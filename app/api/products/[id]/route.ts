@@ -133,8 +133,8 @@ export async function PUT(
     if (stockQty !== undefined) updateData.stock_qty = stockQty;
     if (safetyStock !== undefined) updateData.safety_stock = safetyStock;
     if (status !== undefined) updateData.status = status;
-    // 재고 등록/수정 시: 재고가 1 이상이면 품절(sold_out) → 활성(active) 자동 전환 (상품 관리·클라이언트 쇼핑몰 품절 아이콘/노출 일치)
-    if (stockQty !== undefined && Number(stockQty) > 0 && existing.status === "sold_out") {
+    // 재고 등록/수정 시: 재고가 0 이상이면 품절(sold_out) → 판매중(active) 자동 전환 (상품 수정 페이지·재고 관리 페이지 공통)
+    if (stockQty !== undefined && Number(stockQty) >= 0 && existing.status === "sold_out") {
       updateData.status = "active";
     }
     if (stickerOptions !== undefined) updateData.sticker_options = stickerOptions;
