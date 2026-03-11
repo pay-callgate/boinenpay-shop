@@ -205,6 +205,11 @@ export const authOptions: NextAuthOptions = {
     error: "/login",
   },
   secret: process.env.NEXTAUTH_SECRET,
+  logger: {
+    error(code, metadata) {
+      logger.error("auth_error", { data: { code, metadata } });
+    },
+  },
   events: {
     async signIn({ user, account }) {
       logger.info("auth_sign_in_success", {
@@ -216,11 +221,6 @@ export const authOptions: NextAuthOptions = {
       logger.info("auth_sign_out", {
         userEmail: token?.email ?? undefined,
         userId: (token as JWT & { userId?: string }).userId,
-      });
-    },
-    async error(error) {
-      logger.error("auth_error_event", {
-        data: { error },
       });
     },
   },
