@@ -10,8 +10,8 @@ import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 
 /**
  * Phase E1: 주문 완료 페이지 (ViewPay returnUrl 리다이렉트 대상)
- * Query: orderId, cgTid → complete API 호출 후 주문번호·결제 완료 안내
- * /{subdomain}/{clientSlug}/order/complete
+ * Query: orderId, cgTid(또는 tid 등) → complete API 호출 후 주문번호·결제 완료 안내
+ * ViewPay가 returnUrl 리다이렉트 시 쿼리 또는 hash(#...)로 결제 ID를 넘길 수 있으므로 둘 다 수용.
  */
 
 const PRIMARY = "#D6A8E0";
@@ -20,7 +20,60 @@ const TEXT = "#333333";
 const TEXT_MUTED = "#6B7280";
 const CARD_RADIUS = "12px";
 
-type CompleteState = "idle" | "loading" | "success" | "error";
+/** 쿼리/해시에서 결제 거래 ID 추출 (ViewPay cgTid / tid / paymentId 등) */
+function getPaymentIdFromSearch(searchParams: URLSearchParams | null): string {
+  if (!searchParams) return "";
+
+  // 1차: 단일 파라미터 (기존 방식) — cgTid, tid 등 직접 전달된 경우
+  const names = ["cgTid", "tid", "tId", "paymentId", "transactionId", "cg_tid"];
+  for (const name of names) {
+    const v = searchParams.get(name)?.trim();
+    if (v) return v;
+  }
+
+  // 2차: ViewPay가 data 쿼리 파라미터에 JSON 문자열로 event 전체를 인코딩해 전달하는 경우
+  // 예: ?data={\"event\":{...\"data\":{\"cgTid\":\"CG1234\"}}}
+  const dataParam = searchParams.get("data");
+  if (!dataParam) return "";
+
+  try {
+    const parsed = JSON.parse(dataParam) as {
+      event?: { data?: { cgTid?: string; tid?: string; tId?: string } };
+      data?: { cgTid?: string; tid?: string; tId?: string };
+      cgTid?: string;
+    };
+
+    // 우선 event.data.cgTid 를 시도
+    const fromEventData =
+      parsed?.event?.data?.cgTid ??
+      parsed?.event?.data?.tid ??
+      parsed?.event?.data?.tId;
+    if (fromEventData && typeof fromEventData === "string") {
+      return fromEventData.trim();
+    }
+
+    // fallback: 루트 data.cgTid 또는 최상위 cgTid
+    const fromRootData =
+      parsed?.data?.cgTid ?? parsed?.data?.tid ?? parsed?.data?.tId ?? parsed?.cgTid;
+    if (fromRootData && typeof fromRootData === "string") {
+      return fromRootData.trim();
+    }
+  } catch {
+    // JSON 파싱 실패 시 조용히 무시하고 빈 문자열 반환
+  }
+
+  return "";
+}
+
+/** 브라우저 hash (#key=value&key2=value2)에서 결제 ID 추출 */
+function getPaymentIdFromHash(): string {
+  if (typeof window === "undefined" || !window.location.hash) return "";
+  const hash = window.location.hash.replace(/^#/, "");
+  const params = new URLSearchParams(hash);
+  return getPaymentIdFromSearch(params);
+}
+
+type CompleteState = "idle" | "loading" | "success" | "error" | "no_payment_id";
 
 export default function OrderCompletePage() {
   const params = useParams();
@@ -32,18 +85,41 @@ export default function OrderCompletePage() {
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
-  const orderId = searchParams?.get("orderId") ?? "";
-  const cgTid = searchParams?.get("cgTid") ?? searchParams?.get("tid") ?? "";
+  const orderId = searchParams?.get("orderId")?.trim() ?? "";
+  const cgTidFromQuery = getPaymentIdFromSearch(searchParams);
+
+  const [cgTid, setCgTid] = useState(cgTidFromQuery);
+  const [hashChecked, setHashChecked] = useState(false);
 
   const [state, setState] = useState<CompleteState>("idle");
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // 쿼리에 cgTid가 없으면 hash에서 한 번 더 시도 (ViewPay가 # 으로 전달하는 경우)
+  useEffect(() => {
+    if (cgTidFromQuery) {
+      setCgTid(cgTidFromQuery);
+      setHashChecked(true);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      const fromHash = getPaymentIdFromHash();
+      if (fromHash) setCgTid(fromHash);
+      setHashChecked(true);
+    }
+  }, [cgTidFromQuery]);
+
+  useEffect(() => {
+    if (!hashChecked && !cgTidFromQuery) setHashChecked(true);
+  }, [hashChecked, cgTidFromQuery]);
+
   useEffect(() => {
     if (!orderId || !cgTid || !partner?.id || !client?.id) {
-      if (orderId && !cgTid) {
-        setState("error");
-        setErrorMessage("결제 정보가 없습니다. 주문 내역에서 결제 상태를 확인해 주세요.");
+      if (orderId && hashChecked && !cgTid) {
+        setState("no_payment_id");
+        setErrorMessage(
+          "결제가 완료되었을 수 있습니다. 주문 내역에서 결제 상태를 확인해 주세요."
+        );
       }
       return;
     }
@@ -76,7 +152,7 @@ export default function OrderCompletePage() {
     return () => {
       cancelled = true;
     };
-  }, [orderId, cgTid, partner?.id, client?.id]);
+  }, [orderId, cgTid, partner?.id, client?.id, hashChecked]);
 
   const handleContinueShopping = () => {
     router.push(`/${subdomain}/${clientSlug}`);
@@ -133,7 +209,7 @@ export default function OrderCompletePage() {
         </div>
       );
     }
-    if (state === "error") {
+    if (state === "error" || state === "no_payment_id") {
       return (
         <div className="flex flex-col items-center gap-6 py-8">
           <p className="text-center font-medium" style={{ color: TEXT }}>
@@ -142,19 +218,19 @@ export default function OrderCompletePage() {
           <div className="mt-2 flex w-full max-w-xs flex-col gap-3">
             <button
               type="button"
-              onClick={handleContinueShopping}
+              onClick={handleOrderList}
               className="w-full rounded-xl py-3.5 font-medium text-white"
               style={{ backgroundColor: PRIMARY }}
             >
-              쇼핑 계속하기
+              주문 내역
             </button>
             <button
               type="button"
-              onClick={handleOrderList}
+              onClick={handleContinueShopping}
               className="w-full rounded-xl border py-3.5 font-medium"
               style={{ borderColor: PRIMARY, color: PRIMARY }}
             >
-              주문 내역
+              쇼핑 계속하기
             </button>
           </div>
         </div>
