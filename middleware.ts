@@ -4,19 +4,23 @@ import { getToken } from "next-auth/jwt";
 import { getSubdomainFromRequest } from "@/lib/tenant";
 
 const CALLGATE_REDIRECT_URL = "https://www.callgate.com/index.html";
-const DEFAULT_SUBDOMAIN = "testpartner";
 
 /**
  * Phase 0 T0-5: 루트 라우팅 규칙
+ * - 루트(/) 접속 시 무조건 /admin(파트너사 로그인)으로 리다이렉트 (B2B SaaS 대문)
  * - 프로덕션: shopping.com(/www) → CallGate 리다이렉트
  * - 프로덕션: {subdomain}.shopping.com/* → /{subdomain}/* 로 Rewrite (거래처 쇼핑몰 URL)
- * - 개발: localhost:3000/ → /testpartner/ 리다이렉트
  *
  * 어드민 세션: /admin/login 제외한 /admin/* 경로는 토큰 미존재 시 즉시 로그인으로 리다이렉트 (서버 우선)
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") ?? "";
+
+  // 루트(/) 접속 시 무조건 파트너사 로그인(어드민)으로 리다이렉트 (B2B SaaS 대문)
+  if (pathname === "/" || pathname === "") {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
 
   // 어드민: 로그인 페이지 제외, 토큰 없으면 즉시 리다이렉트 (Layout보다 먼저 실행)
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
@@ -58,12 +62,6 @@ export async function middleware(request: NextRequest) {
       url.pathname = pathname.startsWith("/") ? `/${subdomain}${pathname}` : `/${subdomain}/${pathname}`;
       return NextResponse.rewrite(url);
     }
-  }
-
-  if (isLocalhost && (pathname === "/" || pathname === "")) {
-    const url = request.nextUrl.clone();
-    url.pathname = `/${DEFAULT_SUBDOMAIN}/`;
-    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
