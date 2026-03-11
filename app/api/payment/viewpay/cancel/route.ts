@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 import { viewpayPost, clearViewpayTokenCache } from "@/lib/viewpay";
 
 /**
@@ -18,7 +19,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { cgTid, orderId, cancelAmount } = body;
 
+    logger.info("[ViewPay cancel] 요청", { action: "payment_viewpay_cancel_request", data: { cgTid, orderId, cancelAmount } });
+
     if (!cgTid?.trim()) {
+      logger.warn("[ViewPay cancel] cgTid 누락", { action: "payment_viewpay_cancel_bad_request" });
       return NextResponse.json(
         { success: false, message: "cgTid 필수입니다." },
         { status: 400 }
@@ -32,12 +36,13 @@ export async function POST(request: NextRequest) {
     if (cancelAmount != null) postBody.cancelAmount = Number(cancelAmount);
 
     const result = await viewpayPost("/v1/gw/cancel-payment", postBody);
+    logger.info("[ViewPay cancel] 성공", { action: "payment_viewpay_cancel_success", data: { cgTid, orderId } });
     return NextResponse.json({ success: true, data: result });
   } catch (err) {
     if ((err as Error & { response?: { status: number } }).response?.status === 401) {
       clearViewpayTokenCache();
     }
-    console.error("[ViewPay cancel] error:", err);
+    logger.error("[ViewPay cancel] error", { action: "payment_viewpay_cancel_error", data: { error: String((err as Error).message) } });
     const message = (err as Error).message || "결제 취소에 실패했습니다.";
     return NextResponse.json(
       { success: false, message },
