@@ -248,9 +248,17 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError || !order) {
-      console.error("Order creation error:", orderError);
+      console.error("[Order:Create] 주문 생성 실패", orderError);
       return NextResponse.json({ error: "주문 생성에 실패했습니다." }, { status: 500 });
     }
+
+    console.debug("[Order:Create] 주문 생성 완료", {
+      orderId: order.id,
+      order_no: order.order_no,
+      total_amount: order.total_amount,
+      user_id: session.user.id,
+      client_id: clientId,
+    });
 
     // 주문 항목 생성
     const orderItems = cartItems.map((item: {
@@ -271,7 +279,7 @@ export async function POST(request: NextRequest) {
     const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
 
     if (itemsError) {
-      console.error("Order items creation error:", itemsError);
+      console.error("[Order:Create] 주문 항목 생성 실패", itemsError);
       // 주문 생성 실패 시 주문 삭제 (트랜잭션 대신)
       await supabase.from("orders").delete().eq("id", order.id);
       return NextResponse.json({ error: "주문 항목 생성에 실패했습니다." }, { status: 500 });

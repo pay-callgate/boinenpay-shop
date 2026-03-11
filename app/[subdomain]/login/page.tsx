@@ -29,7 +29,7 @@ export default function CustomerLoginPage() {
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [contextLoading, setContextLoading] = useState(true);
 
-  // callbackUrl에서 거래처 Slug 추출 (예: /testpartner/knauto/products/xxx → knauto)
+  // callbackUrl에서 거래처 Slug 추출 (예: /wooribugo/knauto/products/xxx → knauto)
   const getClientSlugFromCallbackUrl = (url: string): string | null => {
     try {
       const pathname = url.startsWith("http") ? new URL(url).pathname : url;

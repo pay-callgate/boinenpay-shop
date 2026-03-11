@@ -129,6 +129,20 @@ export default function CheckoutPage() {
   const addressSectionRef = useRef<HTMLDivElement>(null);
   const addressesLoadedRef = useRef(false);
 
+  // Phase D3: ViewPay 결제창에서 취소 후 cancelUrl로 돌아온 경우
+  useEffect(() => {
+    const cancel = searchParams?.get("cancel");
+    if (cancel === "1") {
+      console.debug("[Order:Checkout] ViewPay 결제 취소 후 cancelUrl 복귀");
+      toast("결제가 취소되었습니다. 주문은 유지됩니다. 아래에서 다시 결제하기를 시도하거나 마이페이지에서 주문을 확인하세요.", "error");
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("cancel");
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }
+    }
+  }, [searchParams]);
+
   // 세션(userId)이 바뀌면 장바구니 재조회 — 재로그인 후에도 상품 목록 복구
   useEffect(() => {
     async function loadItems() {
@@ -302,29 +316,32 @@ export default function CheckoutPage() {
       return;
     }
     setSubmitting(true);
+    const orderPayload = {
+      partnerId,
+      clientId,
+      cartItemIds: items.map((i) => i.id),
+      shippingName: name,
+      shippingPhone: phone,
+      shippingPostcode: postcode || undefined,
+      shippingAddress: address,
+      shippingDetail: detail || undefined,
+      deliveryDate: deliveryDate || null,
+      deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
+      deliveryMethod,
+      deliveryFee,
+      paymentMethod,
+    };
+    console.debug("[Order:Checkout] 주문 생성 요청", { partnerId, clientId, cartItemIds: orderPayload.cartItemIds.length });
     try {
       const res = await shopFetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          partnerId,
-          clientId,
-          cartItemIds: items.map((i) => i.id),
-          shippingName: name,
-          shippingPhone: phone,
-          shippingPostcode: postcode || undefined,
-          shippingAddress: address,
-          shippingDetail: detail || undefined,
-          deliveryDate: deliveryDate || null,
-          deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
-          deliveryMethod,
-          deliveryFee,
-          paymentMethod,
-        }),
+        body: JSON.stringify(orderPayload),
       });
       if (res.ok) {
         const data = await res.json();
-        // 주문 성공 시 장바구니가 비워지므로 헤더 장바구니 뱃지를 즉시 갱신
+        const order = data.order as { id: string; order_no: string; total_amount: number };
+        console.debug("[Order:Checkout] 주문 생성 완료", { orderId: order.id, order_no: order.order_no, total_amount: order.total_amount });
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("cart-updated"));
         }
@@ -346,13 +363,46 @@ export default function CheckoutPage() {
             // 배송지 저장 실패해도 주문은 완료됨
           }
         }
-        toast("주문이 완료되었습니다! 주문번호: " + data.order.order_no, "success");
-        router.push(`/${subdomain}/${clientSlug}`);
+        // Phase D: ViewPay 결제창으로 이동 (returnUrl = 주문 완료 페이지)
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const returnUrl = `${origin}/${subdomain}/${clientSlug}/order/complete?orderId=${order.id}`;
+        const cancelUrl = `${origin}/${subdomain}/${clientSlug}/checkout?cancel=1`;
+        const productName = items.length > 0 ? items[0].product?.name ?? "주문상품" : "주문상품";
+        const prepareBody = {
+          orderId: order.id,
+          orderNo: order.order_no,
+          amount: order.total_amount,
+          productName,
+          returnUrl,
+          cancelUrl,
+          buyerName: ordererName || name,
+          buyerPhone: ordererPhone || phone,
+          buyerEmail: ordererEmail || "",
+        };
+        console.debug("[Order:Checkout] ViewPay prepare 요청", { orderId: order.id, amount: order.total_amount, returnUrl });
+        const prepareRes = await shopFetch("/api/payment/viewpay/prepare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(prepareBody),
+        });
+        const prepareData = await prepareRes.json().catch(() => ({}));
+        if (prepareRes.ok && prepareData.success && prepareData.redirectUrl) {
+          console.debug("[Order:Checkout] ViewPay redirect 이동", { redirectUrlPreview: prepareData.redirectUrl?.slice(0, 80) });
+          window.location.href = prepareData.redirectUrl;
+          return;
+        }
+        console.debug("[Order:Checkout] ViewPay prepare 실패", { ok: prepareRes.ok, message: prepareData.message });
+        toast(
+          prepareData.message || "결제창을 열 수 없습니다. 주문은 접수되었습니다. 마이페이지에서 재결제할 수 있습니다.",
+          "error"
+        );
       } else {
         const err = await res.json();
+        console.debug("[Order:Checkout] 주문 생성 실패", { status: res.status, error: err.error });
         toast(err.error || "주문에 실패했습니다.", "error");
       }
-    } catch {
+    } catch (e) {
+      console.debug("[Order:Checkout] 예외", e);
       toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
       setSubmitting(false);

@@ -30,7 +30,6 @@ interface Client {
 }
 
 import { getBaseUrl, getStorefrontUrl } from "@/lib/app-url";
-const BASE_URL = getBaseUrl();
 
 export default function ClientsLinksPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -580,12 +579,12 @@ export default function ClientsLinksPage() {
                 <span className="font-medium text-slate-800">① 파트너 메인 (마스터 템플릿, 주문 불가)</span>
                 <br />
                 <a
-                  href={`${BASE_URL}/${partnerSubdomain}`}
+                  href={getStorefrontUrl(partnerSubdomain)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block mt-0.5 break-all text-purple-600 underline hover:text-purple-700"
                 >
-                  {BASE_URL}/{partnerSubdomain}
+                  {getBaseUrl() || "[현재 도메인]"}/{partnerSubdomain}
                 </a>
                 <br />
                 <span className="text-xs text-slate-500">상품 브라우징만 가능. 주문·장바구니·마이페이지 클릭 시 안내 Alert.</span>
@@ -600,16 +599,16 @@ export default function ClientsLinksPage() {
                 <br />
                 {clients[0] ? (
                   <a
-                    href={`${BASE_URL}/${partnerSubdomain}/${clients[0].slug}`}
+                    href={getStorefrontUrl(partnerSubdomain, clients[0].slug)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block mt-0.5 break-all text-purple-600 underline hover:text-purple-700"
                   >
-                    {BASE_URL}/{partnerSubdomain}/{clients[0].slug}
+                    {getBaseUrl() || "[현재 도메인]"}/{partnerSubdomain}/{clients[0].slug}
                   </a>
                 ) : (
                   <span className="mt-0.5 inline-block text-slate-500">
-                    {BASE_URL}/{partnerSubdomain}/[거래처슬러그]
+                    {getBaseUrl() || "[현재 도메인]"}/{partnerSubdomain}/[거래처슬러그]
                   </span>
                 )}
               </li>

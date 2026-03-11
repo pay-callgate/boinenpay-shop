@@ -3,7 +3,8 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
 
-const DEFAULT_SUBDOMAIN = "testpartner";
+/** 데모/실서버: 우리부고(wooribugo). callbackUrl에서 subdomain 추출 실패 시 사용 */
+const DEFAULT_SUBDOMAIN = "wooribugo";
 
 function LoginRedirectContent() {
   const searchParams = useSearchParams();
