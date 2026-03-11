@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Heart, ShoppingBag } from "lucide-react";
 import { useShopTemplate } from "./ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "./ShopLayout";
@@ -106,6 +107,7 @@ export function ShopMainHome({
   loadMore,
 }: ShopMainHomeProps) {
   const router = useRouter();
+  const { status: sessionStatus } = useSession();
   const shop = useShopTemplate();
   const clientId = shop?.client?.id ?? null;
   const [wishlistProductIds, setWishlistProductIds] = useState<Set<string>>(new Set());
@@ -155,9 +157,9 @@ export function ShopMainHome({
     el.scrollLeft = Math.max(0, Math.min(nextScrollLeft, maxScroll));
   };
 
-  // 관심상품 목록 조회 (하트 채움 + 삭제 시 사용할 item id 저장)
+  // 관심상품 목록 조회 (로그인한 경우에만 — 비로그인 시 401로 세션 만료 토스트 방지)
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId || sessionStatus !== "authenticated") return;
     shopFetch(`/api/mypage/wishlist?clientId=${clientId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -170,7 +172,7 @@ export function ShopMainHome({
         setWishlistItemIdsByProductId(byProduct);
       })
       .catch(() => {});
-  }, [clientId]);
+  }, [clientId, sessionStatus]);
 
   const handleRemoveFromWishlist = useCallback(
     (e: React.MouseEvent, productId: string) => {

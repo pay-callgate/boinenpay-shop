@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { COURIER_OPTIONS, formatTrackingDisplay } from "@/lib/courier";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -68,6 +69,7 @@ interface Order {
   shipping_address: string;
   shipping_detail: string | null;
   tracking_number: string | null;
+  courier_company: string | null;
   created_at: string;
   client: Client;
   user: User | null;
@@ -139,6 +141,7 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
 
   const [newStatus, setNewStatus] = useState("");
+  const [courierCompany, setCourierCompany] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [memo, setMemo] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -155,6 +158,7 @@ export default function OrderDetailPage() {
         setItems(data.items || []);
         setHistory(data.history || []);
         setNewStatus(data.order.status);
+        setCourierCompany(data.order.courier_company || "");
         setTrackingNumber(data.order.tracking_number || "");
       }
       setLoading(false);
@@ -177,6 +181,7 @@ export default function OrderDetailPage() {
         body: JSON.stringify({
           status: newStatus,
           trackingNumber: trackingNumber || null,
+          courierCompany: courierCompany || null,
           memo: memo || null,
         }),
       });
@@ -299,7 +304,9 @@ export default function OrderDetailPage() {
               </span>
 
               <span className="text-slate-600">송장번호</span>
-              <span className="font-semibold text-slate-900">{order.tracking_number || "-"}</span>
+              <span className="font-semibold text-slate-900">
+                {formatTrackingDisplay(order.courier_company, order.tracking_number)}
+              </span>
             </div>
           </div>
 
@@ -369,6 +376,20 @@ export default function OrderDetailPage() {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">택배사 선택</label>
+                <select
+                  value={courierCompany}
+                  onChange={(e) => setCourierCompany(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border border-slate-300 text-sm focus:ring-1 focus:ring-slate-600 focus:border-slate-600"
+                >
+                  {COURIER_OPTIONS.map((opt) => (
+                    <option key={opt.value || "none"} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">송장번호</label>
                 <input

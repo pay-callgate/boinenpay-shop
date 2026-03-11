@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
+import { COURIER_OPTIONS, formatTrackingDisplay } from "@/lib/courier";
 
 /**
  * 배송 관리 페이지 (파트너 어드민)
@@ -35,6 +36,7 @@ interface Order {
   shipping_detail: string | null;
   shipping_postcode: string | null;
   tracking_number: string | null;
+  courier_company: string | null;
   created_at: string;
   client: Client;
   user: User | null;
@@ -72,6 +74,7 @@ export default function OrdersShippingPage() {
   const limit = 20;
 
   const [editOrder, setEditOrder] = useState<Order | null>(null);
+  const [editCourierCompany, setEditCourierCompany] = useState("");
   const [editTracking, setEditTracking] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -122,6 +125,7 @@ export default function OrdersShippingPage() {
 
   const openEdit = (order: Order) => {
     setEditOrder(order);
+    setEditCourierCompany(order.courier_company || "");
     setEditTracking(order.tracking_number || "");
     setEditStatus(order.status);
   };
@@ -137,6 +141,7 @@ export default function OrdersShippingPage() {
         body: JSON.stringify({
           status: editStatus,
           trackingNumber: editTracking || null,
+          courierCompany: editCourierCompany || null,
           memo: null,
         }),
       });
@@ -144,7 +149,12 @@ export default function OrdersShippingPage() {
         setOrders((prev) =>
           prev.map((o) =>
             o.id === editOrder.id
-              ? { ...o, status: editStatus, tracking_number: editTracking || null }
+              ? {
+                  ...o,
+                  status: editStatus,
+                  tracking_number: editTracking || null,
+                  courier_company: editCourierCompany || null,
+                }
               : o
           )
         );
@@ -329,7 +339,7 @@ export default function OrdersShippingPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-mono text-slate-600">
-                    {order.tracking_number || "-"}
+                    {formatTrackingDisplay(order.courier_company, order.tracking_number)}
                   </td>
                   <td className="px-4 py-3">
                     <button
@@ -401,6 +411,22 @@ export default function OrdersShippingPage() {
               송장·배송 상태 수정 — {editOrder.order_no}
             </h2>
             <form onSubmit={handleSaveShipping} className="mt-4 space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  택배사 선택
+                </label>
+                <select
+                  value={editCourierCompany}
+                  onChange={(e) => setEditCourierCompany(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                >
+                  {COURIER_OPTIONS.map((opt) => (
+                    <option key={opt.value || "none"} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
                   송장 번호

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
+import { formatTrackingDisplay } from "@/lib/courier";
 
 /**
  * T6-2: 마이페이지 주문 상세
@@ -48,6 +49,7 @@ interface Order {
   shipping_address: string;
   shipping_detail: string | null;
   tracking_number: string | null;
+  courier_company: string | null;
   created_at: string;
   client: Client;
 }
@@ -297,7 +299,7 @@ export default function MyOrderDetailPage() {
                 송장번호
               </p>
               <p style={{ fontSize: "1rem", fontWeight: 600 }}>
-                {order.tracking_number}
+                {formatTrackingDisplay(order.courier_company, order.tracking_number)}
               </p>
             </div>
             <p style={{ fontSize: "0.75rem", color: "#999", marginTop: "8px", textAlign: "center" }}>

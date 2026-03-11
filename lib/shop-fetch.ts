@@ -6,12 +6,20 @@ import { toast } from "@/components/shop/ToastContext";
 const SESSION_EXPIRED_MESSAGE =
   "안전한 이용을 위해 세션이 만료되었습니다. 다시 로그인해 주세요.";
 
+/** 세션 만료 처리 중복 실행 방지 (Strict Mode 등으로 401이 연속 발생해도 토스트/리다이렉트 1회만) */
+let sessionExpiryHandling = false;
+
 /**
  * 401/403 수신 시 공통 처리: 토스트 알림 → 로그아웃 → 로그인 페이지 리다이렉트
  * (거래처 쇼핑몰 전역 세션 만료 정책)
  * signOut 후에도 리다이렉트가 누락되지 않도록 window.location.replace로 이중 보장.
  */
 async function handleSessionExpiry(): Promise<never> {
+  if (sessionExpiryHandling) {
+    throw new Error("SESSION_EXPIRED");
+  }
+  sessionExpiryHandling = true;
+
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
   const subdomain = pathname.split("/")[1] ?? "shop";
   const loginUrl = `/${subdomain}/login?callbackUrl=${encodeURIComponent(pathname)}`;

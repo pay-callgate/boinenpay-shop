@@ -113,7 +113,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, trackingNumber, memo } = body;
+    const { status, trackingNumber, courierCompany, memo } = body;
 
     if (!status) {
       return NextResponse.json({ error: "상태 정보가 필요합니다." }, { status: 400 });
@@ -143,9 +143,16 @@ export async function PATCH(
       return NextResponse.json({ error: "해당 주문에 대한 수정 권한이 없습니다." }, { status: 403 });
     }
 
-    const updateData: { status: string; tracking_number?: string | null } = { status };
+    const updateData: {
+      status: string;
+      tracking_number?: string | null;
+      courier_company?: string | null;
+    } = { status };
     if (trackingNumber !== undefined) {
       updateData.tracking_number = trackingNumber;
+    }
+    if (courierCompany !== undefined) {
+      updateData.courier_company = courierCompany || null;
     }
 
     const { data: updatedOrder, error: updateError } = await supabase
