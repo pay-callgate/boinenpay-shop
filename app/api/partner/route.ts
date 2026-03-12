@@ -43,7 +43,27 @@ export async function GET(request: Request) {
 
     const { data: partner } = await supabase
       .from("partners")
-      .select("id, subdomain, company_name, verification_status, contact")
+      .select(
+        [
+          "id",
+          "subdomain",
+          "company_name",
+          "verification_status",
+          "business_registration_number",
+          "representative",
+          "postcode",
+          "address",
+          "business_type",
+          "contact",
+          "fax",
+          "business_category",
+          "email",
+          "trade_categories",
+          "franchise_name",
+          "corporate_registration_number",
+          "representative_dob",
+        ].join(", ")
+      )
       .eq("id", adminRow.partner_id)
       .maybeSingle();
     if (!partner) {
