@@ -5,8 +5,9 @@ import { logger } from "@/lib/logger";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { viewpayPost, clearViewpayTokenCache } from "@/lib/viewpay";
 
-/** ViewPay 결제 성공 상태값 (연동규격서 기준) */
+/** ViewPay 결제 성공 상태값 (연동규격서: data.paymentStatus) + API/이벤트 결과코드 0000 */
 const PAYMENT_SUCCESS_STATUSES = [
+  "0000", // API/이벤트 성공 코드 (규격서 status.code, event.resultCode)
   "PG_APPROVAL_SUCCESS",
   "PG_MODULE_SUCCESS",
   "PG_MODULE_VIRACC_ISSUE_SUCCESS",
@@ -103,7 +104,14 @@ export async function GET(request: NextRequest) {
 
     const response = paymentInfo?.response as Record<string, unknown> | undefined;
     const raw = response ?? paymentInfo;
-    const rawStatus = raw?.paymentStatus ?? raw?.payment_status ?? raw?.status ?? raw?.payStatus;
+    const data = raw?.data as Record<string, unknown> | undefined;
+    // 규격서: 결제상태는 data.paymentStatus. status.code "0000"은 API 조회 성공 코드(결제상태 아님)
+    const rawStatus =
+      data?.paymentStatus ??
+      raw?.paymentStatus ??
+      raw?.payment_status ??
+      raw?.status ??
+      raw?.payStatus;
     const paymentStatus = normalizePaymentStatus(rawStatus);
     logger.info(`${LOG} get-payment-info 결제상태`, { action: "payment_viewpay_complete_status", data: { orderId, cgTid, rawStatus, paymentStatus } });
     if (!paymentStatus || !PAYMENT_SUCCESS_STATUSES.includes(paymentStatus)) {
@@ -118,11 +126,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const amount = Number(order.total_amount) || 0;
     try {
-      logger.info(`${LOG} set-payment-info(STORE_SUCCESS) 호출`, { action: "payment_viewpay_complete_set_info", data: { orderId, cgTid } });
+      logger.info(`${LOG} set-payment-info(STORE_SUCCESS) 호출`, { action: "payment_viewpay_complete_set_info", data: { orderId, cgTid, orderNo: order.order_no, amount } });
       await viewpayPost("/v1/gw/set-payment-info", {
         cgTid,
         orderId,
+        orderNo: order.order_no,
+        amount,
         orderStatus: "STORE_SUCCESS",
       });
       logger.info(`${LOG} set-payment-info 성공`, { action: "payment_viewpay_complete_set_info_ok", data: { orderId, cgTid } });
@@ -137,7 +148,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const amount = Number(order.total_amount) || 0;
     const { error: updateOrderError } = await supabase
       .from("orders")
       .update({

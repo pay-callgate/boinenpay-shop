@@ -93,17 +93,24 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabase();
 
-    // 최근 본 상품 기록 추가
-    const { error } = await supabase.from("product_views").insert({
-      user_id: session.user.id,
-      product_id: productId,
-      client_id: clientId,
-      viewed_at: new Date().toISOString(),
-    });
+    // 최근 본 상품 기록 추가 또는 갱신 (동일 user+product+client 재조회 시 viewed_at만 갱신)
+    const { error } = await supabase
+      .from("product_views")
+      .upsert(
+        {
+          user_id: session.user.id,
+          product_id: productId,
+          client_id: clientId,
+          viewed_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "user_id,product_id,client_id",
+          ignoreDuplicates: false,
+        }
+      );
 
     if (error) {
-      console.error("Product view insert error:", error);
-      // 에러가 발생해도 사용자에게는 영향 없음 (조용히 실패)
+      console.error("Product view upsert error:", error);
       return NextResponse.json({ message: "조회 기록 저장 실패 (무시)" });
     }
 
