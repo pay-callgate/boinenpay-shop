@@ -253,10 +253,8 @@ export default function OrderCompletePage() {
             <span className="mt-3 text-5xl" role="img" aria-label="박스">
               📦
             </span>
-            <p className="mt-4 whitespace-pre-line text-center text-sm text-[#6B7280]">
+            <p className="mt-4 text-center text-sm text-[#6B7280]">
               예쁘게 포장해서 보내드릴게요!
-              <br />
-              조금만 기다려요 :)
             </p>
           </div>
 
