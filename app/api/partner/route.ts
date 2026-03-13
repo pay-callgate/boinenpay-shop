@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: null });
     }
 
-    const { data: partner } = await supabase
+    const { data: partnerData } = await supabase
       .from("partners")
       .select(
         [
@@ -66,13 +66,16 @@ export async function GET(request: Request) {
       )
       .eq("id", adminRow.partner_id)
       .maybeSingle();
-    if (!partner) {
+
+    if (!partnerData) {
       console.log("[API /api/partner] data: null — partners 행 없음");
       return NextResponse.json({ success: true, data: null });
     }
 
+    // Supabase 타입이 data를 GenericStringError 유니온으로 추론하는 경우 대비 (unknown 경유 단언)
+    const partner = partnerData as unknown as { id: string; company_name: string | null; [key: string]: unknown };
     console.log("[API /api/partner] 200", { partnerId: partner.id, company_name: partner.company_name });
-    return NextResponse.json({ success: true, data: partner });
+    return NextResponse.json({ success: true, data: partnerData });
   } catch (err) {
     console.error("[API /api/partner] error:", err);
     return NextResponse.json(
