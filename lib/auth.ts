@@ -5,6 +5,34 @@ import NaverProvider from "next-auth/providers/naver";
 import type { JWT } from "next-auth/jwt";
 import { logger } from "@/lib/logger";
 
+/** 카카오는 profile.kakao_account.email / properties.nickname 에 값이 있음. 구글/네이버는 profile.email, profile.name */
+function getEmailFromProfile(
+  provider: string | undefined,
+  profile: unknown,
+  user: { email?: string | null } | undefined
+): string | undefined {
+  const p = profile as Record<string, unknown> | null | undefined;
+  if (!p && !user?.email) return undefined;
+  if (provider === "kakao") {
+    const kakaoAccount = (p?.kakao_account as { email?: string } | undefined);
+    return kakaoAccount?.email ?? user?.email ?? undefined;
+  }
+  return (p?.email as string | undefined) ?? user?.email ?? undefined;
+}
+
+function getNameFromProfile(
+  provider: string,
+  profile: unknown,
+  user: { name?: string | null } | undefined
+): string | null {
+  const p = profile as Record<string, unknown> | null | undefined;
+  if (provider === "kakao") {
+    const props = (p?.properties as { nickname?: string } | undefined);
+    return props?.nickname ?? user?.name ?? null;
+  }
+  return (p?.name as string | undefined) ?? user?.name ?? null;
+}
+
 /**
  * NextAuth 설정 (Phase 0 T0-3, Phase 1 T1-1).
  * SNS OAuth: 구글, 카카오, 네이버.
@@ -27,28 +55,43 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
+      const provider = account?.provider ?? "unknown";
+      const profileEmail = getEmailFromProfile(account?.provider, profile, user);
+      console.log("[Auth] signIn callback", {
+        provider,
+        profileEmail,
+        profileKeys: profile ? Object.keys(profile as object) : [],
+        userKeys: user ? Object.keys(user) : [],
+      });
       logger.info("auth_sign_in_attempt", {
-        userEmail: (profile as { email?: string } | null)?.email ?? user?.email ?? undefined,
-        data: {
-          provider: account?.provider,
-        },
+        userEmail: profileEmail ?? undefined,
+        data: { provider },
       });
       return true;
     },
     async jwt({ token, account, profile, user }) {
-      // 갱신 시(user/account 없음) 기존 토큰의 커스텀 데이터 보존 — JWT 콜백 버그 방어
       const existingUserId = (token as JWT & { userId?: string }).userId;
+      const resolvedEmail = getEmailFromProfile(account?.provider, profile, user);
+      console.log("[Auth] jwt callback", {
+        hasAccount: !!account,
+        provider: account?.provider,
+        hasProfile: !!profile,
+        resolvedEmail,
+        existingUserId,
+      });
+
+      // 갱신 시(user/account 없음) 기존 토큰의 커스텀 데이터 보존 — JWT 콜백 버그 방어
       if (!account && existingUserId) {
         (token as JWT & { userId?: string }).userId = existingUserId;
         return token;
       }
 
-      if (account && profile && (profile as { email?: string }).email) {
+      if (account && (profile || user) && resolvedEmail) {
         try {
           const { createServerSupabase } = await import("@/lib/supabase/server");
           const supabase = createServerSupabase();
-          const email = (profile as { email?: string }).email ?? "";
-          const name = (profile as { name?: string }).name ?? null;
+          const email = resolvedEmail;
+          const name = getNameFromProfile(account.provider, profile, user);
           const provider = account.provider;
           const providerId = account.providerAccountId;
 
@@ -169,16 +212,32 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      if (!resolvedEmail && account) {
+        console.warn("[Auth] jwt: no email in profile/user — login may redirect to signIn", {
+          provider: account.provider,
+          profileKeys: profile ? Object.keys(profile as object) : [],
+          userKeys: user ? Object.keys(user ?? {}) : [],
+        });
+      }
+
       // 한 번 더 보존: 갱신 경로에서 token이 덮어씌워졌을 수 있음
       if (!account && existingUserId) {
         (token as JWT & { userId?: string }).userId = existingUserId;
       }
       return token;
     },
+    async redirect({ url, baseUrl }) {
+      console.log("[Auth] redirect callback", { url, baseUrl });
+      return url.startsWith(baseUrl) ? url : baseUrl + url;
+    },
     async session({ session, token }) {
+      const userId = (token as JWT & { userId?: string }).userId;
+      console.log("[Auth] session callback", {
+        hasUser: !!session?.user,
+        userId,
+        userEmail: session?.user?.email,
+      });
       if (session.user) {
-        const userId = (token as JWT & { userId?: string }).userId;
-        
         // 🔥 UUID가 없으면 세션 생성 실패
         if (!userId) {
           logger.error("auth_session_missing_user_id", {

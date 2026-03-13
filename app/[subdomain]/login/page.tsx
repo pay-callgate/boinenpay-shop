@@ -73,8 +73,24 @@ export default function CustomerLoginPage() {
     };
   }, [subdomain, callbackUrl]);
 
+  useEffect(() => {
+    console.log("[StorefrontLogin] mount", {
+      subdomain,
+      callbackUrl,
+      hasCallbackUrlParam: searchParams?.get("callbackUrl") != null,
+      error: searchParams?.get("error") ?? null,
+    });
+  }, [subdomain, callbackUrl, searchParams]);
+
   const handleSignIn = (provider: "google" | "kakao" | "naver") => {
-    signIn(provider, { callbackUrl });
+    console.log("[StorefrontLogin] handleSignIn called", { provider, callbackUrl });
+    signIn(provider, { callbackUrl })
+      .then((res) => {
+        console.log("[StorefrontLogin] signIn result", res);
+      })
+      .catch((err) => {
+        console.error("[StorefrontLogin] signIn error", err);
+      });
   };
 
   const headerTitle = clientInfo

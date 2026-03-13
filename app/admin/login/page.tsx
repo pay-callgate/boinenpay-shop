@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
@@ -8,8 +8,23 @@ function AdminLoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") ?? "/admin";
 
+  useEffect(() => {
+    console.log("[AdminLogin] mount", {
+      callbackUrl,
+      hasCallbackUrlParam: searchParams?.has("callbackUrl"),
+      error: searchParams?.get("error") ?? null,
+    });
+  }, [callbackUrl, searchParams]);
+
   const handleSignIn = (provider: "google" | "kakao" | "naver") => {
-    signIn(provider, { callbackUrl });
+    console.log("[AdminLogin] handleSignIn called", { provider, callbackUrl });
+    signIn(provider, { callbackUrl })
+      .then((res) => {
+        console.log("[AdminLogin] signIn result", res);
+      })
+      .catch((err) => {
+        console.error("[AdminLogin] signIn error", err);
+      });
   };
 
   return (
