@@ -10,41 +10,10 @@ import { ShopMainHome } from "@/components/shop/ShopMainHome";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
 import type { ShopCategory, ShopProduct } from "@/components/shop/ShopMainHome";
 
-function CategorySkeleton() {
-  return (
-    <div className="mt-4 flex gap-2 overflow-x-auto px-4 pb-2">
-      {Array.from({ length: 4 }).map((_, idx) => (
-        <div
-          // eslint-disable-next-line react/no-array-index-key
-          key={idx}
-          className="h-8 w-20 rounded-full bg-slate-200/80 animate-pulse"
-        />
-      ))}
-    </div>
-  );
-}
-
-function ProductSkeletonGrid() {
-  return (
-    <div className="mt-4 grid grid-cols-2 gap-3 px-4 pb-6">
-      {Array.from({ length: 6 }).map((_, idx) => (
-        // eslint-disable-next-line react/no-array-index-key
-        <div key={idx} className="space-y-2">
-          <div className="h-40 rounded-2xl bg-slate-200/80 animate-pulse" />
-          <div className="h-3 w-5/6 rounded-full bg-slate-200/80 animate-pulse" />
-          <div className="h-3 w-3/5 rounded-full bg-slate-200/70 animate-pulse" />
-          <div className="h-4 w-1/2 rounded-full bg-slate-300/80 animate-pulse" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /**
  * 거래처 쇼핑몰 메인 페이지 (글로벌 레이아웃 적용)
  * /{subdomain}/{clientSlug}
  * - 헤더/하단 네비는 layout의 ShopGlobalLayout에서 제공
- * - 상단 헤더/네비는 레이아웃에서 이미 렌더링되므로, 여기서는 본문만 스켈레톤 처리
  */
 export default function ClientShopPage() {
   const params = useParams();
@@ -115,7 +84,7 @@ export default function ClientShopPage() {
     return () => {
       cancelled = true;
     };
-  }, [partner?.id, client]);
+  }, [partner?.id]);
 
   // T3.5-1: 로그인 후 자동 매칭 (거래처 전용 URL에서만, _preview 제외)
   useEffect(() => {
@@ -139,6 +108,14 @@ export default function ClientShopPage() {
     performAutoMatch();
   }, [status, session, partner, client, clientSlug, isMatched, autoMatching, autoMatch, refresh]);
 
+  if (loading || status === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-slate-600">로딩 중...</p>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-6">
@@ -157,6 +134,20 @@ export default function ClientShopPage() {
         >
           홈으로 이동
         </button>
+      </div>
+    );
+  }
+
+  // 비로그인 사용자도 쇼핑몰 메인 조회 가능 (로그인은 주문/결제 시 OrderGuard에서만 요구)
+  if (autoMatching) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-6">
+        <div
+          className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200"
+          style={{ borderTopColor: "#D6A8E0" }}
+          aria-hidden
+        />
+        <p className="mt-4 text-sm text-slate-600">거래처 정보를 등록하는 중...</p>
       </div>
     );
   }
@@ -188,36 +179,13 @@ export default function ClientShopPage() {
   }
 
   return (
-    <>
-      <ShopMainHome
-        partner={partner}
-        client={client ?? null}
-        subdomain={subdomain}
-        clientSlug={clientSlug}
-        categories={categories}
-        productsByCategory={productsByCategory}
-      />
-      {loading && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 top-[56px] z-30 bg-gradient-to-b from-white/70 via-white/90 to-white/95">
-          <CategorySkeleton />
-          <ProductSkeletonGrid />
-        </div>
-      )}
-      {autoMatching && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
-          <div
-            className="inline-flex max-w-md items-center gap-3 rounded-full bg-slate-900/90 px-4 py-2 text-xs text-white shadow-lg"
-            style={{ backdropFilter: "blur(10px)" }}
-          >
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/10">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" />
-            </span>
-            <span className="flex-1 text-left">
-              거래처 정보를 등록하는 중이에요. 잠시만 기다려 주세요.
-            </span>
-          </div>
-        </div>
-      )}
-    </>
+    <ShopMainHome
+      partner={partner}
+      client={client ?? null}
+      subdomain={subdomain}
+      clientSlug={clientSlug}
+      categories={categories}
+      productsByCategory={productsByCategory}
+    />
   );
 }
