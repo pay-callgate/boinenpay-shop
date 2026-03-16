@@ -27,6 +27,42 @@ interface Props {
   fallback?: React.ReactNode;
 }
 
+function InlineToast({
+  message,
+  actionLabel,
+  onAction,
+}: {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pointer-events-none"
+      aria-live="polite"
+    >
+      <div
+        className="inline-flex max-w-md items-center gap-3 rounded-full bg-slate-900/90 px-4 py-2 text-xs text-white shadow-lg pointer-events-auto"
+        style={{ backdropFilter: "blur(10px)" }}
+      >
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/10">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" />
+        </span>
+        <span className="flex-1 text-left">{message}</span>
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            onClick={onAction}
+            className="shrink-0 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-900 hover:bg-white"
+          >
+            {actionLabel}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function OrderGuard({ partnerId, children, fallback }: Props) {
   const params = useParams();
   const router = useRouter();
@@ -36,6 +72,7 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [skipGuard, setSkipGuard] = useState(false);
   const [loopError, setLoopError] = useState<string | null>(null);
+  const [showBackgroundToast, setShowBackgroundToast] = useState(true);
 
   // 미로그인 시 중간 Gate 없이 즉시 거래처 전용 로그인 페이지로 리다이렉트
   useEffect(() => {
@@ -70,37 +107,9 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
     router.replace(url);
   }, [status, subdomain, router]);
 
-  // 로딩 중
-  if (status === "loading" || loading) {
-    return (
-      fallback || (
-        <div
-          style={{
-            padding: "40px",
-            textAlign: "center",
-            color: "#999",
-          }}
-        >
-          확인 중...
-        </div>
-      )
-    );
-  }
-
   // 미로그인 → useEffect에서 /[subdomain]/login 으로 리다이렉트 중. 리다이렉트 전까지 빈 화면 또는 최소 로딩
   if (status === "unauthenticated") {
-    return (
-      <div
-        style={{
-          padding: "40px 24px",
-          textAlign: "center",
-          color: "#999",
-          fontSize: "0.875rem",
-        }}
-      >
-        로그인 페이지로 이동 중...
-      </div>
-    );
+    return fallback || null;
   }
 
   // 로그인했지만 거래처 미매칭
@@ -123,78 +132,15 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
 
     return (
       <>
-        <div
-          style={{
-            padding: "40px 24px",
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: "50%",
-              backgroundColor: "#FEF3C7",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 16px",
-            }}
-          >
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 9v4M12 17h.01"
-                stroke="#F59E0B"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-                stroke="#F59E0B"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <h3
-            style={{
-              fontSize: "1.125rem",
-              fontWeight: 700,
-              marginBottom: "8px",
-            }}
-          >
-            소속 기업 등록이 필요합니다
-          </h3>
-          <p
-            style={{
-              fontSize: "0.875rem",
-              color: "#666",
-              marginBottom: "24px",
-              lineHeight: 1.6,
-            }}
-          >
-            주문을 진행하시려면 먼저 소속 기업을 등록해주세요.
-            <br />
-            기업 등록 후 전용 혜택을 받으실 수 있습니다.
-          </p>
-          <button
-            onClick={() => setShowSearchModal(true)}
-            style={{
-              padding: "14px 32px",
-              backgroundColor: "#D6A8E0",
-              color: "#fff",
-              border: "none",
-              borderRadius: "8px",
-              fontSize: "1rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            소속 기업 찾기
-          </button>
-        </div>
+        {/* 본문은 항상 그대로 노출 */}
+        {children}
+
+        {/* 하단 토스트로만 가볍게 안내 */}
+        <InlineToast
+          message="소속 기업 정보를 확인하고 있습니다. 거래처가 없으시면 먼저 등록해 주세요."
+          actionLabel="소속 기업 찾기"
+          onAction={() => setShowSearchModal(true)}
+        />
 
         {/* 소속 기업 찾기 모달 */}
         <ClientSearchModal
@@ -210,6 +156,17 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
     );
   }
 
-  // 매칭 완료 → children 렌더링
-  return <>{children}</>;
+  // 매칭 완료 또는 검증 스킵 → children 렌더링
+  return (
+    <>
+      {children}
+      {showBackgroundToast && (loading || status === "loading") && (
+        <InlineToast
+          message="고객님의 소속 정보를 확인하고 있습니다..."
+          actionLabel="숨기기"
+          onAction={() => setShowBackgroundToast(false)}
+        />
+      )}
+    </>
+  );
 }
