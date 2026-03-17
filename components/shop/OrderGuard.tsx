@@ -81,7 +81,7 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
             color: "#999",
           }}
         >
-          확인 중...
+          {/* 확인 중... */}
         </div>
       )
     );
@@ -98,7 +98,7 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
           fontSize: "0.875rem",
         }}
       >
-        로그인 페이지로 이동 중...
+        {/* 로그인 페이지로 이동 중... */}
       </div>
     );
   }

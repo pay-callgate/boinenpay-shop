@@ -224,7 +224,7 @@ export default function OrderCompletePage() {
       return (
         <div className="flex flex-col items-center justify-center gap-4 py-12">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#D6A8E0] border-t-transparent" />
-          <p className="text-[#6B7280]">결제 완료 확인 중...</p>
+          <p className="text-[#6B7280]">{/* 결제 완료 확인 중... */}</p>
         </div>
       );
     }

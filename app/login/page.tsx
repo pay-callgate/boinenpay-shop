@@ -33,7 +33,7 @@ function LoginRedirectContent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-purple-50 to-white">
       <div className="text-center">
-        <p className="text-slate-600">로그인 페이지로 이동 중...</p>
+        <p className="text-slate-600">{/* 로그인 페이지로 이동 중... */}</p>
         <div className="mt-4 h-8 w-8 animate-spin rounded-full border-2 border-purple-200 border-t-purple-600 mx-auto" />
       </div>
     </div>

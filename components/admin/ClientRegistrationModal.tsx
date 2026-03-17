@@ -271,7 +271,7 @@ export function ClientRegistrationModal({
                       </div>
                       <div className="flex flex-col gap-2 shrink-0">
                         <label className="cursor-pointer inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 w-fit">
-                          {logoUploading ? "업로드 중..." : "이미지 선택"}
+                          {/* logoUploading ? "업로드 중..." : */}이미지 선택
                           <input
                             type="file"
                             accept="image/*"

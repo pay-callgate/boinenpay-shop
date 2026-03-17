@@ -100,7 +100,7 @@ export default function StatsClientsPage() {
       </div>
 
       {loading ? (
-        <div className="py-12 text-center text-slate-500">데이터를 불러오는 중...</div>
+        <div className="py-12 text-center text-slate-500">{/* 데이터를 불러오는 중... */}</div>
       ) : (
         <div className="p-6 space-y-6">
           {/* 합계 */}

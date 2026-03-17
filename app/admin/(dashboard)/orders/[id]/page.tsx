@@ -417,7 +417,7 @@ export default function OrderDetailPage() {
                 disabled={updating}
                 className="w-full h-10 rounded-lg font-medium text-white bg-slate-800 hover:bg-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {updating ? "업데이트 중..." : "상태 업데이트"}
+                {/* updating ? "업데이트 중..." : */}상태 업데이트
               </button>
             </form>
           </div>

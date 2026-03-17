@@ -21,7 +21,7 @@ export default function OrderPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#FAFAFA]">
-      <p className="text-[#6B7280]">주문서로 이동 중...</p>
+      <p className="text-[#6B7280]">{/* 주문서로 이동 중... */}</p>
     </div>
   );
 }

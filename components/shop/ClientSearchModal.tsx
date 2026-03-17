@@ -302,7 +302,7 @@ export function ClientSearchModal({
             >
               {loading ? (
                 <div style={{ padding: "40px", textAlign: "center", color: "#999" }}>
-                  검색 중...
+                  {/* 검색 중... */}
                 </div>
               ) : clients.length === 0 ? (
                 <div style={{ padding: "40px", textAlign: "center", color: "#999" }}>

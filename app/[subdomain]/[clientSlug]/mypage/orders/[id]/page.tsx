@@ -546,7 +546,7 @@ export default function MyOrderDetailPage() {
                 opacity: paymentSubmitting ? 0.7 : 1,
               }}
             >
-              {paymentSubmitting ? "결제창으로 이동 중..." : "결제하기"}
+              {/* paymentSubmitting ? "결제창으로 이동 중..." : */}결제하기
             </button>
           )}
         </div>

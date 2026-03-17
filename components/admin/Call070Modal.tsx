@@ -418,7 +418,7 @@ export function Call070Modal({
                   fontWeight: 500,
                 }}
               >
-                {registering ? "연결 중..." : "070번호 연결"}
+                {/* registering ? "연결 중..." : */}070번호 연결
               </button>
             )}
             {formData.callcloud_registered && (
