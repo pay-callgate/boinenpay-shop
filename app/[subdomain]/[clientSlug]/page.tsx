@@ -109,6 +109,7 @@ export default function ClientShopPage() {
           clientSlug={clientSlug}
           categories={[]}
           productsByCategory={{}}
+          loading
         />
       );
     }

@@ -39,6 +39,8 @@ export interface ShopMainHomeProps {
   clientSlug: string | null;
   categories: ShopCategory[];
   productsByCategory: Record<string, ShopProduct[]>;
+  /** 로딩 중일 때 스켈레톤 표시 (데모 시 "등록된 상품이 없습니다" 플래시 방지) */
+  loading?: boolean;
   loadMore?: {
     hasMore: boolean;
     loading: boolean;
@@ -105,6 +107,7 @@ export function ShopMainHome({
   clientSlug,
   categories,
   productsByCategory,
+  loading,
   loadMore,
 }: ShopMainHomeProps) {
   const router = useRouter();
@@ -383,7 +386,23 @@ export function ShopMainHome({
       )}
 
       {/* 상품 섹션: 리프 노드만 */}
-      {displayCategories.length === 0 ? (
+      {loading ? (
+        <div className="px-4 pb-8">
+          <div className="mb-4 h-6 w-24 animate-pulse rounded bg-[#E5E7EB]" />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="text-left">
+                <div className="aspect-[1/1] animate-pulse rounded-md bg-[#E5E7EB]" />
+                <div className="mt-3 space-y-2">
+                  <div className="h-4 w-full animate-pulse rounded bg-[#E5E7EB]" />
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-[#E5E7EB]" />
+                  <div className="h-4 w-1/3 animate-pulse rounded bg-[#E5E7EB]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : displayCategories.length === 0 ? (
         <div className="px-4 py-12 text-center text-sm text-[#9CA3AF]">
           등록된 상품이 없습니다.
         </div>
