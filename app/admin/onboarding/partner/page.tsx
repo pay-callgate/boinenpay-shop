@@ -34,19 +34,29 @@ export default function PartnerOnboardingPage() {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleCancel}>
-        <DialogContent>
+        <DialogContent
+          className="w-full sm:max-w-2xl"
+          backdropText="사업장(기업)정보를 등록해주세요"
+        >
           <DialogHeader>
             <DialogClose />
-            <DialogTitle>기업 등록</DialogTitle>
+            <DialogTitle>운영자 등록</DialogTitle>
             <DialogDescription>
-              사업자 정보를 입력하고 검증 후 파트너 어드민을 이용할 수 있습니다.
+              <span className="text-gray-200 mt-2 block">
+                최초 1회 소속 기업 정보(기업명 및 사업자등록 번호)를 검증한 후 운영자로 등록됩니다.
+              </span>
+              <span className="text-gray-200 mt-1 block">
+                운영자로 등록되지 않은 경우, 본 Admin 화면에 로그인 및 접속이 불가합니다.
+              </span>
             </DialogDescription>
           </DialogHeader>
-          <PartnerRegistrationForm
-            subdomain=""
-            onSuccess={handleSuccess}
-            onCancel={handleCancel}
-          />
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <PartnerRegistrationForm
+              subdomain=""
+              onSuccess={handleSuccess}
+              onCancel={handleCancel}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </>

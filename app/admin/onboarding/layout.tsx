@@ -27,7 +27,7 @@ export default async function OnboardingLayout({
         <AdminSidebar partnerDisplayName="파트너 등록" userName={session.user.name ?? undefined} />
         <main className="flex-1 overflow-auto p-6">
           <div className="text-center py-20 text-gray-400">
-            <p className="text-lg">파트너 등록을 진행해주세요</p>
+            <p className="text-lg">사업장 정보 등록을 진행해주세요.</p>
           </div>
           {children}
         </main>
