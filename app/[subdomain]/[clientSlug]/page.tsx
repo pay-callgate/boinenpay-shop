@@ -42,7 +42,7 @@ export default function ClientShopPage() {
     if (template != null && !partner) setLoading(false);
   }, [template, partner]);
 
-  // 레이아웃에서 partner 제공 시 카테고리/상품 로드. 거래처 전용일 때만 쿠키 설정
+  // 레이아웃에서 partner 제공 시 카테고리/상품 로드 (홈 전용 1회 API로 최적화)
   useEffect(() => {
     if (!partner?.id) return;
     if (client) setClientSourceCookie(client.id, client.slug);
@@ -51,30 +51,21 @@ export default function ClientShopPage() {
     setError(null);
     (async () => {
       try {
-        const catRes = await fetch(
-          `/api/shop/categories?partnerId=${partner.id}&onlyWithProducts=false`
+        const res = await fetch(
+          `/api/shop/home-products?partnerId=${partner.id}`
         );
         if (cancelled) return;
-        if (!catRes.ok) {
-          setError("카테고리를 불러올 수 없습니다.");
+        if (!res.ok) {
+          setError("카테고리·상품을 불러올 수 없습니다.");
           return;
         }
-        const catData = await catRes.json();
-        const cats = catData.categories || [];
-        setCategories(cats);
-        const productsMap: Record<string, ShopProduct[]> = {};
-        await Promise.all(
-          cats.map(async (cat: ShopCategory) => {
-            const prodRes = await fetch(
-              `/api/shop/products?partnerId=${partner.id}&categoryId=${cat.id}&limit=4`
-            );
-            if (prodRes.ok) {
-              const prodData = await prodRes.json();
-              productsMap[cat.id] = prodData.products || [];
-            }
-          })
-        );
-        if (!cancelled) setProductsByCategory(productsMap);
+        const data = await res.json();
+        const cats = (data.categories || []) as ShopCategory[];
+        const productsMap = (data.productsByCategory || {}) as Record<string, ShopProduct[]>;
+        if (!cancelled) {
+          setCategories(cats);
+          setProductsByCategory(productsMap);
+        }
       } catch {
         if (!cancelled) setError("정보를 불러오는 중 오류가 발생했습니다.");
       } finally {
