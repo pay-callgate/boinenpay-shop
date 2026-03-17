@@ -673,7 +673,10 @@ export default function ProductDetailPage() {
             onClick={addToCart}
             className="flex flex-1 items-center justify-center border-r border-gray-200 bg-white text-base font-medium text-gray-900 hover:bg-gray-50 active:opacity-90 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
-            {isSoldOut ? "품절" : addingToCart ? "추가 중..." : "장바구니"}
+            {/* NOTE: 데모 동안에는 "추가 중..." 상태 문구를 숨기고, 항상 "장바구니"로 노출한다.
+                - 기존: {isSoldOut ? "품절" : addingToCart ? "추가 중..." : "장바구니"}
+                - 이후: 로딩 상태 문구/스피너를 다시 도입할 때 UX 관점에서 재검토 예정. */}
+            {isSoldOut ? "품절" : "장바구니"}
           </button>
           <button
             type="button"
