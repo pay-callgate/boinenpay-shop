@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -388,7 +389,7 @@ export function ShopMainHome({
         </div>
       ) : (
         <div className="px-4 pb-8">
-          {displayCategories.map((category) => {
+          {displayCategories.map((category, catIndex) => {
             const products = productsByCategory[category.id] || [];
             if (products.length === 0) return null;
 
@@ -403,7 +404,7 @@ export function ShopMainHome({
                 </h2>
 
                 <div className="grid grid-cols-2 gap-x-4 gap-y-8">
-                  {products.map((product) => {
+                  {products.map((product, prodIndex) => {
                     const discountRate = getDiscountRate(
                       product.base_price,
                       product.sale_price
@@ -419,10 +420,13 @@ export function ShopMainHome({
                         >
                           <div className="relative aspect-[1/1] overflow-hidden rounded-md bg-[#F3F4F6]">
                             {product.thumbnail_url ? (
-                              <img
+                              <Image
                                 src={product.thumbnail_url}
                                 alt={product.name}
-                                className="h-full w-full object-cover"
+                                fill
+                                sizes="(max-width: 768px) 50vw, 33vw"
+                                className="object-cover"
+                                priority={catIndex === 0 && prodIndex < 4}
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-[15px] text-[#9CA3AF]">
