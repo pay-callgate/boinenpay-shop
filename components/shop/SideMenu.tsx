@@ -98,8 +98,9 @@ export function SideMenu({
     setLogoLoadError(false);
   }, [client?.id, client?.logo_url]);
 
+  // 카테고리: 메뉴 열릴 때만 로드 (checkout 등에서 불필요한 호출 방지)
   useEffect(() => {
-    if (!partner?.id) return;
+    if (!partner?.id || !isOpen) return;
     let cancelled = false;
     fetch(`/api/shop/categories?partnerId=${partner.id}&onlyWithProducts=false`)
       .then((res) => (res.ok ? res.json() : { categories: [] }))
@@ -112,7 +113,7 @@ export function SideMenu({
     return () => {
       cancelled = true;
     };
-  }, [partner?.id]);
+  }, [partner?.id, isOpen]);
 
   const base = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
   const homeHref = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;

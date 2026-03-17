@@ -23,7 +23,33 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabase();
 
-    let query = supabase
+    // partnerId가 있으면 !inner join으로 DB에서 한 번에 필터링 (1.2초→수백ms 개선)
+    if (partnerId) {
+      const { data: userClients, error } = await supabase
+        .from("user_clients")
+        .select(`
+          *,
+          clients!inner (
+            id,
+            slug,
+            name,
+            logo_url,
+            partner_id
+          )
+        `)
+        .eq("user_id", session.user.id)
+        .eq("clients.partner_id", partnerId);
+
+      if (error) {
+        return NextResponse.json(
+          { error: "사용자 거래처 조회 실패" },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ userClients: userClients ?? [] });
+    }
+
+    const { data: userClients, error } = await supabase
       .from("user_clients")
       .select(`
         *,
@@ -36,29 +62,6 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq("user_id", session.user.id);
-
-    // partnerId가 있으면 해당 파트너의 거래처만 필터링
-    if (partnerId) {
-      const { data: userClients, error } = await query;
-      
-      if (error) {
-        console.error("User-clients fetch error:", error);
-        return NextResponse.json(
-          { error: "사용자 거래처 조회 실패" },
-          { status: 500 }
-        );
-      }
-
-      // 파트너 ID로 필터링
-      const filtered = (userClients || []).filter(
-        (uc: { clients: { partner_id: string } | null }) => 
-          uc.clients?.partner_id === partnerId
-      );
-
-      return NextResponse.json({ userClients: filtered });
-    }
-
-    const { data: userClients, error } = await query;
 
     if (error) {
       console.error("User-clients fetch error:", error);

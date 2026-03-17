@@ -15,17 +15,9 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get("clientId");
-
-    // 터미널 로그: 세션·장바구니 요청 추적 (재로그인 후 빈 화면 원인 파악용)
-    console.log("[CART GET]", {
-      hasSession: !!session,
-      userId: session?.user?.id ?? null,
-      clientId,
-      at: new Date().toISOString(),
-    });
+    const countOnly = searchParams.get("countOnly") === "1";
 
     if (!session?.user?.id) {
-      console.log("[CART GET] 401 - 세션 없음");
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
@@ -35,39 +27,60 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabase();
 
+    // countOnly: 뱃지용 경량 조회 (product join 없이 cart_items 개수만)
+    if (countOnly) {
+      const { data: cart } = await supabase
+        .from("carts")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      if (!cart) {
+        return NextResponse.json({ count: 0 });
+      }
+
+      const { count, error: countError } = await supabase
+        .from("cart_items")
+        .select("*", { count: "exact", head: true })
+        .eq("cart_id", cart.id);
+
+      if (countError) {
+        return NextResponse.json({ count: 0 });
+      }
+      return NextResponse.json({ count: count ?? 0 });
+    }
+
     // 사용자의 장바구니 조회 (없으면 생성)
     let { data: cart, error: cartError } = await supabase
       .from("carts")
-      .select("*")
+      .select("id")
       .eq("user_id", session.user.id)
       .eq("client_id", clientId)
       .maybeSingle();
 
     if (cartError && cartError.code !== "PGRST116") {
-      console.error("Cart fetch error:", cartError);
       return NextResponse.json({ error: "장바구니 조회 실패" }, { status: 500 });
     }
 
     if (!cart) {
-      // 장바구니 생성
       const { data: newCart, error: createError } = await supabase
         .from("carts")
         .insert({
           user_id: session.user.id,
           client_id: clientId,
         })
-        .select()
+        .select("id")
         .single();
 
       if (createError) {
-        console.error("Cart create error:", createError);
         return NextResponse.json({ error: "장바구니 생성 실패" }, { status: 500 });
       }
 
       cart = newCart;
     }
 
-    // 장바구니 항목 조회
+    // 장바구니 항목 조회 (product join - checkout용)
     const { data: items, error: itemsError } = await supabase
       .from("cart_items")
       .select(
@@ -89,15 +102,12 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (itemsError) {
-      console.error("Cart items fetch error:", itemsError);
       return NextResponse.json({ error: "장바구니 항목 조회 실패" }, { status: 500 });
     }
 
     const itemList = items || [];
-    console.log("[CART GET] 200", { userId: session.user.id, clientId, cartId: cart.id, itemsCount: itemList.length });
-
     return NextResponse.json({
-      cart,
+      cart: { id: cart.id },
       items: itemList,
     });
   } catch (err) {

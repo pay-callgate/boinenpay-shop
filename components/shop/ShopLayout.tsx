@@ -98,12 +98,11 @@ function SmartHeader({
 
   const refreshCartCount = useCallback(() => {
     if (!client?.id) return;
-    fetch(`/api/cart?clientId=${client.id}`, { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : { items: [] }))
+    fetch(`/api/cart?clientId=${client.id}&countOnly=1`, { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : { count: 0 }))
       .then((data) => {
-        const items = data?.items ?? [];
-        // 장바구니 뱃지는 총 수량이 아닌 '담긴 상품 개수(아이템 수)' 기준
-        setCartCount(items.length);
+        const count = data?.count ?? data?.items?.length ?? 0;
+        setCartCount(count);
       })
       .catch(() => setCartCount(0));
   }, [client?.id]);
