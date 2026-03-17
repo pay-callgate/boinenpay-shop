@@ -47,6 +47,11 @@ export default function ProductListPage() {
   const searchQuery = searchParams?.get("search") || searchParams?.get("q") || "";
 
   const [categories, setCategories] = useState<Category[]>([]);
+  // NOTE(데모용 임시 구조):
+  // - selectedCategory는 URL 쿼리(categorySlug)를 바탕으로 맞추지만,
+  //   아직은 로컬 state와 URL을 완전한 "단일 소스"로 통합하지 않았다.
+  // - 사이드바/배너 등 다양한 진입 경로를 모두 검증한 뒤
+  //   categorySlug(searchParams)를 단일 소스로 삼는 방향으로 리팩터링 예정이다.
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -150,6 +155,11 @@ export default function ProductListPage() {
         const list = data?.categories ?? [];
         setCategories(list);
 
+        // NOTE(데모 안정성 우선):
+        // - URL 쿼리(categorySlug)가 있는 경우에만 selectedCategory를 맞춰 준다.
+        // - 카테고리 계층(1/2 depth, 슬러그 매핑 등) 자체는 건드리지 않고,
+        //   products 페이지 내부에서의 표시/필터링만 최소 범위로 조정한다.
+        // - 데모 이후에는 categorySlug를 단일 소스로 사용하도록 구조를 정리한다.
         if (categorySlug && list.length > 0) {
           const found = list.find((c: Category) => c.slug === categorySlug);
           setSelectedCategory(found ?? null);
@@ -250,6 +260,9 @@ export default function ProductListPage() {
     );
   }
 
+  // TODO(카테고리 단일 소스 리팩터링):
+  // - 데모 이후에는 searchParams("category")를 단일 소스로 삼고,
+  //   selectedCategory / 상단 카테고리 탭 / 사이드 메뉴가 모두 이 값을 기준으로 동작하도록 구조를 정리한다.
   return (
     <OrderGuard partnerId={partnerId ?? undefined}>
       <div
@@ -284,6 +297,10 @@ export default function ProductListPage() {
           />
           <button
             onClick={() => {
+              // NOTE(데모용): 탭 클릭 시 기존 UX를 유지하되,
+              // - 로컬 state(selectedCategory)를 초기화하고
+              // - URL 쿼리(category)를 제거하여 기본(전체) 상태만 맞춰 준다.
+              // 데모 이후에는 searchParams 기반 단일 소스 구조에 맞게 정리 예정이다.
               setSelectedCategory(null);
               setOffset(0);
               router.push(`/${subdomain}/${clientSlug}/products`);
@@ -306,6 +323,10 @@ export default function ProductListPage() {
             <button
               key={cat.id}
               onClick={() => {
+                // NOTE(데모용): 고위험 리팩터링을 피하고,
+                // - 탭 클릭 시 selectedCategory + URL(category=slug)만 맞춰 준다.
+                // - 상단 탭/사이드 메뉴/리스트 전체를 searchParams("category") 하나로
+                //   묶는 작업은 데모 이후 단계에서 진행한다.
                 setSelectedCategory(cat);
                 setOffset(0);
                 router.push(`/${subdomain}/${clientSlug}/products?category=${cat.slug}`);

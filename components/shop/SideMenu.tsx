@@ -276,6 +276,10 @@ export function SideMenu({
                               <li key={child.id}>
                                 <Link
                                   href={`${base}/products?category=${encodeURIComponent(child.slug)}`}
+                                  // NOTE(데모 안정성 우선):
+                                  // - 사이드바 카테고리 선택 시 products 페이지의 URL 쿼리(category)만 맞춰 준다.
+                                  // - 상단 카테고리 탭/상품 리스트와의 "단일 소스" 통합은 데모 이후에 진행한다.
+                                  // - 최종 목표: searchParams("category") 하나만으로 사이드바/상단 탭/리스트가 모두 동기화되도록 리팩터링.
                                   onClick={() => onClose()}
                                   className={`block py-3 pl-8 pr-4 text-sm transition-colors active:opacity-80 ${
                                     isSelected
