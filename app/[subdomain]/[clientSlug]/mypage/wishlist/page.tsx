@@ -236,7 +236,7 @@ export default function WishlistPage() {
   if (template == null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">로딩 중...</p>
+        <p className="text-gray-500"></p>
       </div>
     );
   }
@@ -277,7 +277,7 @@ export default function WishlistPage() {
 
       {loading ? (
         <div className="px-4 py-16 text-center">
-          <p className="text-gray-500">로딩 중...</p>
+          <p className="text-gray-500"></p>
         </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center px-4 py-16">

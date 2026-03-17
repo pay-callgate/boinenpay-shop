@@ -212,7 +212,7 @@ export default function MyOrderDetailPage() {
           backgroundColor: "#F5F5F5",
         }}
       >
-        <p style={{ color: "#666" }}>로딩 중...</p>
+        <p style={{ color: "#666" }}></p>
       </div>
     );
   }
@@ -228,7 +228,7 @@ export default function MyOrderDetailPage() {
           backgroundColor: "#F5F5F5",
         }}
       >
-        <p style={{ color: "#666" }}>로딩 중...</p>
+        <p style={{ color: "#666" }}></p>
       </div>
     );
   }

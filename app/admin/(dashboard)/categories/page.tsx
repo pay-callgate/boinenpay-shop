@@ -166,7 +166,7 @@ export default function CategoriesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <p className="text-sm text-slate-500">로딩 중...</p>
+        <p className="text-sm text-slate-500"></p>
       </div>
     );
   }

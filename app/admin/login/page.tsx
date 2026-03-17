@@ -224,7 +224,7 @@ export default function AdminLoginPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F7FA] p-6">
-          <p className="text-[#666]">로딩 중...</p>
+          <p className="text-[#666]"></p>
         </div>
       }
     >

@@ -125,7 +125,7 @@ export default function ProfilePage() {
           backgroundColor: "#F5F5F5",
         }}
       >
-        <p style={{ color: "#666" }}>로딩 중...</p>
+        <p style={{ color: "#666" }}></p>
       </div>
     );
   }
@@ -141,7 +141,7 @@ export default function ProfilePage() {
           backgroundColor: "#F5F5F5",
         }}
       >
-        <p style={{ color: "#666" }}>로딩 중...</p>
+        <p style={{ color: "#666" }}></p>
       </div>
     );
   }
@@ -328,7 +328,7 @@ export default function ProfilePage() {
                 cursor: saving ? "not-allowed" : "pointer",
               }}
             >
-              {saving ? "저장 중..." : "저장하기"}
+              {"저장하기"}
             </button>
           </form>
         </div>

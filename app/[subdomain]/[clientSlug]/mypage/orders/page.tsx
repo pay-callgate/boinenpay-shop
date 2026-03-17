@@ -151,7 +151,7 @@ export default function MyOrdersPage() {
           backgroundColor: "#F5F5F5",
         }}
       >
-        <p style={{ color: "#666" }}>로딩 중...</p>
+        <p style={{ color: "#666" }}></p>
       </div>
     );
   }
@@ -209,7 +209,7 @@ export default function MyOrdersPage() {
               textAlign: "center",
             }}
           >
-            <p style={{ color: "#999" }}>로딩 중...</p>
+            <p style={{ color: "#999" }}></p>
           </div>
         ) : orders.length === 0 ? (
           <div

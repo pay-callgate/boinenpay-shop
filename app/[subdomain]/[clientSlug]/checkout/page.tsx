@@ -413,14 +413,7 @@ export default function CheckoutPage() {
   const hasValidAddress = !!(shippingName && shippingPhone && shippingAddress);
 
   if (template == null || !partnerId || !clientId || loading) {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ backgroundColor: "#FAFAFA" }}
-      >
-        <p style={{ color: TEXT_MUTED }}>로딩 중...</p>
-      </div>
-    );
+    return <div className="min-h-screen" style={{ backgroundColor: "#FAFAFA" }} />;
   }
 
   if (items.length === 0) {
@@ -461,7 +454,7 @@ export default function CheckoutPage() {
             </span>
             <span className="flex items-center gap-2">
               <span className="text-base font-bold" style={{ color: TEXT }}>
-                {ordererName || "로딩 중..."}
+                {ordererName || ""}
               </span>
               {ordererAccordionOpen ? (
                 <ChevronUp size={20} style={{ color: TEXT_MUTED }} />
@@ -998,7 +991,7 @@ export default function CheckoutPage() {
             className="w-full rounded-xl py-4 text-base font-bold text-white transition-opacity disabled:opacity-60"
             style={{ backgroundColor: submitting ? "#9CA3AF" : PRIMARY }}
           >
-            {submitting ? "주문 처리 중..." : `${formatPrice(finalTotal)}원 결제하기`}
+            {`${formatPrice(finalTotal)}원 결제하기`}
           </button>
         </div>
       </form>

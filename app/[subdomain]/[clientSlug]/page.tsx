@@ -100,11 +100,19 @@ export default function ClientShopPage() {
   }, [status, session, partner, client, clientSlug, isMatched, autoMatching, autoMatch, refresh]);
 
   if (loading || status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-slate-600">로딩 중...</p>
-      </div>
-    );
+    if (partner) {
+      return (
+        <ShopMainHome
+          partner={partner}
+          client={client ?? null}
+          subdomain={subdomain}
+          clientSlug={clientSlug}
+          categories={[]}
+          productsByCategory={{}}
+        />
+      );
+    }
+    return <div className="min-h-screen bg-slate-100" />;
   }
 
   if (error) {
@@ -130,25 +138,21 @@ export default function ClientShopPage() {
   }
 
   // 비로그인 사용자도 쇼핑몰 메인 조회 가능 (로그인은 주문/결제 시 OrderGuard에서만 요구)
-  if (autoMatching) {
+  if (autoMatching && partner) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-6">
-        <div
-          className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200"
-          style={{ borderTopColor: "#D6A8E0" }}
-          aria-hidden
-        />
-        <p className="mt-4 text-sm text-slate-600">거래처 정보를 등록하는 중...</p>
-      </div>
+      <ShopMainHome
+        partner={partner}
+        client={client ?? null}
+        subdomain={subdomain}
+        clientSlug={clientSlug}
+        categories={categories}
+        productsByCategory={productsByCategory}
+      />
     );
   }
 
   if (!partner) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-slate-600">정보를 불러올 수 없습니다.</p>
-      </div>
-    );
+    return <div className="min-h-screen bg-slate-100" />;
   }
 
   // 유효하지 않은 거래처 slug: 파트너는 있으나 해당 slug 거래처 없음 (마스터 미리보기는 _preview 사용)

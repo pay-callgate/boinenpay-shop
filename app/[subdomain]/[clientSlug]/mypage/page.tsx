@@ -63,11 +63,7 @@ export default function MyPage() {
   const base = `/${subdomain}/${clientSlug}`;
 
   if (template == null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">로딩 중...</p>
-      </div>
-    );
+    return <div className="min-h-screen bg-gray-50" />;
   }
 
   if (!partner) {

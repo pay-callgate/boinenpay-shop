@@ -403,7 +403,7 @@ export function ClientSearchModal({
                   cursor: selectedClient ? "pointer" : "not-allowed",
                 }}
               >
-                {registering ? "등록 중..." : "선택 완료"}
+                {"선택 완료"}
               </button>
             </div>
           </>

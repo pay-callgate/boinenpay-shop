@@ -541,7 +541,7 @@ export function ClientRegistrationModal({
             className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
             style={{ backgroundColor: "#1e293b" }}
           >
-            {saving ? "저장 중..." : initialData ? "수정 저장" : "거래처 등록"}
+            {initialData ? "수정 저장" : "거래처 등록"}
           </button>
         </DialogFooter>
       </DialogContent>

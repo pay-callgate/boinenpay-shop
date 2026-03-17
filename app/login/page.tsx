@@ -52,7 +52,7 @@ export default function LoginRedirectPage() {
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-purple-50 to-white">
           <div className="text-center">
-            <p className="text-slate-600">로딩 중...</p>
+            <p className="text-slate-600"></p>
             <div className="mt-4 h-8 w-8 animate-spin rounded-full border-2 border-purple-200 border-t-purple-600 mx-auto" />
           </div>
         </div>

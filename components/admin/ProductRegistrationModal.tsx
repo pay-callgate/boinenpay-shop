@@ -404,7 +404,7 @@ export function ProductRegistrationModal({
             disabled={saving}
             className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-50"
           >
-            {saving ? "저장 중..." : initialData ? "수정 저장" : "상품 등록"}
+            {initialData ? "수정 저장" : "상품 등록"}
           </button>
         </DialogFooter>
       </DialogContent>

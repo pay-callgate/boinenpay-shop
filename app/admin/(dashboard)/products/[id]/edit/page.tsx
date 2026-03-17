@@ -201,7 +201,7 @@ export default function ProductEditPage() {
   if (loading) {
     return (
       <div style={{ padding: "24px" }}>
-        <p>로딩 중...</p>
+        <p></p>
       </div>
     );
   }
@@ -506,7 +506,7 @@ export default function ProductEditPage() {
               fontWeight: 500,
             }}
           >
-            {saving ? "저장 중..." : "저장"}
+            {"저장"}
           </button>
           <button
             type="button"

@@ -139,11 +139,7 @@ export default function CartPage() {
   const isPreview = clientSlug === "_preview";
 
   if (template == null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6]">
-        <p className="text-[#666]">로딩 중...</p>
-      </div>
-    );
+    return <div className="min-h-screen bg-[#F3F4F6]" />;
   }
 
   if (!partnerId) {
@@ -245,9 +241,7 @@ export default function CartPage() {
 
         {/* 리스트 */}
         {loading ? (
-          <div className="py-12 text-center text-sm text-[#9CA3AF]">
-            로딩 중...
-          </div>
+          <div className="py-12" />
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <p className="mb-6 text-[#9CA3AF]">장바구니가 비어 있습니다</p>

@@ -448,7 +448,7 @@ export default function ProductNewPage() {
               fontWeight: 500,
             }}
           >
-            {saving ? "저장 중..." : "상품 등록"}
+            {"상품 등록"}
           </button>
           <button
             type="button"

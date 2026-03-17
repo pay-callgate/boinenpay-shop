@@ -70,7 +70,7 @@ export default function StatsSalesPage() {
   if (!partnerId) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-slate-600">로딩 중...</p>
+        <p className="text-slate-600"></p>
       </div>
     );
   }

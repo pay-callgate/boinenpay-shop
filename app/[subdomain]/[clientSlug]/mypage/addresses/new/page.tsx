@@ -89,11 +89,7 @@ export default function NewAddressPage() {
   };
 
   if (template == null || !partner || !client) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#F5F5F5" }}>
-        <p style={{ color: "#666" }}>로딩 중...</p>
-      </div>
-    );
+    return <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }} />;
   }
 
   return (
@@ -237,7 +233,7 @@ export default function NewAddressPage() {
                 cursor: saving ? "not-allowed" : "pointer",
               }}
             >
-              {saving ? "저장 중..." : "저장"}
+              {"저장"}
             </button>
           </form>
         </div>

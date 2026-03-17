@@ -172,7 +172,7 @@ export default function OrdersPage() {
   if (status === "loading" || !partnerId) {
     return (
       <div style={{ padding: "40px", textAlign: "center" }}>
-        <p style={{ color: "#666" }}>로딩 중...</p>
+        <p style={{ color: "#666" }}></p>
       </div>
     );
   }
@@ -371,7 +371,7 @@ export default function OrdersPage() {
       >
         {loading ? (
           <div style={{ padding: "40px", textAlign: "center" }}>
-            <p style={{ color: "#666" }}>로딩 중...</p>
+            <p style={{ color: "#666" }}></p>
           </div>
         ) : orders.length === 0 ? (
           <div style={{ padding: "40px", textAlign: "center" }}>

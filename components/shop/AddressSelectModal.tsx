@@ -375,7 +375,7 @@ export function AddressSelectModal({
                     borderRadius: CARD_RADIUS,
                   }}
                 >
-                  {saving ? "저장 중..." : "저장 및 선택"}
+                  {"저장 및 선택"}
                 </button>
               </div>
             </form>

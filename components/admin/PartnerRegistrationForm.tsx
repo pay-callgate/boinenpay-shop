@@ -207,7 +207,7 @@ export function PartnerRegistrationForm({
               disabled={verifying || !selectedPartnerId}
               className={`shrink-0 ${buttonClass}`}
             >
-              {verifying ? "조회 중..." : "조회"}
+              {"조회"}
             </button>
           </div>
         </div>
@@ -304,7 +304,7 @@ export function PartnerRegistrationForm({
           disabled={submitting || !verifiedPartner}
           className={`min-w-[140px] ${buttonClass}`}
         >
-          {submitting ? "등록 중..." : "운영자 등록"}
+          {"운영자 등록"}
         </button>
       </div>
     </form>

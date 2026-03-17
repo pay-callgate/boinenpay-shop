@@ -219,7 +219,7 @@ export default function OrderDetailPage() {
     return (
       <div className="flex flex-col flex-1 min-h-0 bg-slate-50 p-6">
         <div className="flex items-center justify-center py-12">
-          <p className="text-slate-600">로딩 중...</p>
+          <p className="text-slate-600"></p>
         </div>
       </div>
     );

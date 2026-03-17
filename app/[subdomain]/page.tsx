@@ -84,11 +84,7 @@ export default function PartnerMainPage() {
   }, [subdomain]);
 
   if (!subdomain) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-slate-600">로딩 중...</p>
-      </div>
-    );
+    return <div className="min-h-screen bg-slate-100" />;
   }
 
   if (error || !partner) {
@@ -108,12 +104,28 @@ export default function PartnerMainPage() {
     );
   }
 
-  if (loading) {
+  if (loading && partner) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-slate-600">로딩 중...</p>
-      </div>
+      <ShopLayout
+        orderAllowed={false}
+        subdomain={subdomain}
+        clientSlug={null}
+        partner={partner}
+        client={null}
+      >
+        <ShopMainHome
+          partner={partner}
+          client={null}
+          subdomain={subdomain}
+          clientSlug={null}
+          categories={[]}
+          productsByCategory={{}}
+        />
+      </ShopLayout>
     );
+  }
+  if (loading) {
+    return <div className="min-h-screen bg-slate-100" />;
   }
 
   return (

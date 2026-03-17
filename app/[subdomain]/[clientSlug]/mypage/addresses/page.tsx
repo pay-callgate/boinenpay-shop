@@ -188,7 +188,6 @@ export default function AddressesPage() {
           backgroundColor: "#F5F5F5",
         }}
       >
-        <p style={{ color: "#666" }}>로딩 중...</p>
       </div>
     );
   }
@@ -429,14 +428,7 @@ export default function AddressesPage() {
 
         {/* 배송지 목록 */}
         {loading ? (
-          <div
-            style={{
-              padding: "40px 16px",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ color: "#999" }}>로딩 중...</p>
-          </div>
+          <div style={{ padding: "40px 16px" }} />
         ) : addresses.length === 0 ? (
           <div
             style={{

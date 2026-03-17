@@ -131,7 +131,7 @@ export default function RecentProductsPage() {
   if (template == null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">로딩 중...</p>
+        <p className="text-gray-500"></p>
       </div>
     );
   }

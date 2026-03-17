@@ -331,7 +331,6 @@ export default function ClientsPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
-                      로딩 중...
                     </td>
                   </tr>
                 ) : displayedClients.length === 0 ? (

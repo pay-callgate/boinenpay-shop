@@ -231,11 +231,7 @@ export default function ProductListPage() {
   };
 
   if (template == null) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-slate-100">
-        <p className="text-slate-600">로딩 중...</p>
-      </div>
-    );
+    return <div className="min-h-[50vh] bg-slate-100" />;
   }
 
   if (!partnerId) {
@@ -380,14 +376,7 @@ export default function ProductListPage() {
 
         {/* 상품 그리드 */}
         {loading && offset === 0 ? (
-          <div
-            style={{
-              padding: "40px 16px",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ color: "#999" }}>로딩 중...</p>
-          </div>
+          <div style={{ padding: "40px 16px" }} />
         ) : sortedProducts.length === 0 ? (
           <div
             style={{
@@ -591,7 +580,7 @@ export default function ProductListPage() {
                   disabled={loading}
                   className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-6 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? "로딩 중..." : "더보기"}
+                  {"더보기"}
                 </button>
               </div>
             )}

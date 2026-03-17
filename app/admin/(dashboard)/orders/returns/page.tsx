@@ -120,7 +120,7 @@ export default function OrdersReturnsPage() {
   if (!partnerId) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-slate-600">로딩 중...</p>
+        <p className="text-slate-600"></p>
       </div>
     );
   }
@@ -181,7 +181,7 @@ export default function OrdersReturnsPage() {
 
       <div className="overflow-x-auto">
         {loading ? (
-          <div className="py-12 text-center text-slate-500">로딩 중...</div>
+          <div className="py-12 text-center text-slate-500"></div>
         ) : orders.length === 0 ? (
           <div className="py-12 text-center text-slate-500">
             취소된 주문이 없습니다.

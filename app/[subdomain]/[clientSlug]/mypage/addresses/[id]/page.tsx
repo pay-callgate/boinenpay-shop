@@ -151,7 +151,7 @@ export default function EditAddressPage() {
   if (template == null || !partner || !client) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#F5F5F5" }}>
-        <p style={{ color: "#666" }}>로딩 중...</p>
+        <p style={{ color: "#666" }}></p>
       </div>
     );
   }
@@ -159,7 +159,7 @@ export default function EditAddressPage() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#F5F5F5" }}>
-        <p style={{ color: "#666" }}>로딩 중...</p>
+        <p style={{ color: "#666" }}></p>
       </div>
     );
   }
@@ -332,7 +332,7 @@ export default function EditAddressPage() {
                 marginBottom: "12px",
               }}
             >
-              {saving ? "저장 중..." : "수정"}
+              {"수정"}
             </button>
 
             {/* 삭제 — 위험 액션: 붉은 계열 테두리/텍스트, 보조 버튼 */}

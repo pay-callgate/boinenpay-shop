@@ -337,7 +337,7 @@ export default function ProductDetailPage() {
   if (template == null) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center bg-gray-50">
-        <p className="text-gray-500">로딩 중...</p>
+        <p className="text-gray-500"></p>
       </div>
     );
   }
@@ -359,7 +359,7 @@ export default function ProductDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center bg-gray-50">
-        <p className="text-gray-500">로딩 중...</p>
+        <p className="text-gray-500"></p>
       </div>
     );
   }

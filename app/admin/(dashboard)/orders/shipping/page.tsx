@@ -199,7 +199,7 @@ export default function OrdersShippingPage() {
   if (!partnerId) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-slate-600">로딩 중...</p>
+        <p className="text-slate-600"></p>
       </div>
     );
   }
@@ -279,7 +279,7 @@ export default function OrdersShippingPage() {
       {/* 테이블 */}
       <div className="overflow-x-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
         {loading ? (
-          <div className="py-12 text-center text-slate-500">로딩 중...</div>
+          <div className="py-12 text-center text-slate-500"></div>
         ) : orders.length === 0 ? (
           <div className="py-12 text-center text-slate-500">
             조건에 맞는 주문이 없습니다.
@@ -469,7 +469,7 @@ export default function OrdersShippingPage() {
                   disabled={updating}
                   className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {updating ? "저장 중..." : "저장"}
+                  {"저장"}
                 </button>
               </div>
             </form>
