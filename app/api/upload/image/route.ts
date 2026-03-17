@@ -8,6 +8,7 @@ import {
   getClientLogoPath,
   getClientLogoPendingPath,
   getBannerImagePath,
+  getPartnerLogoPath,
   BUCKETS,
   BucketName,
 } from "@/lib/supabase/storage";
@@ -89,6 +90,9 @@ export async function POST(request: NextRequest) {
         break;
       case BUCKETS.BANNERS:
         path = getBannerImagePath(partnerId, fileName);
+        break;
+      case BUCKETS.PARTNERS:
+        path = getPartnerLogoPath(partnerId, fileName);
         break;
       default:
         return NextResponse.json(

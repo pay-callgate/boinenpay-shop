@@ -11,6 +11,7 @@ export const BUCKETS = {
   PRODUCTS: "products",
   CLIENTS: "clients",
   BANNERS: "banners",
+  PARTNERS: "partners",
 } as const;
 
 export type BucketName = (typeof BUCKETS)[keyof typeof BUCKETS];
@@ -145,4 +146,13 @@ export function getClientLogoPendingPath(
  */
 export function getBannerImagePath(partnerId: string, fileName: string): string {
   return `${partnerId}/${fileName}`;
+}
+
+/**
+ * 파트너 로고(CI) 경로 생성
+ * @param partnerId - 파트너 ID
+ * @param fileName - 파일명
+ */
+export function getPartnerLogoPath(partnerId: string, fileName: string): string {
+  return `${partnerId}/logo/${fileName}`;
 }

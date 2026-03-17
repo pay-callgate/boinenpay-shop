@@ -5,6 +5,24 @@
 
 ---
 
+## 파트너 로고(logo_url) 마이그레이션 (수동 실행)
+
+파트너 설정 화면 로고 업로드 기능 사용 시, Supabase에서 아래 SQL을 **수동 실행**하세요.
+
+**실행 위치:** Supabase Dashboard > SQL Editor
+
+```sql
+-- partners 테이블에 logo_url 컬럼 추가
+ALTER TABLE public.partners
+ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);
+
+COMMENT ON COLUMN public.partners.logo_url IS '파트너사 브랜드 로고(CI) 이미지 URL';
+```
+
+**Storage 버킷 생성:** Supabase Dashboard > Storage에서 `partners` 버킷을 생성하고, Public 접근을 허용하세요. (기존 `clients`, `products` 버킷과 동일한 설정)
+
+---
+
 ## 목차
 
 1. [Part 1. 파트너 어드민 접속 플로우](#part-1-파트너-어드민-접속-플로우)

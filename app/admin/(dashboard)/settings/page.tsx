@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { toast } from "@/components/shop/ToastContext";
 
 /**
  * 파트너 설정 전용 페이지
- * /admin/settings — 로고(CI), 사업자 정보, 담당자·주소 (UI 퍼블리싱, 더미 상태)
- * DB 연동은 UI 확정 후 다음 단계에서 진행.
+ * /admin/settings — 로고(CI), 사업자 정보, 담당자·주소
  */
 
 const inputClass =
@@ -14,7 +14,10 @@ const inputClass =
 const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
 
 export default function AdminSettingsPage() {
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   const [business, setBusiness] = useState({
     companyName: "",
@@ -35,6 +38,7 @@ export default function AdminSettingsPage() {
   });
 
   const [postcodeLoaded, setPostcodeLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // 로그인된 파트너 정보 조회 → 초기 값 세팅
   useEffect(() => {
@@ -46,6 +50,11 @@ export default function AdminSettingsPage() {
         const result = await res.json();
         const partner = result?.data;
         if (!partner || cancelled) return;
+
+        setPartnerId(partner.id);
+        const logo = partner.logo_url as string | null;
+        setLogoUrl(logo || null);
+        setLogoPreview(logo || null);
 
         setBusiness({
           companyName: partner.company_name ?? "",
@@ -86,15 +95,35 @@ export default function AdminSettingsPage() {
     setContact((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file?.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => setLogoPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    if (!file?.type.startsWith("image/") || !partnerId) return;
+    setLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "partners");
+      fd.append("partnerId", partnerId);
+      const res = await adminFetch("/api/upload/image", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data?.url) {
+        setLogoUrl(data.url);
+        setLogoPreview(data.url);
+      } else {
+        toast(data?.error ?? "로고 업로드에 실패했습니다.", "error");
+      }
+    } catch {
+      toast("로고 업로드 중 오류가 발생했습니다.", "error");
+    } finally {
+      setLogoUploading(false);
+      e.target.value = "";
+    }
   };
 
-  const handleRemoveLogo = () => setLogoPreview(null);
+  const handleRemoveLogo = () => {
+    setLogoUrl(null);
+    setLogoPreview(null);
+  };
 
   const handleSearchAddress = () => {
     if (typeof window === "undefined") return;
@@ -137,8 +166,39 @@ export default function AdminSettingsPage() {
     // 로딩 중일 때는 별도 처리 없음
   };
 
-  const handleSave = () => {
-    console.log("저장 (더미)", { business, contact, hasLogo: !!logoPreview });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const address = [contact.basicAddress, contact.detailAddress].filter(Boolean).join(" ") || "";
+      const res = await adminFetch("/api/partner", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_name: business.companyName,
+          business_registration_number: business.businessRegistrationNumber,
+          corporate_registration_number: business.corporateRegistrationNumber || null,
+          business_type: business.businessType || null,
+          business_category: business.businessCategory || null,
+          representative: contact.representative,
+          representative_dob: contact.representativeDob || null,
+          email: contact.email,
+          contact: contact.contact || null,
+          postcode: contact.zipcode || null,
+          address: address || null,
+          logo_url: logoUrl || null,
+        }),
+      });
+      const result = await res.json();
+      if (res.ok && result?.success) {
+        toast("파트너 정보가 수정되었습니다.", "success");
+      } else {
+        toast(result?.error?.message ?? "수정에 실패했습니다.", "error");
+      }
+    } catch {
+      toast("네트워크 오류가 발생했습니다.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -189,9 +249,10 @@ export default function AdminSettingsPage() {
               <button
                 type="button"
                 onClick={() => document.getElementById("logo-file")?.click()}
-                className="rounded border border-slate-600 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                disabled={logoUploading || !partnerId}
+                className="rounded border border-slate-600 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                로고 변경
+                {logoUploading ? "업로드 중..." : "로고 변경"}
               </button>
               <button
                 type="button"
@@ -380,9 +441,10 @@ export default function AdminSettingsPage() {
                   <button
                     type="button"
                     onClick={handleSave}
-                    className="rounded-lg bg-slate-800 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-700"
+                    disabled={saving}
+                    className="rounded-lg bg-slate-800 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    수정
+                    {saving ? "저장 중..." : "수정"}
                   </button>
                 </div>
               </div>
