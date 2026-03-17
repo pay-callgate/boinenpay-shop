@@ -117,115 +117,133 @@ export default function OrdersReturnsPage() {
     });
   };
 
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const currentPage = total === 0 ? 1 : Math.min(totalPages, Math.floor(offset / limit) + 1);
+
   if (!partnerId) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-slate-600"></p>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+        <div className="flex items-center justify-center py-12">
+          <p className="text-slate-600"></p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 p-6">
-        <h1 className="text-xl font-bold text-slate-800">취소/반품</h1>
-        <p className="mt-2 text-slate-600">
-          취소된 주문 목록을 조회합니다. 반품 요청 처리 기능은 추후 제공 예정입니다.
-        </p>
-      </div>
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+      {/* [2] 상단 고정: 타이틀·필터 */}
+      <div className="shrink-0">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-800">취소/반품</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            취소된 주문 목록을 조회합니다. 반품 요청 처리 기능은 추후 제공 예정입니다.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-2 gap-4 border-b border-slate-200 bg-slate-50 p-4 md:grid-cols-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">거래처</label>
-          <select
-            value={selectedClient}
-            onChange={(e) => {
-              setSelectedClient(e.target.value);
-              setOffset(0);
-            }}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="">전체</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">시작일</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setOffset(0);
-            }}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">종료일</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setOffset(0);
-            }}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        {loading ? (
-          <div className="py-12 text-center text-slate-500"></div>
-        ) : orders.length === 0 ? (
-          <div className="py-12 text-center text-slate-500">
-            취소된 주문이 없습니다.
+        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">거래처</label>
+              <select
+                value={selectedClient}
+                onChange={(e) => {
+                  setSelectedClient(e.target.value);
+                  setOffset(0);
+                }}
+                className="h-10 min-w-[140px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              >
+                <option value="">전체</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">시작일</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setOffset(0);
+                }}
+                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">종료일</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setOffset(0);
+                }}
+                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              />
+            </div>
           </div>
-        ) : (
-          <>
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">주문일시</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">주문번호</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">거래처</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">주문자</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">수령인</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">금액</th>
-                  <th className="px-4 py-3 text-center font-semibold text-slate-700">결제상태</th>
-                  <th className="px-4 py-3 text-center font-semibold text-slate-700">액션</th>
+        </div>
+
+        <p className="mb-3 text-sm text-slate-600">총 {total}건</p>
+      </div>
+
+      {/* [3] 테이블 카드 + 내부 스크롤 / [4] 하단 고정 페이징 */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
+          <table className="w-full border-collapse">
+            <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문일시</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문번호</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">거래처</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문자</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">수령인</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">금액</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">결제상태</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">액션</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
+                    취소된 주문이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                orders.map((order) => (
                   <tr
                     key={order.id}
-                    className="border-b border-slate-100 hover:bg-slate-50"
+                    className="border-b border-slate-100 transition-colors hover:bg-slate-50/50"
                   >
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">
                       {formatDate(order.created_at)}
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-800">
+                    <td className="px-4 py-3">
                       <button
                         type="button"
                         onClick={() => router.push(`/admin/orders/${order.id}`)}
-                        className="text-left text-blue-600 underline hover:no-underline"
+                        className="text-left font-medium text-blue-600 underline hover:no-underline"
                       >
                         {order.order_no}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{order.client?.name ?? "-"}</td>
-                    <td className="px-4 py-3 text-slate-600">{order.user?.name ?? "-"}</td>
-                    <td className="px-4 py-3 text-slate-600">{order.shipping_name ?? "-"}</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-800">
+                    <td className="px-4 py-3 text-sm text-slate-700">{order.client?.name ?? "-"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{order.user?.name ?? "-"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{order.shipping_name ?? "-"}</td>
+                    <td className="px-4 py-3 text-right text-sm font-semibold text-slate-800">
                       {formatPrice(Number(order.total_amount))}원
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-600">
+                    <td className="px-4 py-3 text-center text-sm text-slate-600">
                       {PAYMENT_STATUS_LABELS[order.payment_status] ?? order.payment_status ?? "-"}
                     </td>
                     <td className="px-4 py-3">
@@ -238,33 +256,74 @@ export default function OrdersReturnsPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
-              <p className="text-sm text-slate-600">
-                총 {total}건 중 {offset + 1}–{Math.min(offset + limit, total)}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOffset((p) => Math.max(0, p - limit))}
-                  disabled={offset === 0}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-50"
-                >
-                  이전
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOffset((p) => p + limit)}
-                  disabled={offset + limit >= total}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-50"
-                >
-                  다음
-                </button>
-              </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* [4] 하단 고정 페이징 (상품 관리와 동일) */}
+        {!loading && total > 0 && (
+          <div className="flex shrink-0 flex-col items-center gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="relative h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="absolute top-0 h-full rounded-full bg-slate-600 transition-all duration-200"
+                style={{
+                  width: `${totalPages > 0 ? 100 / totalPages : 0}%`,
+                  left: `${totalPages > 0 ? ((currentPage - 1) / totalPages) * 100 : 0}%`,
+                }}
+              />
             </div>
-          </>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setOffset(0)}
+                disabled={currentPage <= 1}
+                className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                aria-label="맨 처음"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOffset((p) => Math.max(0, p - limit))}
+                disabled={currentPage <= 1}
+                className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                aria-label="이전"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <span className="min-w-[4rem] text-center text-sm font-medium text-slate-700">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setOffset((p) => p + limit)}
+                disabled={currentPage >= totalPages}
+                className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                aria-label="다음"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOffset((totalPages - 1) * limit)}
+                disabled={currentPage >= totalPages}
+                className="rounded-md border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+                aria-label="맨 끝"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
