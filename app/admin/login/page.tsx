@@ -17,6 +17,11 @@ function AdminLoginContent() {
   }, [callbackUrl, searchParams]);
 
   const handleSignIn = (provider: "google" | "kakao" | "naver") => {
+    if (provider === "naver") {
+      alert("준비 중입니다");
+      window.location.href = "/admin/login";
+      return;
+    }
     console.log("[AdminLogin] handleSignIn called", { provider, callbackUrl });
     signIn(provider, { callbackUrl })
       .then((res) => {
