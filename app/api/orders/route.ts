@@ -285,30 +285,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "주문 항목 생성에 실패했습니다." }, { status: 500 });
     }
 
-    // [개선-1] 재고 자동 차감 및 [개선-2] 품절 자동 전환
-    for (const item of cartItems) {
-      const newStockQty = (item.product.stock_qty || 0) - item.quantity;
-      
-      // 재고 차감
-      const updateData: { stock_qty: number; status?: string } = {
-        stock_qty: Math.max(0, newStockQty), // 음수 방지
-      };
-
-      // 재고가 0이 되면 자동으로 품절 처리
-      if (newStockQty <= 0) {
-        updateData.status = "sold_out";
+    // [개선-1] 재고 자동 차감 및 [개선-2] 품절 자동 전환 (병렬 실행으로 ViewPay 노출 지연 단축)
+    const stockUpdates = cartItems.map(
+      (item: { product_id: string; product: { stock_qty?: number }; quantity: number }) => {
+        const newStockQty = (item.product.stock_qty || 0) - item.quantity;
+        const updateData: { stock_qty: number; status?: string } = {
+          stock_qty: Math.max(0, newStockQty),
+        };
+        if (newStockQty <= 0) updateData.status = "sold_out";
+        return supabase.from("products").update(updateData).eq("id", item.product_id);
       }
-
-      const { error: stockError } = await supabase
-        .from("products")
-        .update(updateData)
-        .eq("id", item.product_id);
-
-      if (stockError) {
-        console.error(`Stock update error for product ${item.product_id}:`, stockError);
-        // 재고 차감 실패는 주문 생성을 막지 않음 (로그만 기록)
+    );
+    const stockResults = await Promise.all(stockUpdates);
+    stockResults.forEach((r, i) => {
+      if (r.error) {
+        console.error(`Stock update error for product ${cartItems[i].product_id}:`, r.error);
       }
-    }
+    });
 
     // 주문 상태 히스토리 생성
     await supabase.from("order_status_history").insert({

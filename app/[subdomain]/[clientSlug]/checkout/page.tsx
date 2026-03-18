@@ -345,23 +345,22 @@ export default function CheckoutPage() {
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("cart-updated"));
         }
+        // 기본배송지 저장은 대기하지 않고 비동기로 처리 → ViewPay 결제창 노출 지연 단축
         if (saveAsDefaultAddress) {
-          try {
-            await shopFetch("/api/mypage/addresses", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name,
-                phone,
-                postcode: postcode || "",
-                address,
-                detail: detail || undefined,
-                isDefault: true,
-              }),
-            });
-          } catch {
-            // 배송지 저장 실패해도 주문은 완료됨
-          }
+          shopFetch("/api/mypage/addresses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name,
+              phone,
+              postcode: postcode || "",
+              address,
+              detail: detail || undefined,
+              isDefault: true,
+            }),
+          }).catch(() => {
+            // 저장 실패해도 주문/결제에는 영향 없음 (무시)
+          });
         }
         // Phase D: ViewPay 결제창으로 이동 (returnUrl = 주문 완료 페이지)
         const origin = typeof window !== "undefined" ? window.location.origin : "";
