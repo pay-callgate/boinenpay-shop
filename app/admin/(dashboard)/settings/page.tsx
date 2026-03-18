@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
-import { toast } from "@/components/shop/ToastContext";
 
 /**
  * 파트너 설정 전용 페이지
@@ -102,7 +101,7 @@ export default function AdminSettingsPage() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("bucket", "partners");
+      fd.append("bucket", "Partners");
       fd.append("partnerId", partnerId);
       const res = await adminFetch("/api/upload/image", { method: "POST", body: fd });
       const data = await res.json();
@@ -110,10 +109,10 @@ export default function AdminSettingsPage() {
         setLogoUrl(data.url);
         setLogoPreview(data.url);
       } else {
-        toast(data?.error ?? "로고 업로드에 실패했습니다.", "error");
+        alert(data?.error ?? "로고 업로드에 실패했습니다.");
       }
     } catch {
-      toast("로고 업로드 중 오류가 발생했습니다.", "error");
+      alert("로고 업로드 중 오류가 발생했습니다.");
     } finally {
       setLogoUploading(false);
       e.target.value = "";
@@ -190,12 +189,12 @@ export default function AdminSettingsPage() {
       });
       const result = await res.json();
       if (res.ok && result?.success) {
-        toast("파트너 정보가 수정되었습니다.", "success");
+        alert("파트너 정보가 수정되었습니다.");
       } else {
-        toast(result?.error?.message ?? "수정에 실패했습니다.", "error");
+        alert(result?.error?.message ?? "수정에 실패했습니다.");
       }
     } catch {
-      toast("네트워크 오류가 발생했습니다.", "error");
+      alert("네트워크 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }

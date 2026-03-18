@@ -11,7 +11,7 @@ export const BUCKETS = {
   PRODUCTS: "products",
   CLIENTS: "clients",
   BANNERS: "banners",
-  PARTNERS: "partners",
+  PARTNERS: "Partners",
 } as const;
 
 export type BucketName = (typeof BUCKETS)[keyof typeof BUCKETS];
