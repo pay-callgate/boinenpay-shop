@@ -41,6 +41,18 @@ export async function GET(request: NextRequest) {
 
     let result = categories || [];
 
+    /** 쇼핑몰 메뉴용: 부모가 필터에서 빠진 경우 트리 깨짐 방지 */
+    function normalizeStorefrontParents(
+      rows: typeof result
+    ): typeof result {
+      const ids = new Set((rows || []).map((c) => c.id));
+      return (rows || []).map((c) => ({
+        ...c,
+        parent_id:
+          c.parent_id && ids.has(c.parent_id) ? c.parent_id : null,
+      }));
+    }
+
     // 상품이 있는 카테고리만 필터링 (메뉴 트리 구성을 위해 해당 카테고리의 모든 상위 부모도 포함)
     if (onlyWithProducts && result.length > 0) {
       const categoryIds = result.map((c) => c.id);
@@ -72,6 +84,13 @@ export async function GET(request: NextRequest) {
       // 원본 전체 목록(categories)에서 includeIds에 있는 것만 반환 (부모 포함)
       result = (categories || []).filter((c) => includeIds.has(c.id));
     }
+
+    // 모바일 노출 OFF(admin mobile_visible=false) 카테고리는 쇼핑몰 메뉴에서 제외
+    result = result.filter(
+      (c: { mobile_visible?: boolean | null }) =>
+        c.mobile_visible !== false
+    );
+    result = normalizeStorefrontParents(result);
 
     return NextResponse.json({ categories: result });
   } catch (err) {

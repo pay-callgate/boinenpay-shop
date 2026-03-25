@@ -60,7 +60,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, slug, parentId, sortOrder } = body;
+    const { name, slug, parentId, sortOrder, mobileVisible } = body;
 
     const supabase = createServerSupabase();
 
@@ -101,6 +101,8 @@ export async function PUT(
     if (slug !== undefined) updateData.slug = slug;
     if (parentId !== undefined) updateData.parent_id = parentId || null;
     if (sortOrder !== undefined) updateData.sort_order = sortOrder;
+    if (typeof mobileVisible === "boolean")
+      updateData.mobile_visible = mobileVisible;
 
     const { data: category, error } = await supabase
       .from("product_categories")

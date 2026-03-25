@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { partnerId, name, slug, parentId, sortOrder } = body;
+    const { partnerId, name, slug, parentId, sortOrder, mobileVisible } = body;
 
     if (!partnerId || !name) {
       return NextResponse.json(
@@ -115,6 +115,8 @@ export async function POST(request: NextRequest) {
         slug: categorySlug,
         parent_id: parentId || null,
         sort_order: sortOrder ?? 0,
+        mobile_visible:
+          typeof mobileVisible === "boolean" ? mobileVisible : true,
       })
       .select()
       .single();

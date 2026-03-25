@@ -38,7 +38,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const catList = categories || [];
+    let catList = categories || [];
+
+    /** /api/shop/categories와 동일: 모바일 비노출 제외 + 부모 참조 정규화 */
+    function normalizeStorefrontParents<T extends { id: string; parent_id: string | null }>(
+      rows: T[]
+    ): T[] {
+      const ids = new Set(rows.map((c) => c.id));
+      return rows.map((c) => ({
+        ...c,
+        parent_id: c.parent_id && ids.has(c.parent_id) ? c.parent_id : null,
+      }));
+    }
+    catList = catList.filter(
+      (c: { mobile_visible?: boolean | null }) => c.mobile_visible !== false
+    );
+    catList = normalizeStorefrontParents(catList as { id: string; parent_id: string | null }[]);
+
     const productsByCategory: Record<string, unknown[]> = {};
 
     // 2) 카테고리별 상품 조회 (기존 /api/shop/products와 동일 쿼리, limit=4)

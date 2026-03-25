@@ -17,6 +17,7 @@ interface Category {
   name: string;
   slug: string;
   sort_order: number;
+  mobile_visible?: boolean | null;
   created_at: string;
   children?: Category[];
 }
@@ -116,6 +117,7 @@ export default function CategoriesPage() {
         slug: formData.slug.trim() || undefined,
         parentId: formData.parentId || null,
         sortOrder: formData.sortOrder,
+        mobileVisible,
       }),
     });
 
@@ -143,6 +145,7 @@ export default function CategoriesPage() {
   const handleSelect = (cat: Category) => {
     setSelectedId(cat.id);
     setEditingCategory(cat);
+    setMobileVisible(cat.mobile_visible !== false);
     setFormData({
       name: cat.name,
       slug: cat.slug,
@@ -154,12 +157,14 @@ export default function CategoriesPage() {
   const resetForm = () => {
     setSelectedId(null);
     setEditingCategory(null);
+    setMobileVisible(true);
     setFormData({ name: "", slug: "", parentId: "", sortOrder: 0 });
   };
 
   const handleAddNew = () => {
     setSelectedId(null);
     setEditingCategory(null);
+    setMobileVisible(true);
     setFormData({ name: "", slug: "", parentId: "", sortOrder: flatCategories.length });
   };
 
