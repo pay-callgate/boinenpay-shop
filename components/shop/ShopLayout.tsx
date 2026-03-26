@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, Search, ShoppingBag } from "lucide-react";
+import { ChevronDown, Menu, Search, ShoppingBag } from "lucide-react";
 import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
 import { ToastProvider, toast } from "./ToastContext";
 import { SideMenu } from "./SideMenu";
@@ -36,7 +36,6 @@ function MasterTemplateIcon({ className }: { className?: string }) {
 export const HEADER_HEIGHT = 56;
 /** 글로벌 하단 네비 높이(px). 메인 safe area pb 및 고정 CTA가 네비 위에 오도록 bottom 계산 */
 export const BOTTOM_NAV_HEIGHT = 64;
-
 export interface ShopPartner {
   id: string;
   subdomain: string;
@@ -244,6 +243,53 @@ function ShopHeader({
   );
 }
 
+function ShopBusinessInfoFooter() {
+  const [isBusinessInfoOpen, setIsBusinessInfoOpen] = useState(false);
+
+  return (
+    <footer
+      className="border-t border-slate-100 bg-slate-50 px-4 pt-6"
+      style={{ paddingBottom: BOTTOM_NAV_HEIGHT + 12 }}
+    >
+      <button
+        type="button"
+        onClick={() => setIsBusinessInfoOpen((v) => !v)}
+        className="flex w-full items-center justify-center gap-1 rounded-none border-0 bg-transparent py-1.5 text-[13px] font-medium text-slate-500 outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+        aria-expanded={isBusinessInfoOpen}
+        aria-controls="shop-business-info-panel"
+      >
+        <span>콜링크 쇼핑 사업자 정보</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 transition-transform duration-200 ease-out ${
+            isBusinessInfoOpen ? "rotate-180" : ""
+          }`}
+          strokeWidth={2}
+          aria-hidden
+        />
+      </button>
+      <div
+        id="shop-business-info-panel"
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+          isBusinessInfoOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="space-y-1 px-0.5 pb-1 pt-3 text-center text-[11px] leading-relaxed text-slate-400">
+            <p>상호명 : (주)콜게이트</p>
+            <p>사업자등록번호 : 211-87-11904</p>
+            <p>대표자명 : LEE KANG MIN(이강민)</p>
+            <p className="break-keep">
+              주소 : 서울시 서초구 효령로77길 28, 8층(서초동, 동오빌딩)
+            </p>
+            <p>전화번호 : 02-529-2170</p>
+            <p>이메일 : info@callgate.com</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 function ShopBottomNav({
   subdomain,
   clientSlug,
@@ -365,10 +411,11 @@ export function ShopLayout({
             className="flex-1 overflow-auto"
             style={{
               paddingTop: HEADER_HEIGHT,
-              paddingBottom: BOTTOM_NAV_HEIGHT,
+              paddingBottom: 0,
             }}
           >
             {children}
+            <ShopBusinessInfoFooter />
           </main>
           <ShopBottomNav
             subdomain={subdomain}
@@ -459,10 +506,11 @@ export function ShopGlobalLayout({
             className="flex-1 overflow-auto"
             style={{
               paddingTop: HEADER_HEIGHT,
-              paddingBottom: BOTTOM_NAV_HEIGHT,
+              paddingBottom: 0,
             }}
           >
             {children}
+            <ShopBusinessInfoFooter />
           </main>
           <ShopBottomNav
             subdomain={subdomain}
