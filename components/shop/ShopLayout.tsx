@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Menu, Search, ShoppingBag } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Menu, Search, ShoppingBag } from "lucide-react";
 import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
 import { ToastProvider, toast } from "./ToastContext";
 import { SideMenu } from "./SideMenu";
@@ -64,6 +64,26 @@ const PRIMARY = "#D6A8E0";
 /** 마스터 템플릿 미리보기용 가상 거래처 slug. 이 경로로 진입 시 주문/결제만 차단하고 모든 화면 열람 허용 */
 export const PREVIEW_SLUG = "_preview";
 
+/** 메인 홈: ShopMainHome 사업자 푸터가 하단 네비 여백 포함 — main에 중복 pb 방지 */
+function mainScrollPaddingBottom(
+  pathname: string,
+  subdomain: string,
+  clientSlug: string | null
+) {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith("/")
+      ? pathname.slice(0, -1)
+      : pathname;
+  const homes = new Set<string>([
+    `/${subdomain}`,
+    `/${subdomain}/${PREVIEW_SLUG}`,
+  ]);
+  if (clientSlug) {
+    homes.add(`/${subdomain}/${clientSlug}`);
+  }
+  return homes.has(normalized) ? 0 : BOTTOM_NAV_HEIGHT;
+}
+
 /**
  * 글로벌 상단 헤더 (B2B2C 브랜딩: 중앙 CI 고정 + 좌측 아이콘 스왑)
  * 좌: 루트=햄버거 / 서브=뒤로가기 | 중앙: 거래처 CI + 거래처명 | 우: 검색 + 장바구니(뱃지)
@@ -86,7 +106,6 @@ function SmartHeader({
   onSearchClick?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const base = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
 
   const homeHref = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;
@@ -243,53 +262,6 @@ function ShopHeader({
   );
 }
 
-function ShopBusinessInfoFooter() {
-  const [isBusinessInfoOpen, setIsBusinessInfoOpen] = useState(false);
-
-  return (
-    <footer
-      className="border-t border-slate-100 bg-slate-50 px-4 pt-6"
-      style={{ paddingBottom: BOTTOM_NAV_HEIGHT + 12 }}
-    >
-      <button
-        type="button"
-        onClick={() => setIsBusinessInfoOpen((v) => !v)}
-        className="flex w-full items-center justify-center gap-1 rounded-none border-0 bg-transparent py-1.5 text-[13px] font-medium text-slate-500 outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
-        aria-expanded={isBusinessInfoOpen}
-        aria-controls="shop-business-info-panel"
-      >
-        <span>콜링크 쇼핑 사업자 정보</span>
-        <ChevronDown
-          className={`h-4 w-4 shrink-0 transition-transform duration-200 ease-out ${
-            isBusinessInfoOpen ? "rotate-180" : ""
-          }`}
-          strokeWidth={2}
-          aria-hidden
-        />
-      </button>
-      <div
-        id="shop-business-info-panel"
-        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-          isBusinessInfoOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        }`}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div className="space-y-1 px-0.5 pb-1 pt-3 text-center text-[11px] leading-relaxed text-slate-400">
-            <p>상호명 : (주)콜게이트</p>
-            <p>사업자등록번호 : 211-87-11904</p>
-            <p>대표자명 : LEE KANG MIN(이강민)</p>
-            <p className="break-keep">
-              주소 : 서울시 서초구 효령로77길 28, 8층(서초동, 동오빌딩)
-            </p>
-            <p>전화번호 : 02-529-2170</p>
-            <p>이메일 : info@callgate.com</p>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 function ShopBottomNav({
   subdomain,
   clientSlug,
@@ -360,6 +332,7 @@ export function ShopLayout({
   client,
   children,
 }: ShopLayoutProps) {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const ensureOrderAllowed = useCallback(() => {
@@ -411,11 +384,14 @@ export function ShopLayout({
             className="flex-1 overflow-auto"
             style={{
               paddingTop: HEADER_HEIGHT,
-              paddingBottom: 0,
+              paddingBottom: mainScrollPaddingBottom(
+                pathname,
+                subdomain,
+                clientSlug
+              ),
             }}
           >
             {children}
-            <ShopBusinessInfoFooter />
           </main>
           <ShopBottomNav
             subdomain={subdomain}
@@ -452,6 +428,7 @@ export function ShopGlobalLayout({
   children,
 }: ShopGlobalLayoutProps) {
   const orderAllowed = !!client;
+  const pathname = usePathname();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -506,11 +483,14 @@ export function ShopGlobalLayout({
             className="flex-1 overflow-auto"
             style={{
               paddingTop: HEADER_HEIGHT,
-              paddingBottom: 0,
+              paddingBottom: mainScrollPaddingBottom(
+                pathname,
+                subdomain,
+                clientSlug
+              ),
             }}
           >
             {children}
-            <ShopBusinessInfoFooter />
           </main>
           <ShopBottomNav
             subdomain={subdomain}
