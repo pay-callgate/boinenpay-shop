@@ -1,14 +1,21 @@
 /**
- * CallCloud 070 연동 - Playwright 브라우저 자동화 (M7)
+ * CallCloud 070 연동 - Playwright Core + 원격 브라우저 (Browserless 등) 또는 로컬 Chrome
+ *
+ * 프로덕션(Vercel): 환경 변수 BROWSERLESS_WS_ENDPOINT (wss://...) 로 chromium.connect
+ * 로컬 개발: WS 미설정 시 시스템 Chrome 채널 실행 (playwright-core, 브라우저 바이너리 미포함)
+ *   - 선택: CALLCLOUD_CHROME_EXECUTABLE 로 Chromium/Chrome 경로 지정 (Linux 등)
  *
  * 플로우: 등록 여부 사전 검색 → 분기(기존 수정 OR 신규 등록)
- * Vuetify(Vue.js) 기반이므로 동적 id 미사용. getByPlaceholder, getByRole, getByText, locator(hasText) 사용.
- *
- * - headless: CALLCLOUD_HEADLESS (true 시 백그라운드)
- * - ignoreHTTPSErrors: true
+ * Vuetify(Vue.js) 기반이므로 동적 id 미사용.
  */
 
-import { chromium, type Browser, type Page, type Locator } from "playwright";
+import {
+  chromium,
+  type Browser,
+  type BrowserType,
+  type Page,
+  type Locator,
+} from "playwright-core";
 
 export interface CallCloudRegisterInput {
   clientName: string;
@@ -34,18 +41,95 @@ const COMPANY_URL = `${BASE_URL}/company`;
 const DEFAULT_TIMEOUT_MS = 20000;
 const UI_WAIT_TIMEOUT_MS = 10000;
 
-/** 브라우저 종료 시 "has been closed" → 사용자 안내 메시지로 변환 (state-based 대기 실패 시 catch에서 사용) */
-function normalizeClosedError(e: unknown): never {
-  const msg = String(e ?? "");
-  if (msg.includes("has been closed")) {
-    throw new Error("브라우저가 종료되었거나 연결이 끊어졌습니다. (창을 닫지 말고 다시 시도해 주세요.)");
+/** Browserless WebSocket 연결 타임아웃 */
+const REMOTE_BROWSER_CONNECT_TIMEOUT_MS = 60000;
+/** 로컬 launch 타임아웃 */
+const LOCAL_BROWSER_LAUNCH_TIMEOUT_MS = 30000;
+
+function formatAutomationError(caught: unknown): string {
+  const raw = caught instanceof Error ? caught.message : String(caught ?? "");
+  if (raw.includes("has been closed")) {
+    return "브라우저가 종료되었거나 연결이 끊어졌습니다. (창을 닫지 말고 다시 시도해 주세요.)";
   }
-  throw e;
+  return raw || "알 수 없는 오류입니다.";
 }
 
 function getHeadless(): boolean {
   const v = process.env.CALLCLOUD_HEADLESS;
   return v === "true" || v === "1";
+}
+
+function isProductionLikeRuntime(): boolean {
+  return (
+    process.env.VERCEL === "1" || process.env.NODE_ENV === "production"
+  );
+}
+
+/**
+ * 원격(Browserless) 연결 또는 로컬 Chrome 실행.
+ * @throws Error 연결 실패·설정 누락 시 명시적 메시지
+ */
+async function acquireCallCloudBrowser(headless: boolean): Promise<Browser> {
+  const wsEndpoint = process.env.BROWSERLESS_WS_ENDPOINT?.trim();
+
+  if (wsEndpoint) {
+    try {
+      console.log(
+        "[CallCloud] Browserless(원격) chromium.connect 시도… (타임아웃 %dms)",
+        REMOTE_BROWSER_CONNECT_TIMEOUT_MS
+      );
+      const browser = await chromium.connect(wsEndpoint, {
+        timeout: REMOTE_BROWSER_CONNECT_TIMEOUT_MS,
+      });
+      console.log("[CallCloud] 원격 브라우저 연결 성공.");
+      return browser;
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      console.error("[CallCloud] 원격 브라우저 연결 실패:", raw);
+      throw new Error(
+        `Browserless 원격 브라우저 연결에 실패했습니다. BROWSERLESS_WS_ENDPOINT(URL·토큰)·방화벽을 확인해 주세요. 원본: ${raw}`
+      );
+    }
+  }
+
+  if (isProductionLikeRuntime()) {
+    throw new Error(
+      "프로덕션 환경에서는 BROWSERLESS_WS_ENDPOINT가 필요합니다. Vercel 환경 변수에 Browserless WebSocket URL(wss://…)을 설정해 주세요."
+    );
+  }
+
+  const executablePath = process.env.CALLCLOUD_CHROME_EXECUTABLE?.trim();
+  const launchOptions: Parameters<BrowserType["launch"]>[0] = {
+    headless,
+    timeout: LOCAL_BROWSER_LAUNCH_TIMEOUT_MS,
+    args: [
+      "--ignore-certificate-errors",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      ...(headless ? [] : ["--start-maximized"]),
+    ],
+  };
+  if (executablePath) {
+    launchOptions.executablePath = executablePath;
+  } else {
+    launchOptions.channel = "chrome";
+  }
+
+  try {
+    console.log(
+      "[CallCloud] 로컬 Chrome launch (playwright-core, WS 미설정 폴백)…"
+    );
+    const browser = await chromium.launch(launchOptions);
+    console.log("[CallCloud] 로컬 브라우저 실행 성공.");
+    return browser;
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    console.error("[CallCloud] 로컬 브라우저 실행 실패:", raw);
+    throw new Error(
+      `로컬 Chrome 실행에 실패했습니다. Google Chrome 설치 또는 CALLCLOUD_CHROME_EXECUTABLE 로 실행 파일 경로를 지정하세요. 원본: ${raw}`
+    );
+  }
 }
 
 /** 070 번호 정규화 (하이픈 제거, 검색/입력용) */
@@ -62,7 +146,11 @@ const REDIRECT_WAIT_MS = 5000;
 /**
  * Vue/Vuetify 입력: 사람처럼 키보드로 한 글자씩 입력해 v-model 동기화 강제 유발
  */
-async function fillVuetifyInput(page: Page, inputLocator: Locator, value: string): Promise<void> {
+async function fillVuetifyInput(
+  page: Page,
+  inputLocator: Locator,
+  value: string
+): Promise<void> {
   await inputLocator.click();
   await page.keyboard.press("Control+A");
   await page.keyboard.press("Backspace");
@@ -72,10 +160,13 @@ async function fillVuetifyInput(page: Page, inputLocator: Locator, value: string
 }
 
 /**
- * Grid 레이아웃: 라벨(col-2)과 입력(col-10)이 형제이므로,
- * 라벨 div 기준 XPath following-sibling으로 입력 칸의 input/textarea 저격
+ * Grid 레이아웃: 라벨(col-2)과 입력(col-10)이 형제
  */
-function getField(page: Page, labelText: string, tag: "input" | "textarea" = "input"): Locator {
+function getField(
+  page: Page,
+  labelText: string,
+  tag: "input" | "textarea" = "input"
+): Locator {
   return page
     .locator(
       `xpath=//div[contains(@class, "col-2") and contains(., "${labelText}")]/following-sibling::div[1]//${tag}`
@@ -84,58 +175,55 @@ function getField(page: Page, labelText: string, tag: "input" | "textarea" = "in
 }
 
 /**
- * 신규 등록/상세 수정 폼 입력 — XPath 기반 (col-2 라벨 → following-sibling::div[1] → input/textarea)
+ * 신규 등록/상세 수정 폼 입력
  */
-async function fillCompanyForm(page: Page, input: CallCloudRegisterInput): Promise<void> {
+async function fillCompanyForm(
+  page: Page,
+  input: CallCloudRegisterInput
+): Promise<void> {
   const repNumber = normalize070(input.call070Number);
   const adminPhoneNorm = normalize070(input.adminPhone);
 
   console.log("[CallCloud] 폼 필드(고객사명) 대기 중...");
   await getField(page, "고객사명").waitFor({ state: "visible", timeout: 15000 });
 
-  // 1. 고객사명
   console.log("[CallCloud] 고객사명 입력 중...");
   await fillVuetifyInput(page, getField(page, "고객사명"), input.clientName);
   console.log("[CallCloud] 고객사명 입력 완료.");
 
-  // 2. 인사말 멘트
   console.log("[CallCloud] 인사말 멘트 입력 중...");
   await fillVuetifyInput(page, getField(page, "인사말 멘트"), input.greetingMessage);
   console.log("[CallCloud] 인사말 멘트 입력 완료.");
 
-  // 3. 고객사 대표번호
   console.log("[CallCloud] 고객사 대표번호 입력 중...");
   await fillVuetifyInput(page, getField(page, "고객사 대표번호"), repNumber);
   console.log("[CallCloud] 고객사 대표번호 입력 완료.");
 
-  // 4. 관리자명
   console.log("[CallCloud] 관리자명 입력 중...");
   await fillVuetifyInput(page, getField(page, "관리자명"), input.adminName);
   console.log("[CallCloud] 관리자명 입력 완료.");
 
-  // 5. 관리자 이메일
   console.log("[CallCloud] 관리자 이메일 입력 중...");
   await fillVuetifyInput(page, getField(page, "관리자 이메일"), input.adminEmail);
   console.log("[CallCloud] 관리자 이메일 입력 완료.");
 
-  // 6. 관리자 전화번호
   console.log("[CallCloud] 관리자 전화번호 입력 중...");
   await fillVuetifyInput(page, getField(page, "관리자 전화번호"), adminPhoneNorm);
   console.log("[CallCloud] 관리자 전화번호 입력 완료.");
 
-  // 7. 서비스 URL
   console.log("[CallCloud] 서비스 URL 입력 중...");
   await fillVuetifyInput(page, getField(page, "서비스 URL"), input.serviceUrl);
   console.log("[CallCloud] 서비스 URL 입력 완료.");
 
-  // 8. SMS 텍스트 (Textarea)
   console.log("[CallCloud] SMS 텍스트 입력 중...");
-  await fillVuetifyInput(page, getField(page, "SMS 텍스트", "textarea"), input.smsText);
+  await fillVuetifyInput(
+    page,
+    getField(page, "SMS 텍스트", "textarea"),
+    input.smsText
+  );
   console.log("[CallCloud] SMS 텍스트 입력 완료.");
 
-  // 9. 업종 드롭다운 (상세/신규 페이지 모두 호환되도록 XPath로 수정)
   console.log("[CallCloud] 업종 드롭다운 탐색 및 클릭 시도...");
-
   const industrySelect = page
     .locator(
       'xpath=//div[contains(@class, "col-2") and contains(., "업종")]/following-sibling::div[1]//div[contains(@class, "v-select")]'
@@ -145,9 +233,13 @@ async function fillCompanyForm(page: Page, input: CallCloudRegisterInput): Promi
   if (await industrySelect.isVisible().catch(() => false)) {
     console.log("[CallCloud] 업종 드롭다운 클릭...");
     await industrySelect.click();
-    await page.waitForSelector(".v-list-item__title", { state: "visible", timeout: 5000 });
+    await page
+      .waitForSelector(".v-list-item__title", { state: "visible", timeout: 5000 });
 
-    const industryItem = page.locator(".v-list-item__title").filter({ hasText: /^쇼핑몰$/ }).first();
+    const industryItem = page
+      .locator(".v-list-item__title")
+      .filter({ hasText: /^쇼핑몰$/ })
+      .first();
     if (await industryItem.isVisible().catch(() => false)) {
       await industryItem.click({ force: true });
       console.log("[CallCloud] 업종 선택 완료: 쇼핑몰");
@@ -159,13 +251,8 @@ async function fillCompanyForm(page: Page, input: CallCloudRegisterInput): Promi
   }
 }
 
-/**
- * 서비스 상태: "서비스" 라디오 버튼 클릭
- * XPath로 '서비스 상태' 라벨의 형제(col-10) 안에서 텍스트가 정확히 '서비스'인 label을 타겟팅
- */
 async function ensureServiceStatus(page: Page): Promise<void> {
   console.log("[CallCloud] 서비스 상태 '서비스' 선택 시도...");
-
   const serviceRadioLabel = page
     .locator(
       'xpath=//div[contains(@class, "col-2") and contains(., "서비스 상태")]/following-sibling::div[1]//label[text()="서비스"]'
@@ -192,14 +279,15 @@ export async function runCallCloudRegister(
   let browser: Browser | null = null;
 
   try {
-    browser = await chromium.launch({
-      headless,
-      args: [
-        "--ignore-certificate-errors",
-        "--start-maximized",
-      ],
-    });
+    browser = await acquireCallCloudBrowser(headless);
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : String(err ?? "브라우저 초기화 실패");
+    console.error("[CallCloud] acquireCallCloudBrowser:", message);
+    return { success: false, error: message };
+  }
 
+  try {
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       viewport: null,
@@ -207,13 +295,15 @@ export async function runCallCloudRegister(
     const page = await context.newPage();
     page.setDefaultTimeout(DEFAULT_TIMEOUT_MS);
 
-    // 알림창(Confirm/Alert) 발생 시 무조건 '확인'을 누르도록 처리
     page.on("dialog", async (dialog) => {
-      console.log(`[CallCloud] 알림창 감지 및 자동 확인 클릭: ${dialog.message()}`);
-      await dialog.accept();
+      console.log(`[CallCloud] 알림창 감지 및 자동 확인: ${dialog.message()}`);
+      try {
+        await dialog.accept();
+      } catch (e) {
+        console.warn("[CallCloud] dialog.accept 실패:", e);
+      }
     });
 
-    // ——— 1. 로그인 (Vuetify 안정 셀렉터 + 단계별 로그) ———
     try {
       console.log("[CallCloud] 1. 로그인 페이지 접속 중...");
       await page.goto(LOGIN_URL, { waitUntil: "networkidle", timeout: 30000 });
@@ -228,7 +318,7 @@ export async function runCallCloudRegister(
       await page.locator('input[type="text"]').first().fill(loginId);
       console.log("[CallCloud] 2. ID 입력 완료.");
     } catch (e) {
-      console.error("[CallCloud] 2. ID 입력 실패 (input[type=text] 미발견):", e);
+      console.error("[CallCloud] 2. ID 입력 실패:", e);
       throw e;
     }
 
@@ -237,7 +327,7 @@ export async function runCallCloudRegister(
       await page.locator('input[type="password"]').fill(loginPwd);
       console.log("[CallCloud] 3. 비밀번호 입력 완료.");
     } catch (e) {
-      console.error("[CallCloud] 3. 비밀번호 입력 실패 (input[type=password] 미발견):", e);
+      console.error("[CallCloud] 3. 비밀번호 입력 실패:", e);
       throw e;
     }
 
@@ -246,47 +336,62 @@ export async function runCallCloudRegister(
       await page.locator(".v-btn", { hasText: "LOGIN" }).click();
       console.log("[CallCloud] 4. LOGIN 버튼 클릭 완료.");
     } catch (e) {
-      console.error("[CallCloud] 4. LOGIN 버튼 클릭 실패:", e);
+      console.error("[CallCloud] 4. LOGIN 클릭 실패:", e);
       throw e;
     }
 
     try {
-      console.log("[CallCloud] 5. 로그인 완료(메인 화면) 대기 중...");
+      console.log("[CallCloud] 5. 로그인 완료 대기...");
       await page.waitForURL(/\/company/, { timeout: 10000 });
       console.log("[CallCloud] 5. 메인 화면 진입 완료.");
     } catch (e) {
-      console.error("[CallCloud] 5. 로그인 완료 대기 실패 (/company 미진입):", e);
+      console.error("[CallCloud] 5. /company 미진입:", e);
       throw e;
     }
 
     try {
       await page.goto(COMPANY_URL, { waitUntil: "domcontentloaded", timeout: 15000 });
-      await page.locator(".v-btn", { hasText: "신규고객사 등록" }).waitFor({ state: "visible", timeout: UI_WAIT_TIMEOUT_MS }).catch(() => null);
+      await page
+        .locator(".v-btn", { hasText: "신규고객사 등록" })
+        .waitFor({ state: "visible", timeout: UI_WAIT_TIMEOUT_MS })
+        .catch(() => null);
     } catch (e) {
-      console.error("[CallCloud] 6. 고객사 목록 화면 대기 실패:", e);
+      console.error("[CallCloud] 6. 고객사 목록 대기 실패:", e);
       throw e;
     }
 
-    // ——— 2. 검색 조건: 고객사명 → 서비스번호 (드롭다운 메뉴 visible 대기) ———
     await page.locator(".v-select").filter({ hasText: "검색어: 고객사명" }).first().click();
-    await page.locator(".v-menu__content.menuable__content__active").waitFor({ state: "visible", timeout: 5000 }).catch(() => null);
-    await page.locator(".v-list-item, .v-list-item__title").filter({ hasText: "서비스번호" }).first().click({ timeout: 5000 }).catch(() => null);
+    await page
+      .locator(".v-menu__content.menuable__content__active")
+      .waitFor({ state: "visible", timeout: 5000 })
+      .catch(() => null);
+    await page
+      .locator(".v-list-item, .v-list-item__title")
+      .filter({ hasText: "서비스번호" })
+      .first()
+      .click({ timeout: 5000 })
+      .catch(() => null);
 
-    // ——— 3. 검색어 입력 및 검색 ———
     const searchValue = normalize070(input.call070Number);
     await page.getByPlaceholder("검색어를 입력해주세요").fill(searchValue);
     await page.locator(".v-btn", { hasText: "검색" }).click();
     await page.locator("tbody").waitFor({ state: "visible", timeout: UI_WAIT_TIMEOUT_MS });
     console.log("[CallCloud] 검색어 입력...");
 
-    // ——— 4. 분기: 테이블에 해당 070 존재 여부 ———
     const rows = page.locator("tbody tr");
     const rowCount = await rows.count();
-    const searchNumFormatted = searchValue.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
+    const searchNumFormatted = searchValue.replace(
+      /(\d{3})(\d{4})(\d{4})/,
+      "$1-$2-$3"
+    );
     let matchingRowIndex = -1;
     for (let i = 0; i < rowCount; i++) {
       const text = await rows.nth(i).innerText().catch(() => "");
-      if (text.includes(searchValue) || text.includes(searchNumFormatted) || text.includes(input.call070Number)) {
+      if (
+        text.includes(searchValue) ||
+        text.includes(searchNumFormatted) ||
+        text.includes(input.call070Number)
+      ) {
         matchingRowIndex = i;
         break;
       }
@@ -295,29 +400,11 @@ export async function runCallCloudRegister(
     const foundRow = matchingRowIndex >= 0;
 
     if (foundRow) {
-      // ——— Branch A: 기등록 → 상세 진입 후 수정 ———
       console.log("[CallCloud] 기등록 행 클릭, 상세 페이지 진입...");
       await rows.nth(matchingRowIndex).click();
       await page.waitForURL(/\/company\/[^/]+\/detail/, { timeout: 15000 }).catch(() => null);
       await page.waitForTimeout(2000).catch(() => null);
-      // =========================================================
-      // 🚨 여기서부터 아래 블록을 통째로 삭제하세요!!! 🚨
-      // 이유: 폼은 이미 열려있습니다. 여기서 누르면 제출 버튼이 잠겨버립니다.
-      /*
-      const editBtn = page.getByRole("button", { name: "수정" }).first();
-      await editBtn.waitFor({ state: "visible", timeout: UI_WAIT_TIMEOUT_MS });
-      await editBtn.scrollIntoViewIfNeeded().catch(() => null);
-      await page.waitForTimeout(500).catch(() => null);
-      console.log("[CallCloud] 수정 버튼(상세) 클릭하여 폼 열기...");
-      await editBtn.click({ timeout: 10000, force: true });
-      await page.waitForSelector(".v-text-field__slot input[type='text']", { state: "visible", timeout: FORM_WAIT_MS });
-      console.log("[CallCloud] 수정 폼 로드 완료.");
-      await page.waitForTimeout(800).catch(() => null);
-      */
-      // 🚨 여기까지 전부 삭제 !!! 🚨
-      // =========================================================
 
-      
       console.log("[CallCloud] 기등록 070번호의 세부 정보 업데이트 시작...");
       await fillCompanyForm(page, input);
       await ensureServiceStatus(page);
@@ -329,7 +416,7 @@ export async function runCallCloudRegister(
       await submitEditBtn.waitFor({ state: "visible", timeout: 5000 });
       await submitEditBtn.scrollIntoViewIfNeeded().catch(() => null);
 
-      console.log("[CallCloud] 사람과 동일한 마우스 물리 이벤트로 클릭 시도...");
+      console.log("[CallCloud] 수정 버튼 클릭 시퀀스...");
       await submitEditBtn.hover();
       await page.mouse.down();
       await page.waitForTimeout(100);
@@ -340,22 +427,30 @@ export async function runCallCloudRegister(
 
       await page.waitForTimeout(SUBMIT_WAIT_AFTER_CLICK_MS);
       await page.waitForLoadState("networkidle", { timeout: NETWORK_IDLE_TIMEOUT_MS }).catch(() => {
-        console.log("[CallCloud] 네트워크 유휴 상태 대기 타임아웃 (무시하고 진행)");
+        console.log("[CallCloud] 네트워크 유휴 대기 타임아웃 (무시하고 진행)");
       });
       await page.waitForURL(/\/company/, { timeout: REDIRECT_WAIT_MS }).catch(() => null);
-      await page.locator(".v-btn", { hasText: "신규고객사 등록" }).waitFor({ state: "visible", timeout: 5000 }).catch(() => null);
+      await page
+        .locator(".v-btn", { hasText: "신규고객사 등록" })
+        .waitFor({ state: "visible", timeout: 5000 })
+        .catch(() => null);
     } else {
-      // ——— Branch B: 신규 등록 ———
       console.log("[CallCloud] 신규고객사 등록 클릭...");
       await page.locator(".v-btn", { hasText: "신규고객사 등록" }).click();
       await page.waitForURL(/\/company\/new/, { timeout: 10000 });
-      await page.waitForSelector(".v-text-field__slot input[type='text']", { state: "visible", timeout: FORM_WAIT_MS });
+      await page.waitForSelector(".v-text-field__slot input[type='text']", {
+        state: "visible",
+        timeout: FORM_WAIT_MS,
+      });
 
       await fillCompanyForm(page, input);
       await ensureServiceStatus(page);
 
       console.log("[CallCloud] 등록 버튼 클릭...");
-      const registerBtn = page.locator(".v-btn").filter({ has: page.locator(".v-btn__content", { hasText: "등록" }) }).first();
+      const registerBtn = page
+        .locator(".v-btn")
+        .filter({ has: page.locator(".v-btn__content", { hasText: "등록" }) })
+        .first();
       await registerBtn.waitFor({ state: "visible", timeout: FORM_WAIT_MS });
       await registerBtn.scrollIntoViewIfNeeded().catch(() => null);
       await registerBtn.click({ timeout: 25000 });
@@ -363,10 +458,19 @@ export async function runCallCloudRegister(
 
       await page.waitForTimeout(SUBMIT_WAIT_AFTER_CLICK_MS);
       await page.waitForLoadState("networkidle", { timeout: NETWORK_IDLE_TIMEOUT_MS }).catch(() => {
-        console.log("[CallCloud] 네트워크 유휴 상태 대기 타임아웃 (무시하고 진행)");
+        console.log("[CallCloud] 네트워크 유휴 대기 타임아웃 (무시하고 진행)");
       });
       await page.waitForURL(/\/company/, { timeout: REDIRECT_WAIT_MS }).catch(() => null);
-      await page.locator(".v-btn", { hasText: "신규고객사 등록" }).waitFor({ state: "visible", timeout: 5000 }).catch(() => null);
+      await page
+        .locator(".v-btn", { hasText: "신규고객사 등록" })
+        .waitFor({ state: "visible", timeout: 5000 })
+        .catch(() => null);
+    }
+
+    try {
+      await context.close();
+    } catch (e) {
+      console.warn("[CallCloud] context.close:", e);
     }
 
     return {
@@ -375,28 +479,24 @@ export async function runCallCloudRegister(
         ? "CallCloud 고객사 정보가 수정되었습니다."
         : "CallCloud 신규 고객사 등록이 완료되었습니다.",
     };
-  } catch (err: unknown) {
-    try {
-      normalizeClosedError(err);
-    } catch (normalized) {
-      const message = normalized instanceof Error ? normalized.message : String(normalized);
-      console.error("CallCloud Playwright error:", message);
-      return { success: false, error: message };
-    }
-    const errorStr: string =
-      err instanceof Error ? (err as Error).message : "Unknown error";
-    return { success: false, error: errorStr };
+  } catch (caught: unknown) {
+    const message = formatAutomationError(caught);
+    console.error("CallCloud Playwright error:", message);
+    return { success: false, error: message };
   } finally {
     if (browser) {
-      const keepOpen = process.env.CALLCLOUD_KEEP_BROWSER_OPEN !== "false" && !getHeadless();
+      const keepOpen =
+        process.env.CALLCLOUD_KEEP_BROWSER_OPEN !== "false" && !getHeadless();
       if (!keepOpen) {
         try {
           await browser.close();
         } catch (e) {
-          console.error("Browser close error:", e);
+          console.error("[CallCloud] browser.close error:", e);
         }
       } else {
-        console.log("[CallCloud] 브라우저를 닫지 않고 유지합니다. (CALLCLOUD_KEEP_BROWSER_OPEN=false 또는 headless 시 자동 종료)");
+        console.log(
+          "[CallCloud] 브라우저 연결 유지 (CALLCLOUD_KEEP_BROWSER_OPEN, 비-headless)"
+        );
       }
     }
   }

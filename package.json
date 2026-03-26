@@ -22,7 +22,7 @@
     "next": "^16.1.6",
     "next-auth": "^4.24.10",
     "nodemailer": "^7.0.13",
-    "playwright": "^1.58.2",
+    "playwright-core": "^1.58.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.71.1",
