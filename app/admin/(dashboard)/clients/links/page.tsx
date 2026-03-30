@@ -200,16 +200,18 @@ export default function ClientsLinksPage() {
         />
       )}
 
-      {isLinkModalOpen && linkModalClient && (
+      {isLinkModalOpen && linkModalClient && partnerId && (
         <LinkNotificationModal
           isOpen={isLinkModalOpen}
           onClose={() => {
             setIsLinkModalOpen(false);
             setLinkModalClient(null);
           }}
+          partnerId={partnerId}
           partnerName={partnerName}
           partnerSubdomain={partnerSubdomain}
           partnerContact={partnerContact}
+          clientId={linkModalClient.id}
           clientSlug={linkModalClient.slug}
           assigned070Number={
             linkModalClient.client_call_070_configs?.[0]?.call_070_number

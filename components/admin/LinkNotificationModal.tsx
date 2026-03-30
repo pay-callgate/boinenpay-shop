@@ -11,8 +11,29 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/shop/ToastContext";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const BTN_NAVY = "#1e293b";
+
+/** 승인된 카카오 알림톡 템플릿(가변: #{storeName}, #{url}) */
+const KAKAO_ALIMTALK_LINK_TEMPLATE = `안녕하세요.
+
+화면으로 바로 주문하는
+#{storeName} 콜링크 쇼핑입니다.
+
+요청하신 서비스 이용을 위해 아래의 링크를 눌러 접속해 주세요.
+#{url}
+
+감사합니다.`;
+
+function resolveKakaoLinkTemplate(storeName: string, orderUrl: string): string {
+  const name = storeName?.trim() || "파트너";
+  const url = orderUrl?.trim() || "(링크 준비 중)";
+  return KAKAO_ALIMTALK_LINK_TEMPLATE.replace(/#\{storeName\}/g, name).replace(
+    /#\{url\}/g,
+    url
+  );
+}
 
 /** 입력 시 하이픈 자동 삽입 (010-1234-1234 형태 유지) */
 function formatPhoneInput(value: string): string {
@@ -29,9 +50,11 @@ function getByteCount(text: string): number {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  partnerId: string;
   partnerName: string;
   partnerSubdomain: string;
   partnerContact: string;
+  clientId: string;
   clientSlug: string;
   assigned070Number: string;
   recipientPhone: string;
@@ -40,14 +63,17 @@ interface Props {
 export function LinkNotificationModal({
   isOpen,
   onClose,
+  partnerId,
   partnerName,
   partnerSubdomain,
   partnerContact,
+  clientId,
   clientSlug,
   assigned070Number,
   recipientPhone,
 }: Props) {
   const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
   const [senderNumber, setSenderNumber] = useState("");
   const [receiverNumber, setReceiverNumber] = useState("");
   const [senderEditable, setSenderEditable] = useState(false);
@@ -60,44 +86,17 @@ export function LinkNotificationModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    const url =
+    const orderUrl =
       typeof window !== "undefined" && partnerSubdomain && clientSlug
         ? `${window.location.origin}/${partnerSubdomain}/${clientSlug}`
         : "";
-    const has070 = !!assigned070Number?.trim();
-    const filled070 = assigned070Number?.trim() || "";
-
-    const filled = has070
-      ? `안녕하세요. ${partnerDisplayName}입니다.
-저희 서비스를 이용해주셔서 감사합니다.
-상품 주문을 위한 전용 링크를 보내드립니다.
-
-주문 전용 링크:
-${url || "(링크 준비 중)"}
-
-연동 070 번호:
-${filled070}
-
-위 링크를 통해 간편하게 주문하실 수 있습니다.
-앞으로도 많은 이용 부탁드립니다.
-감사합니다.`
-      : `안녕하세요. ${partnerDisplayName}입니다.
-저희 서비스를 이용해주셔서 감사합니다.
-상품 주문을 위한 전용 링크를 보내드립니다.
-
-주문 전용 링크:
-${url || "(링크 준비 중)"}
-
-위 링크를 통해 간편하게 주문하실 수 있습니다.
-앞으로도 많은 이용 부탁드립니다.
-감사합니다.`;
-    setMessage(filled);
+    setMessage(resolveKakaoLinkTemplate(partnerDisplayName, orderUrl));
     setSenderNumber(partnerContact?.trim() ? formatPhoneInput(partnerContact.trim()) : "");
     setReceiverNumber(recipientPhone?.trim() ? formatPhoneInput(recipientPhone.trim()) : "");
     setSenderEditable(false);
     setReceiverEditable(false);
     setMessageEditable(false);
-  }, [isOpen, partnerDisplayName, partnerContact, partnerSubdomain, clientSlug, assigned070Number, recipientPhone]);
+  }, [isOpen, partnerDisplayName, partnerContact, partnerSubdomain, clientSlug, recipientPhone]);
 
   const handleSenderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSenderNumber(formatPhoneInput(e.target.value));
@@ -117,21 +116,53 @@ ${url || "(링크 준비 중)"}
     setTimeout(() => receiverInputRef.current?.focus(), 0);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const rawSender = senderNumber.replace(/\D/g, "");
     const rawReceiver = receiverNumber.replace(/\D/g, "");
-    const payload = {
-      발신번호: rawSender,
-      수신번호: rawReceiver,
-      메시지내용: message,
-    };
-    console.log("[Link 안내 문자 발송] 준비 중 데이터:", payload);
-    toast("발송 기능 준비 중입니다.");
-    onClose();
+    if (!rawReceiver) {
+      toast("수신번호를 입력해 주세요.");
+      return;
+    }
+    if (!message.trim()) {
+      toast("메시지 내용이 비어 있습니다.");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await adminFetch("/api/admin/notifications/link-kakao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnerId,
+          clientId,
+          phone: rawReceiver,
+          callback: rawSender || undefined,
+          msg: message.trim(),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        message?: string;
+        tranId?: string;
+      };
+      if (!res.ok || !data.ok) {
+        toast(data.message || "알림톡 발송에 실패했습니다.");
+        return;
+      }
+      toast(
+        data.tranId
+          ? `발송 요청이 접수되었습니다. (tran_id: ${data.tranId})`
+          : "발송 요청이 접수되었습니다."
+      );
+      onClose();
+    } catch {
+      toast("네트워크 오류로 발송에 실패했습니다.");
+    } finally {
+      setSending(false);
+    }
   };
 
   const byteCount = getByteCount(message);
-  const isLms = byteCount > 90;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -139,7 +170,8 @@ ${url || "(링크 준비 중)"}
         <DialogHeader>
           <DialogTitle>고객사 Link 안내 메시지</DialogTitle>
           <p className="mt-1 text-sm text-slate-300">
-            거래처 담당자에게 주문 링크 안내 문자를 발송합니다.
+            거래처 담당자에게 주문 링크 안내 카카오 알림톡을 발송합니다. 본문은
+            승인 템플릿에 맞게 파트너사명·고객사 주문 URL이 반영됩니다.
           </p>
           <DialogClose>✕</DialogClose>
         </DialogHeader>
@@ -178,8 +210,8 @@ ${url || "(링크 준비 중)"}
               </div>
               <div className="mt-3">
                 <span className="text-xs text-slate-500">
-                  [SMS/LMS 자동전환] {byteCount} byte
-                  {isLms && <span className="ml-1 font-medium text-slate-600">(장문)</span>}
+                  [알림톡 본문] {message.length}자 · {byteCount} byte (매뉴얼 기준 MSG
+                  최대 1000자)
                 </span>
               </div>
             </div>
@@ -279,11 +311,12 @@ ${url || "(링크 준비 중)"}
           </button>
           <button
             type="button"
-            onClick={handleSend}
-            className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:opacity-90"
+            onClick={() => void handleSend()}
+            disabled={sending}
+            className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-60"
             style={{ backgroundColor: BTN_NAVY }}
           >
-            문자 발송하기
+            {sending ? "발송 중…" : "카카오톡 발송하기"}
           </button>
         </DialogFooter>
       </DialogContent>
