@@ -166,7 +166,35 @@ export function Call070Modal({
         }),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+
+      if (res.status === 504) {
+        alert(
+          "070 연동 처리가 서버 시간 제한(타임아웃)에 걸렸습니다.\n\n" +
+            "Vercel에서 FUNCTION_INVOCATION_TIMEOUT(504)이 발생한 경우입니다.\n" +
+            "• Pro 플랜: 프로젝트/API의 maxDuration(최대 처리 시간)을 늘렸는지 확인하세요.\n" +
+            "• 무료·Hobby 플랜: 함수 실행 시간 상한이 낮아 장시간 자동화가 끊길 수 있습니다.\n" +
+            "• Vercel 로그에서 [070-register] / [CallCloud] 메시지로 실제 소요 시간을 확인할 수 있습니다."
+        );
+        return;
+      }
+
+      let data: {
+        message?: string;
+        error?: string;
+        details?: string;
+        alreadyRegistered?: boolean;
+      } = {};
+      try {
+        data = rawText ? (JSON.parse(rawText) as typeof data) : {};
+      } catch {
+        console.error("070 register: JSON 파싱 실패", res.status, rawText?.slice?.(0, 300));
+        alert(
+          `서버 응답을 해석할 수 없습니다 (HTTP ${res.status}).\n` +
+            "HTML 오류 페이지가 온 경우도 있습니다. 네트워크 탭에서 응답 본문을 확인해 주세요."
+        );
+        return;
+      }
 
       if (res.ok) {
         if (data.alreadyRegistered) {
@@ -180,12 +208,15 @@ export function Call070Modal({
         }
       } else {
         alert(
-          `CallCloud 자동화 실행 실패:\n${data.error}\n\n상세: ${data.details || "없음"}`
+          `CallCloud 자동화 실행 실패:\n${data.error ?? `HTTP ${res.status}`}\n\n상세: ${data.details || "없음"}`
         );
       }
     } catch (error) {
       console.error("CallCloud register error:", error);
-      alert("네트워크 오류가 발생했습니다.");
+      alert(
+        "요청 전송 또는 연결에 실패했습니다.\n" +
+          "(브라우저 콘솔·Network 탭에서 POST /070/register 상태를 확인해 주세요.)"
+      );
     } finally {
       setRegistering(false);
     }

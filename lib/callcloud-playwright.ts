@@ -342,16 +342,25 @@ async function fillCompanyForm(
   if (await industrySelect.isVisible().catch(() => false)) {
     log.info("form.industry", "업종 드롭다운 클릭");
     await industrySelect.click();
-    await page
-      .waitForSelector(".v-list-item__title", { state: "visible", timeout: 5000 });
+    // 전역 .v-list-item__title(사이드 메뉴 등)와 충돌하지 않도록, 열린 Vuetify 메뉴 패널 안에서만 탐색
+    const openMenu = page
+      .locator(".v-menu__content")
+      .filter({ has: page.locator(".v-list-item__title") })
+      .last();
+    await openMenu.waitFor({ state: "visible", timeout: 8000 });
 
-    const industryItem = page
+    const industryItem = openMenu
       .locator(".v-list-item__title")
       .filter({ hasText: /^쇼핑몰$/ })
       .first();
     if (await industryItem.isVisible().catch(() => false)) {
       await industryItem.click({ force: true });
       log.info("form.industry", "업종 선택 완료: 쇼핑몰");
+    } else {
+      log.warn(
+        "form.industry",
+        "열린 메뉴(.v-menu__content)에서 '쇼핑몰' 항목 미발견"
+      );
     }
     await page.keyboard.press("Escape");
     await page.waitForTimeout(300);

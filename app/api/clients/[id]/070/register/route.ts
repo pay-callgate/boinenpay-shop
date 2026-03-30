@@ -39,7 +39,12 @@ function log070Register(
  * - 봇 success: true 시에만 client_call_070_configs Upsert + clients.call_070_connected = true
  */
 
-export const maxDuration = 60;
+/**
+ * CallCloud + Browserless 자동화는 60초를 넘는 경우가 많음.
+ * - Vercel Pro: 최대 300초까지 설정 가능(플랜·대시보드 한도 확인).
+ * - Hobby 등 무료/저가 플랜은 플랫폼 상한(예: 10~60초)으로 잘리면 504가 납니다.
+ */
+export const maxDuration = 300;
 
 export async function POST(
   request: NextRequest,
