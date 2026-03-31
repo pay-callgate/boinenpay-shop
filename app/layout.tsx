@@ -1,5 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
+import { KakaoInAppBrowserGate } from "@/components/KakaoInAppBrowserGate";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 
@@ -16,7 +17,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <KakaoInAppBrowserGate />
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
