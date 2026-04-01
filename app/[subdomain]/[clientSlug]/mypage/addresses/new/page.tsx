@@ -93,7 +93,11 @@ export default function NewAddressPage() {
   }
 
   return (
-    <OrderGuard partnerId={partner.id}>
+    <OrderGuard
+      partnerId={partner.id}
+      shopClientId={client?.id}
+      shopClientName={client?.name ?? undefined}
+    >
       <div
         style={{
           maxWidth: "430px",

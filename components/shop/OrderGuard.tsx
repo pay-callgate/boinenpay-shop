@@ -10,6 +10,7 @@ import { ClientSearchModal } from "./ClientSearchModal";
  * T3.5-3: 주문 가드 컴포넌트
  * - 미로그인 시 로그인 유도
  * - 로그인했지만 user_clients 없으면 소속 기업 찾기 팝업
+ * - shopClientId 가 주어지면: DB 소속 거래처와 URL 거래처가 같을 때만 통과 (다른 전용몰 혼선 방지)
  * - 매칭 완료 시 children 렌더링 (주문/결제 가능)
  */
 
@@ -23,16 +24,26 @@ interface Client {
 
 interface Props {
   partnerId?: string;
+  /** 현재 쇼핑몰 URL의 거래처 id — 지정 시 user_clients.client_id 와 일치해야 함 */
+  shopClientId?: string;
+  /** 안내 문구용 현재 전용몰 거래처명 */
+  shopClientName?: string;
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }
 
-export function OrderGuard({ partnerId, children, fallback }: Props) {
+export function OrderGuard({
+  partnerId,
+  shopClientId,
+  shopClientName,
+  children,
+  fallback,
+}: Props) {
   const params = useParams();
   const router = useRouter();
   const subdomain = (params?.subdomain as string) ?? "";
   const { data: session, status } = useSession();
-  const { isMatched, loading, refresh } = useUserClient(partnerId);
+  const { isMatched, loading, refresh, userClients } = useUserClient(partnerId);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [skipGuard, setSkipGuard] = useState(false);
   const [loopError, setLoopError] = useState<string | null>(null);
@@ -207,6 +218,81 @@ export function OrderGuard({ partnerId, children, fallback }: Props) {
           }}
         />
       </>
+    );
+  }
+
+  // 같은 파트너 소속이지만, URL 거래처 ≠ DB 등록 소속 → 전용몰 혼동 방지
+  const affiliationMismatch =
+    !!shopClientId &&
+    userClients.length > 0 &&
+    !userClients.some((uc) => uc.client_id === shopClientId);
+
+  if (affiliationMismatch) {
+    const registered = userClients[0];
+    const regClient = registered?.clients;
+    const regName = regClient?.name?.trim() || "등록된 거래처";
+    const regSlug = regClient?.slug?.trim();
+    const mallLabel = shopClientName?.trim() || "현재 전용몰";
+
+    const goHomeRegistered =
+      regSlug && subdomain
+        ? `/${subdomain}/${regSlug}`
+        : subdomain
+          ? `/${subdomain}`
+          : "/";
+
+    return (
+      <div
+        style={{
+          padding: "40px 24px",
+          textAlign: "center",
+          maxWidth: "420px",
+          margin: "0 auto",
+        }}
+      >
+        <h3
+          style={{
+            fontSize: "1.125rem",
+            fontWeight: 700,
+            marginBottom: "12px",
+            color: "#1e293b",
+          }}
+        >
+          소속 거래처가 다른 전용몰입니다
+        </h3>
+        <p
+          style={{
+            fontSize: "0.875rem",
+            color: "#475569",
+            lineHeight: 1.7,
+            marginBottom: "20px",
+          }}
+        >
+          이 계정은 <strong>{regName}</strong> 소속으로 등록되어 있습니다.
+          <br />
+          <strong>{mallLabel}</strong>에서는 마이페이지·주문·장바구니 등을 이용할 수 없습니다.
+          <br />
+          소속이 맞는 전용몰 링크로 접속하거나, 관리자에게 문의해 주세요.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.replace(goHomeRegistered)}
+          style={{
+            padding: "14px 28px",
+            backgroundColor: "#D6A8E0",
+            color: "#fff",
+            border: "none",
+            borderRadius: "8px",
+            fontSize: "1rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            width: "100%",
+            maxWidth: "280px",
+          }}
+        >
+          {regSlug ? `${regName} 전용몰로 이동` : "홈으로"}
+        </button>
+      </div>
     );
   }
 

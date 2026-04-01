@@ -276,7 +276,11 @@ export default function RecentProductsPage() {
   );
 
   return (
-    <OrderGuard partnerId={partner.id}>
+    <OrderGuard
+      partnerId={partner.id}
+      shopClientId={client?.id}
+      shopClientName={client?.name ?? undefined}
+    >
       {content}
     </OrderGuard>
   );

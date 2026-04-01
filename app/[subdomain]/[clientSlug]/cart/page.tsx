@@ -195,7 +195,11 @@ export default function CartPage() {
   }
 
   return (
-    <OrderGuard partnerId={partnerId}>
+    <OrderGuard
+      partnerId={partnerId}
+      shopClientId={clientId ?? undefined}
+      shopClientName={client?.name ?? undefined}
+    >
       <div className="mx-auto max-w-[430px] min-h-screen bg-white pb-28">
         {/* 탭: 국내배송상품(N) / 해외배송상품(0) */}
         <div className="flex w-full border-b border-gray-200">

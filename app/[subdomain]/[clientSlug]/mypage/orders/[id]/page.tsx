@@ -235,7 +235,11 @@ export default function MyOrderDetailPage() {
 
   if (!order) {
     return (
-      <OrderGuard partnerId={partner.id}>
+      <OrderGuard
+        partnerId={partner.id}
+        shopClientId={client?.id}
+        shopClientName={client?.name ?? undefined}
+      >
         <div
           style={{
             minHeight: "100vh",
@@ -271,7 +275,11 @@ export default function MyOrderDetailPage() {
   }
 
   return (
-    <OrderGuard partnerId={partner.id}>
+    <OrderGuard
+      partnerId={partner.id}
+      shopClientId={client?.id}
+      shopClientName={client?.name ?? undefined}
+    >
       <div
         style={{
           maxWidth: "430px",

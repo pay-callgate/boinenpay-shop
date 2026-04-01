@@ -956,7 +956,11 @@ export default function CheckoutPage() {
   );
 
   return (
-    <OrderGuard partnerId={partnerId}>
+    <OrderGuard
+      partnerId={partnerId}
+      shopClientId={clientId ?? undefined}
+      shopClientName={template?.client?.name ?? undefined}
+    >
       <form onSubmit={handleSubmit} className="mx-auto min-h-screen max-w-[430px] bg-white pb-36 lg:max-w-6xl lg:px-6 lg:pb-40">
         <div className="px-4 py-4 lg:py-6">
           <div className="lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">

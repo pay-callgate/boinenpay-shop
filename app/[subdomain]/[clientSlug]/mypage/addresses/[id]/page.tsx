@@ -166,7 +166,11 @@ export default function EditAddressPage() {
 
   if (!address) {
     return (
-      <OrderGuard partnerId={partner.id}>
+      <OrderGuard
+        partnerId={partner.id}
+        shopClientId={client?.id}
+        shopClientName={client?.name ?? undefined}
+      >
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#F5F5F5", padding: "24px" }}>
           <p style={{ fontSize: "1rem", color: "#666", marginBottom: "16px" }}>배송지를 찾을 수 없습니다.</p>
           <button
@@ -191,7 +195,11 @@ export default function EditAddressPage() {
   }
 
   return (
-    <OrderGuard partnerId={partner.id}>
+    <OrderGuard
+      partnerId={partner.id}
+      shopClientId={client?.id}
+      shopClientName={client?.name ?? undefined}
+    >
       <div
         style={{
           maxWidth: "430px",

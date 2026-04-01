@@ -433,7 +433,11 @@ export default function OrderCompletePage() {
     !orderId;
 
   return (
-    <OrderGuard partnerId={partner?.id ?? undefined}>
+    <OrderGuard
+      partnerId={partner?.id ?? undefined}
+      shopClientId={client?.id}
+      shopClientName={client?.name ?? undefined}
+    >
       <div
         className="min-h-[60vh] w-full"
         style={{

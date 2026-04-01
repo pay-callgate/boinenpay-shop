@@ -148,7 +148,11 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <OrderGuard partnerId={partner.id}>
+      <OrderGuard
+        partnerId={partner.id}
+        shopClientId={client?.id}
+        shopClientName={client?.name ?? undefined}
+      >
         <div
           style={{
             minHeight: "100vh",
@@ -170,7 +174,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <OrderGuard partnerId={partner.id}>
+    <OrderGuard
+      partnerId={partner.id}
+      shopClientId={client?.id}
+      shopClientName={client?.name ?? undefined}
+    >
       <div className="flex flex-col min-h-screen bg-slate-50 max-w-[430px] mx-auto pb-[76px] relative">
         {/* 헤더 */}
         <header className="shrink-0 flex items-center gap-3 px-4 py-4 bg-white border-b border-gray-200">

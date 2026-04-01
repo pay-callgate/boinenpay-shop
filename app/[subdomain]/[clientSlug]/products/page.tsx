@@ -264,7 +264,11 @@ export default function ProductListPage() {
   // - 데모 이후에는 searchParams("category")를 단일 소스로 삼고,
   //   selectedCategory / 상단 카테고리 탭 / 사이드 메뉴가 모두 이 값을 기준으로 동작하도록 구조를 정리한다.
   return (
-    <OrderGuard partnerId={partnerId ?? undefined}>
+    <OrderGuard
+      partnerId={partnerId ?? undefined}
+      shopClientId={clientId ?? undefined}
+      shopClientName={template?.client?.name ?? undefined}
+    >
       <div
         style={{
           maxWidth: "430px",

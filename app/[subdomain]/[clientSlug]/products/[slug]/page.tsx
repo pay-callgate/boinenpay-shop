@@ -384,7 +384,11 @@ export default function ProductDetailPage() {
   const salePrice = product.sale_price ?? product.base_price;
 
   return (
-    <OrderGuard partnerId={partnerId ?? undefined}>
+    <OrderGuard
+      partnerId={partnerId ?? undefined}
+      shopClientId={clientId ?? undefined}
+      shopClientName={template?.client?.name ?? undefined}
+    >
       <div className="mx-auto max-w-[430px] min-h-screen bg-white tracking-tight">
         {/* Hero 이미지: 뷰포트 기반 높이(45vh, max 400px), 모바일 Above the Fold 최적화 */}
         <div className="relative h-[45vh] max-h-[400px] w-full bg-gray-100">
