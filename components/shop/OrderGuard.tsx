@@ -8,10 +8,9 @@ import { ClientSearchModal } from "./ClientSearchModal";
 
 /**
  * T3.5-3: 주문 가드 컴포넌트
- * - 미로그인 시 로그인 유도
- * - 로그인했지만 user_clients 없으면 소속 기업 찾기 팝업
- * - shopClientId 가 주어지면: DB 소속 거래처와 URL 거래처가 같을 때만 통과 (다른 전용몰 혼선 방지)
- * - 매칭 완료 시 children 렌더링 (주문/결제 가능)
+ * - 기본(requireAuth): 미로그인 시 로그인 유도, user_clients 없으면 소속 기업 찾기
+ * - blockAffiliationMismatch: URL 거래처 ≠ DB 소속 시 차단(마이·장바구니·결제 등)
+ * - 상품 목록/상세: requireAuth=false, blockAffiliationMismatch=false 로 탐색만 허용(구매는 API·모달로 방어)
  */
 
 interface Client {
@@ -28,6 +27,17 @@ interface Props {
   shopClientId?: string;
   /** 안내 문구용 현재 전용몰 거래처명 */
   shopClientName?: string;
+  /**
+   * false: 미로그인·거래처 미매칭으로도 children 노출 (상품 목록/상세 탐색 전용).
+   * 리다이렉트·소속 기업 찾기 게이트 생략.
+   * @default true
+   */
+  requireAuth?: boolean;
+  /**
+   * false: URL 거래처 ≠ DB 소속일 때 차단 UI 미표시 (탐색 허용). 주문/장바구니는 API로 방어.
+   * @default true
+   */
+  blockAffiliationMismatch?: boolean;
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }
@@ -36,6 +46,8 @@ export function OrderGuard({
   partnerId,
   shopClientId,
   shopClientName,
+  requireAuth = true,
+  blockAffiliationMismatch = true,
   children,
   fallback,
 }: Props) {
@@ -65,6 +77,7 @@ export function OrderGuard({
       }
     }
 
+    if (requireAuth === false) return;
     if (status !== "unauthenticated" || !subdomain) return;
     const callbackUrl = typeof window !== "undefined" ? window.location.href : "";
     const url = `/${subdomain}/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
@@ -79,10 +92,11 @@ export function OrderGuard({
     }
 
     router.replace(url);
-  }, [status, subdomain, router]);
+  }, [status, subdomain, router, requireAuth]);
 
-  // 로딩 중
-  if (status === "loading" || loading) {
+  // 로딩 중 — 탐색 전용: 비로그인이면 user_clients 대기 없이 통과
+  const waitUserClients = requireAuth !== false || status === "authenticated";
+  if (status === "loading" || (waitUserClients && loading)) {
     return (
       fallback || (
         <div
@@ -98,8 +112,11 @@ export function OrderGuard({
     );
   }
 
-  // 미로그인 → useEffect에서 /[subdomain]/login 으로 리다이렉트 중. 리다이렉트 전까지 빈 화면 또는 최소 로딩
+  // 미로그인 → useEffect에서 /[subdomain]/login 으로 리다이렉트 중. 탐색 전용(requireAuth false)은 children 그대로
   if (status === "unauthenticated") {
+    if (requireAuth === false) {
+      return <>{children}</>;
+    }
     return (
       <div
         style={{
@@ -114,8 +131,8 @@ export function OrderGuard({
     );
   }
 
-  // 로그인했지만 거래처 미매칭
-  if (!isMatched && !skipGuard) {
+  // 로그인했지만 거래처 미매칭 (탐색 전용에서는 게이트 생략)
+  if (requireAuth !== false && !isMatched && !skipGuard) {
     if (loopError) {
       return (
         <div
@@ -227,7 +244,7 @@ export function OrderGuard({
     userClients.length > 0 &&
     !userClients.some((uc) => uc.client_id === shopClientId);
 
-  if (affiliationMismatch) {
+  if (blockAffiliationMismatch !== false && affiliationMismatch) {
     const registered = userClients[0];
     const regClient = registered?.clients;
     const regName = regClient?.name?.trim() || "등록된 거래처";

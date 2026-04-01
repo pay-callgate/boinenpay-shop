@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { userBelongsToClient } from "@/lib/mypage-client-access";
 
 /**
  * T6-5: 관심상품(Wishlist) API
@@ -24,6 +25,14 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createServerSupabase();
+
+    const belongs = await userBelongsToClient(supabase, session.user.id, clientId);
+    if (!belongs) {
+      return NextResponse.json(
+        { error: "이 전용몰의 소속 회원만 관심상품을 이용할 수 있습니다." },
+        { status: 403 }
+      );
+    }
 
     const { data: wishlistItems, error } = await supabase
       .from("wishlist_items")
@@ -75,6 +84,14 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerSupabase();
+
+    const belongs = await userBelongsToClient(supabase, session.user.id, clientId);
+    if (!belongs) {
+      return NextResponse.json(
+        { error: "이 전용몰의 소속 회원만 관심상품에 담을 수 있습니다." },
+        { status: 403 }
+      );
+    }
 
     // 이미 등록된 관심상품인지 확인
     const { data: existing } = await supabase

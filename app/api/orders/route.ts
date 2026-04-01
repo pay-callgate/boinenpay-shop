@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
 import { logApiRequest } from "@/lib/logger";
+import { userBelongsToClient } from "@/lib/mypage-client-access";
 
 /**
  * T4-5 & T5-1: 주문 API
@@ -164,6 +165,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "거래처 정보가 올바르지 않습니다." },
         { status: 400 }
+      );
+    }
+
+    const belongs = await userBelongsToClient(supabase, session.user.id, clientId);
+    if (!belongs) {
+      return NextResponse.json(
+        { error: "이 전용몰의 소속 회원만 주문할 수 있습니다." },
+        { status: 403 }
       );
     }
 

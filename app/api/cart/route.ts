@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { userBelongsToClient } from "@/lib/mypage-client-access";
 
 /**
  * T4-4: 장바구니 API
@@ -26,6 +27,14 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createServerSupabase();
+
+    const belongs = await userBelongsToClient(supabase, session.user.id, clientId);
+    if (!belongs) {
+      return NextResponse.json(
+        { error: "이 전용몰의 소속 회원만 장바구니를 이용할 수 있습니다." },
+        { status: 403 }
+      );
+    }
 
     // countOnly: 뱃지용 경량 조회 (product join 없이 cart_items 개수만)
     if (countOnly) {
@@ -131,6 +140,14 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerSupabase();
+
+    const belongs = await userBelongsToClient(supabase, session.user.id, clientId);
+    if (!belongs) {
+      return NextResponse.json(
+        { error: "이 전용몰의 소속 회원만 장바구니에 담을 수 있습니다." },
+        { status: 403 }
+      );
+    }
 
     // 거래처·상품 동일 파트너 소속 검증 (테넌트 격리: 타 거래처 상품 담기 방지)
     const [{ data: clientRow }, { data: productRow }] = await Promise.all([

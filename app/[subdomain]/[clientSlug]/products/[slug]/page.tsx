@@ -2,8 +2,14 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { ChevronLeft, ChevronRight, Heart, Share2 } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
+import {
+  ShopPurchaseBlockModal,
+  type ShopPurchaseBlockReason,
+} from "@/components/shop/ShopPurchaseBlockModal";
+import { useUserClient } from "@/hooks/useUserClient";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
@@ -65,6 +71,12 @@ export default function ProductDetailPage() {
 
   const template = useShopTemplate();
   const partnerId = template?.partner?.id ?? null;
+  const { data: session, status: sessionStatus } = useSession();
+  const { userClients, loading: userClientLoading } = useUserClient(partnerId ?? undefined);
+
+  const [purchaseBlockOpen, setPurchaseBlockOpen] = useState(false);
+  const [purchaseBlockReason, setPurchaseBlockReason] =
+    useState<ShopPurchaseBlockReason>("login");
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,7 +115,8 @@ export default function ProductDetailPage() {
             });
             setSelectedOptions(defaultOptions);
           }
-          if (prod?.id && subdomain && clientSlug) {
+          const mallCid = template?.client?.id;
+          if (mallCid && prod?.id && subdomain && clientSlug) {
             addRecentProduct(subdomain, clientSlug, {
               id: prod.id,
               name: prod.name,
@@ -118,11 +131,12 @@ export default function ProductDetailPage() {
             .split("; ")
             .find((row) => row.startsWith("client_source_id="))
             ?.split("=")[1];
-          if (clientIdCookie && prod?.id) {
+          const viewClientId = mallCid ?? clientIdCookie;
+          if (viewClientId && prod?.id) {
             shopFetch("/api/mypage/product-views", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ productId: prod.id, clientId: clientIdCookie }),
+              body: JSON.stringify({ productId: prod.id, clientId: viewClientId }),
             }).catch(() => {});
           }
         } else {
@@ -139,7 +153,8 @@ export default function ProductDetailPage() {
 
   const clientId = template?.client?.id ?? null;
   useEffect(() => {
-    if (!clientId || !product?.id) return;
+    // 비로그인 시 관심상품 API는 401 → shopFetch가 전역 로그아웃·로그인 이동을 트리거함
+    if (sessionStatus !== "authenticated" || !clientId || !product?.id) return;
     let cancelled = false;
     shopFetch(`/api/mypage/wishlist?clientId=${clientId}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -152,13 +167,44 @@ export default function ProductDetailPage() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [clientId, product?.id]);
+  }, [sessionStatus, clientId, product?.id]);
+
+  const tryPurchaseOrWishlistAction = (): boolean => {
+    if (!clientId) {
+      toast("거래처 정보를 불러올 수 없습니다.");
+      return false;
+    }
+    if (
+      sessionStatus === "loading" ||
+      (sessionStatus === "authenticated" && userClientLoading)
+    ) {
+      toast("잠시만 기다려 주세요.");
+      return false;
+    }
+    if (sessionStatus === "unauthenticated") {
+      setPurchaseBlockReason("login");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    if (userClients.length === 0) {
+      setPurchaseBlockReason("needClient");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    if (!userClients.some((uc) => uc.client_id === clientId)) {
+      setPurchaseBlockReason("affiliation");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    return true;
+  };
 
   const addToWishlist = async () => {
     if (!product?.id || !clientId) {
-      toast("로그인 후 이용해 주세요.");
+      toast("거래처 정보를 불러올 수 없습니다.");
       return;
     }
+    if (!tryPurchaseOrWishlistAction()) return;
     setWishlistChecking(true);
     try {
       const res = await shopFetch("/api/mypage/wishlist", {
@@ -239,21 +285,15 @@ export default function ProductDetailPage() {
       toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
-    const clientIdCookie = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("client_source_id="))
-      ?.split("=")[1];
-    if (!clientIdCookie) {
-      toast("거래처 정보를 찾을 수 없습니다.");
-      return;
-    }
+    if (!tryPurchaseOrWishlistAction()) return;
+    if (!clientId) return;
     setAddingToCart(true);
     try {
       const res = await shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientId: clientIdCookie,
+          clientId,
           productId: product.id,
           optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
           quantity,
@@ -280,21 +320,15 @@ export default function ProductDetailPage() {
       toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
-    const clientIdCookie = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("client_source_id="))
-      ?.split("=")[1];
-    if (!clientIdCookie) {
-      toast("거래처 정보를 찾을 수 없습니다.");
-      return;
-    }
+    if (!tryPurchaseOrWishlistAction()) return;
+    if (!clientId) return;
     setAddingToCart(true);
     try {
       const res = await shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientId: clientIdCookie,
+          clientId,
           productId: product.id,
           optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
           quantity,
@@ -383,11 +417,15 @@ export default function ProductDetailPage() {
   const discountRate = getDiscountRate(product.base_price, product.sale_price);
   const salePrice = product.sale_price ?? product.base_price;
 
+  const regClient = userClients[0]?.clients;
+
   return (
     <OrderGuard
       partnerId={partnerId ?? undefined}
       shopClientId={clientId ?? undefined}
       shopClientName={template?.client?.name ?? undefined}
+      requireAuth={false}
+      blockAffiliationMismatch={false}
     >
       <div className="mx-auto max-w-[430px] min-h-screen bg-white tracking-tight">
         {/* Hero 이미지: 뷰포트 기반 높이(45vh, max 400px), 모바일 Above the Fold 최적화 */}
@@ -759,6 +797,23 @@ export default function ProductDetailPage() {
           </div>
         </div>
       )}
+
+      <ShopPurchaseBlockModal
+        isOpen={purchaseBlockOpen}
+        onClose={() => setPurchaseBlockOpen(false)}
+        reason={purchaseBlockReason}
+        subdomain={subdomain}
+        clientSlug={clientSlug}
+        callbackUrl={
+          typeof window !== "undefined"
+            ? window.location.href
+            : `/${subdomain}/${clientSlug}/products/${productSlug}`
+        }
+        shopClientName={template?.client?.name}
+        registeredClientName={regClient?.name}
+        registeredClientSlug={regClient?.slug}
+        userEmail={session?.user?.email ?? null}
+      />
     </OrderGuard>
   );
 }

@@ -2,8 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Heart, ShoppingBag } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
+import {
+  ShopPurchaseBlockModal,
+  type ShopPurchaseBlockReason,
+} from "@/components/shop/ShopPurchaseBlockModal";
+import { useUserClient } from "@/hooks/useUserClient";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
@@ -40,6 +46,12 @@ export default function ProductListPage() {
   const searchParams = useSearchParams();
   const template = useShopTemplate();
   const partnerId = template?.partner?.id ?? null;
+  const { data: session, status: sessionStatus } = useSession();
+  const { userClients, loading: userClientLoading } = useUserClient(partnerId ?? undefined);
+
+  const [purchaseBlockOpen, setPurchaseBlockOpen] = useState(false);
+  const [purchaseBlockReason, setPurchaseBlockReason] =
+    useState<ShopPurchaseBlockReason>("login");
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
@@ -65,9 +77,39 @@ export default function ProductListPage() {
 
   const clientId = template?.client?.id ?? null;
 
-  // 관심상품 목록 조회 (아이콘 채움 표시용)
+  const tryMallPurchaseAction = useCallback((): boolean => {
+    if (!clientId) {
+      toast("거래처 정보를 불러올 수 없습니다.");
+      return false;
+    }
+    if (
+      sessionStatus === "loading" ||
+      (sessionStatus === "authenticated" && userClientLoading)
+    ) {
+      toast("잠시만 기다려 주세요.");
+      return false;
+    }
+    if (sessionStatus === "unauthenticated") {
+      setPurchaseBlockReason("login");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    if (userClients.length === 0) {
+      setPurchaseBlockReason("needClient");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    if (!userClients.some((uc) => uc.client_id === clientId)) {
+      setPurchaseBlockReason("affiliation");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    return true;
+  }, [clientId, sessionStatus, userClientLoading, userClients]);
+
+  // 관심상품 목록 조회 (아이콘 채움 표시용) — 비로그인 401 시 shopFetch 전역 세션 만료 처리 방지
   useEffect(() => {
-    if (!clientId) return;
+    if (sessionStatus !== "authenticated" || !clientId) return;
     shopFetch(`/api/mypage/wishlist?clientId=${clientId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -75,15 +117,16 @@ export default function ProductListPage() {
         setWishlistProductIds(new Set(items.map((i: { product: { id: string } }) => i.product?.id).filter(Boolean)));
       })
       .catch(() => {});
-  }, [clientId]);
+  }, [clientId, sessionStatus]);
 
   const handleAddToWishlist = useCallback(
     async (e: React.MouseEvent, productId: string) => {
       e.stopPropagation();
       if (!clientId) {
-        toast("로그인 후 이용해 주세요.");
+        toast("거래처 정보를 불러올 수 없습니다.");
         return;
       }
+      if (!tryMallPurchaseAction()) return;
       setAddingWishlistId(productId);
       try {
         const res = await shopFetch("/api/mypage/wishlist", {
@@ -104,7 +147,7 @@ export default function ProductListPage() {
         setAddingWishlistId(null);
       }
     },
-    [clientId]
+    [clientId, tryMallPurchaseAction]
   );
 
   const handleAddToCart = useCallback(
@@ -114,20 +157,14 @@ export default function ProductListPage() {
         toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
         return;
       }
-      const clientIdCookie = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("client_source_id="))
-        ?.split("=")[1];
-      if (!clientIdCookie) {
-        toast("거래처 정보를 찾을 수 없습니다.");
-        return;
-      }
+      if (!tryMallPurchaseAction()) return;
+      if (!clientId) return;
       setAddingCartId(productId);
       try {
         const res = await shopFetch("/api/cart", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
+          body: JSON.stringify({ clientId, productId, quantity: 1 }),
         });
         if (res.ok) {
           if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
@@ -142,7 +179,7 @@ export default function ProductListPage() {
         setAddingCartId(null);
       }
     },
-    [template?.orderAllowed]
+    [template?.orderAllowed, tryMallPurchaseAction, clientId]
   );
 
   // 카테고리 목록 조회
@@ -263,11 +300,15 @@ export default function ProductListPage() {
   // TODO(카테고리 단일 소스 리팩터링):
   // - 데모 이후에는 searchParams("category")를 단일 소스로 삼고,
   //   selectedCategory / 상단 카테고리 탭 / 사이드 메뉴가 모두 이 값을 기준으로 동작하도록 구조를 정리한다.
+  const regClient = userClients[0]?.clients;
+
   return (
     <OrderGuard
       partnerId={partnerId ?? undefined}
       shopClientId={clientId ?? undefined}
       shopClientName={template?.client?.name ?? undefined}
+      requireAuth={false}
+      blockAffiliationMismatch={false}
     >
       <div
         style={{
@@ -612,6 +653,23 @@ export default function ProductListPage() {
           </div>
         )}
       </div>
+
+      <ShopPurchaseBlockModal
+        isOpen={purchaseBlockOpen}
+        onClose={() => setPurchaseBlockOpen(false)}
+        reason={purchaseBlockReason}
+        subdomain={subdomain}
+        clientSlug={clientSlug}
+        callbackUrl={
+          typeof window !== "undefined"
+            ? window.location.href
+            : `/${subdomain}/${clientSlug}/products`
+        }
+        shopClientName={template?.client?.name}
+        registeredClientName={regClient?.name}
+        registeredClientSlug={regClient?.slug}
+        userEmail={session?.user?.email ?? null}
+      />
     </OrderGuard>
   );
 }

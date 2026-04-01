@@ -31,6 +31,23 @@ export async function hasMypageClientAccess(
   return isMember || hasOrder;
 }
 
+/**
+ * user_clients 에 해당 거래처가 있는지 (장바구니·주문 등: 주문 이력 없이 소속만 허용)
+ */
+export async function userBelongsToClient(
+  supabase: ServerSupabase,
+  userId: string,
+  clientId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("user_clients")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("client_id", clientId)
+    .maybeSingle();
+  return !!data;
+}
+
 /** client 존재 여부 (UUID 검증용) */
 export async function getClientRow(
   supabase: ServerSupabase,

@@ -11,6 +11,11 @@ import type { ShopPartner, ShopClient } from "./ShopLayout";
 import { BOTTOM_NAV_HEIGHT, PREVIEW_SLUG } from "./ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "./ToastContext";
+import { useUserClient } from "@/hooks/useUserClient";
+import {
+  ShopPurchaseBlockModal,
+  type ShopPurchaseBlockReason,
+} from "./ShopPurchaseBlockModal";
 
 const PRIMARY = "#D6A8E0";
 
@@ -159,9 +164,45 @@ export function ShopMainHome({
   loadMore,
 }: ShopMainHomeProps) {
   const router = useRouter();
-  const { status: sessionStatus } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const shop = useShopTemplate();
   const clientId = shop?.client?.id ?? null;
+  const { userClients, loading: userClientLoading } = useUserClient(partner.id);
+  const [purchaseBlockOpen, setPurchaseBlockOpen] = useState(false);
+  const [purchaseBlockReason, setPurchaseBlockReason] =
+    useState<ShopPurchaseBlockReason>("login");
+  const slugForPath = clientSlug ?? PREVIEW_SLUG;
+
+  const tryMallPurchaseAction = useCallback((): boolean => {
+    if (!clientId) {
+      toast("거래처 정보를 불러올 수 없습니다.");
+      return false;
+    }
+    if (
+      sessionStatus === "loading" ||
+      (sessionStatus === "authenticated" && userClientLoading)
+    ) {
+      toast("잠시만 기다려 주세요.");
+      return false;
+    }
+    if (sessionStatus === "unauthenticated") {
+      setPurchaseBlockReason("login");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    if (userClients.length === 0) {
+      setPurchaseBlockReason("needClient");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    if (!userClients.some((uc) => uc.client_id === clientId)) {
+      setPurchaseBlockReason("affiliation");
+      setPurchaseBlockOpen(true);
+      return false;
+    }
+    return true;
+  }, [clientId, sessionStatus, userClientLoading, userClients]);
+
   const [wishlistProductIds, setWishlistProductIds] = useState<Set<string>>(new Set());
   const [wishlistItemIdsByProductId, setWishlistItemIdsByProductId] = useState<Record<string, string>>({});
   const [addingCartId, setAddingCartId] = useState<string | null>(null);
@@ -263,9 +304,10 @@ export function ShopMainHome({
       e.preventDefault();
       e.stopPropagation();
       if (!clientId) {
-        toast("로그인 후 이용해 주세요.");
+        toast("거래처 정보를 불러올 수 없습니다.");
         return;
       }
+      if (!tryMallPurchaseAction()) return;
       setAddingWishlistId(productId);
       shopFetch("/api/mypage/wishlist", {
         method: "POST",
@@ -296,7 +338,7 @@ export function ShopMainHome({
         .catch(() => toast("네트워크 오류가 발생했습니다.", "error"))
         .finally(() => setAddingWishlistId(null));
     },
-    [clientId]
+    [clientId, tryMallPurchaseAction]
   );
 
   const toggleWishlist = useCallback(
@@ -315,21 +357,13 @@ export function ShopMainHome({
         toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
         return;
       }
-      const clientIdCookie = typeof document !== "undefined"
-        ? document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("client_source_id="))
-            ?.split("=")[1]
-        : null;
-      if (!clientIdCookie) {
-        toast("거래처 정보를 찾을 수 없습니다.");
-        return;
-      }
+      if (!tryMallPurchaseAction()) return;
+      if (!clientId) return;
       setAddingCartId(productId);
       shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
+        body: JSON.stringify({ clientId, productId, quantity: 1 }),
       })
         .then((res) => {
           if (res.ok) {
@@ -344,12 +378,13 @@ export function ShopMainHome({
         .catch(() => toast("네트워크 오류가 발생했습니다.", "error"))
         .finally(() => setAddingCartId(null));
     },
-    [shop?.orderAllowed]
+    [shop?.orderAllowed, tryMallPurchaseAction, clientId]
   );
 
   if (!shop) return null;
 
   const basePath = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
+  const regClient = userClients[0]?.clients;
 
   const handleMoreView = (categorySlug: string) => {
     router.push(`${basePath}/products?category=${categorySlug}`);
@@ -609,6 +644,23 @@ export function ShopMainHome({
       )}
 
       <ShopBusinessInfoAccordion />
+
+      <ShopPurchaseBlockModal
+        isOpen={purchaseBlockOpen}
+        onClose={() => setPurchaseBlockOpen(false)}
+        reason={purchaseBlockReason}
+        subdomain={subdomain}
+        clientSlug={slugForPath}
+        callbackUrl={
+          typeof window !== "undefined"
+            ? window.location.href
+            : `/${subdomain}/${slugForPath}`
+        }
+        shopClientName={shop?.client?.name}
+        registeredClientName={regClient?.name}
+        registeredClientSlug={regClient?.slug}
+        userEmail={session?.user?.email ?? null}
+      />
     </>
   );
 }
