@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useUserClient } from "@/hooks/useUserClient";
 import { ClientSearchModal } from "./ClientSearchModal";
 
@@ -233,6 +233,10 @@ export function OrderGuard({
     const regName = regClient?.name?.trim() || "등록된 거래처";
     const regSlug = regClient?.slug?.trim();
     const mallLabel = shopClientName?.trim() || "현재 전용몰";
+    const userEmail =
+      typeof session?.user?.email === "string" && session.user.email.trim() !== ""
+        ? session.user.email.trim()
+        : null;
 
     const goHomeRegistered =
       regSlug && subdomain
@@ -240,6 +244,22 @@ export function OrderGuard({
         : subdomain
           ? `/${subdomain}`
           : "/";
+
+    const handleLoginAsAnotherAccount = async () => {
+      if (typeof window === "undefined" || !subdomain) return;
+      const origin = window.location.origin;
+      const returnTo = window.location.href;
+      const loginPath = `/${subdomain}/login?callbackUrl=${encodeURIComponent(returnTo)}`;
+      const loginUrl = `${origin}${loginPath}`;
+      try {
+        await signOut({ redirect: false });
+      } catch {
+        // 세션 해제 실패해도 로그인 화면으로 이동 (쿠키 정리는 서버가 처리)
+      }
+      if (typeof window !== "undefined") {
+        window.location.replace(loginUrl);
+      }
+    };
 
     return (
       <div
@@ -265,33 +285,73 @@ export function OrderGuard({
             fontSize: "0.875rem",
             color: "#475569",
             lineHeight: 1.7,
-            marginBottom: "20px",
+            marginBottom: "16px",
           }}
         >
+          {userEmail ? (
+            <>
+              지금 브라우저에 로그인된 계정은 <strong style={{ wordBreak: "break-all" }}>{userEmail}</strong>
+              입니다.
+              <br />
+            </>
+          ) : (
+            <>
+              현재 계정의 이메일을 표시할 수 없습니다. (SNS 로그인 등)
+              <br />
+            </>
+          )}
           이 계정은 <strong>{regName}</strong> 소속으로 등록되어 있습니다.
           <br />
           <strong>{mallLabel}</strong>에서는 마이페이지·주문·장바구니 등을 이용할 수 없습니다.
           <br />
           소속이 맞는 전용몰 링크로 접속하거나, 관리자에게 문의해 주세요.
         </p>
-        <button
-          type="button"
-          onClick={() => router.replace(goHomeRegistered)}
+        <div
           style={{
-            padding: "14px 28px",
-            backgroundColor: "#D6A8E0",
-            color: "#fff",
-            border: "none",
-            borderRadius: "8px",
-            fontSize: "1rem",
-            fontWeight: 600,
-            cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "10px",
             width: "100%",
             maxWidth: "280px",
+            margin: "0 auto",
           }}
         >
-          {regSlug ? `${regName} 전용몰로 이동` : "홈으로"}
-        </button>
+          <button
+            type="button"
+            onClick={() => router.replace(goHomeRegistered)}
+            style={{
+              padding: "14px 28px",
+              backgroundColor: "#D6A8E0",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "1rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              width: "100%",
+            }}
+          >
+            {regSlug ? `${regName} 전용몰로 이동` : "홈으로"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleLoginAsAnotherAccount()}
+            style={{
+              padding: "14px 28px",
+              backgroundColor: "#fff",
+              color: "#5B21B6",
+              border: "2px solid #D6A8E0",
+              borderRadius: "8px",
+              fontSize: "1rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              width: "100%",
+            }}
+          >
+            다른 계정으로 로그인
+          </button>
+        </div>
       </div>
     );
   }
