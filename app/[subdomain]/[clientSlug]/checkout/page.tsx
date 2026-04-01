@@ -198,9 +198,10 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!clientId) return;
+    const cid = clientId;
     async function loadAddresses() {
       const res = await shopFetch(
-        `/api/mypage/addresses?clientId=${encodeURIComponent(clientId)}`
+        `/api/mypage/addresses?clientId=${encodeURIComponent(cid)}`
       );
       if (res.ok) {
         const data = await res.json();
