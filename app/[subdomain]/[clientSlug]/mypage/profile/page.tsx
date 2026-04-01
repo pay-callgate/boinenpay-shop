@@ -7,6 +7,11 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
+import {
+  parseShopJsonResponse,
+  type RegisteredClientHint,
+  type ShopApiErrorBody,
+} from "@/lib/shop-api-error";
 
 /**
  * T6-4: 회원정보 수정
@@ -36,6 +41,11 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  /** 조회 실패 시 HTTP 상태 + API body (403 시 registeredClient 포함) */
+  const [loadIssue, setLoadIssue] = useState<{
+    status: number;
+    body: ShopApiErrorBody;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -50,26 +60,56 @@ export default function ProfilePage() {
 
     (async () => {
       try {
+        setLoadIssue(null);
         const res = await shopFetch(`/api/mypage/profile?clientId=${client.id}`);
         if (cancelled) return;
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          console.error("[mypage/profile] 조회 실패:", res.status, err?.error ?? res.statusText);
+
+        const parsed = await parseShopJsonResponse<{ user: User | null }>(res);
+        if (!parsed.ok) {
+          console.error(
+            "[mypage/profile] 조회 실패:",
+            parsed.status,
+            parsed.body?.error ?? res.statusText
+          );
+          setUser(null);
+          setLoadIssue({ status: parsed.status, body: parsed.body });
+          if (parsed.status === 500) {
+            toast(
+              "일시적인 오류로 회원정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+              "error"
+            );
+          }
           return;
         }
 
-        const data = await res.json();
-        if (!data?.user) return;
+        const u = parsed.data.user;
+        if (!u || typeof u !== "object" || !u.id || typeof u.email !== "string") {
+          setUser(null);
+          setLoadIssue({
+            status: 404,
+            body: {
+              error:
+                "회원 정보를 찾을 수 없습니다. 문제가 계속되면 관리자에게 문의해 주세요.",
+            },
+          });
+          return;
+        }
 
-        setUser(data.user);
+        setUser(u);
         setFormData({
-          name: data.user.name,
-          phone: data.user.phone || "",
+          name: u.name ?? "",
+          phone: u.phone || "",
         });
       } catch (e) {
+        if (e instanceof Error && e.message === "SESSION_EXPIRED") return;
         if (!cancelled) {
           console.error("[mypage/profile] 네트워크 오류:", e);
           toast("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "error");
+          setUser(null);
+          setLoadIssue({
+            status: 0,
+            body: { error: "네트워크 오류가 발생했습니다." },
+          });
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -98,14 +138,21 @@ export default function ProfilePage() {
         body: JSON.stringify(formData),
       });
 
-      if (res.ok) {
+      const parsed = await parseShopJsonResponse<{ user?: User }>(res);
+      if (parsed.ok) {
         toast("회원정보가 수정되었습니다.", "success");
-        const data = await res.json();
-        setUser(data.user);
+        if (parsed.data.user?.id) setUser(parsed.data.user as User);
       } else {
-        const error = await res.json().catch(() => ({}));
-        console.error("[mypage/profile] 수정 실패:", res.status, error?.error ?? res.statusText);
-        toast(error?.error || "회원정보 수정에 실패했습니다.", "error");
+        console.error("[mypage/profile] 수정 실패:", parsed.status, parsed.body?.error);
+        if (parsed.status === 403) {
+          const rc = parsed.body.registeredClient;
+          const msg = rc?.name?.trim()
+            ? `이 전용몰에서는 회원정보를 수정할 수 없습니다. ${rc.name} 몰에 등록되어 있습니다. 소속 거래처 전용몰인 ${rc.name}에서 이용해 주세요.`
+            : parsed.body.error || "회원정보를 수정할 수 없습니다.";
+          toast(msg, "error");
+        } else {
+          toast(parsed.body.error || "회원정보 수정에 실패했습니다.", "error");
+        }
       }
     } catch {
       toast("네트워크 오류가 발생했습니다.", "error");
@@ -147,6 +194,12 @@ export default function ProfilePage() {
   }
 
   if (!user) {
+    const rc: RegisteredClientHint | null | undefined = loadIssue?.body.registeredClient;
+    const registeredHref =
+      rc?.partnerSubdomain && rc.slug
+        ? `/${rc.partnerSubdomain}/${rc.slug}/mypage/profile`
+        : null;
+
     return (
       <OrderGuard
         partnerId={partner.id}
@@ -165,9 +218,91 @@ export default function ProfilePage() {
             textAlign: "center",
           }}
         >
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 700 }}>
-            사용자 정보를 불러올 수 없습니다
-          </h1>
+          {loadIssue?.status === 403 ? (
+            <>
+              <h1
+                style={{
+                  fontSize: "1.125rem",
+                  fontWeight: 700,
+                  color: "#1e293b",
+                  marginBottom: "12px",
+                  lineHeight: 1.5,
+                }}
+              >
+                이 전용몰에서는 회원정보를 조회할 수 없습니다
+              </h1>
+              <p
+                style={{
+                  fontSize: "0.875rem",
+                  color: "#475569",
+                  lineHeight: 1.7,
+                  marginBottom: "16px",
+                  maxWidth: "320px",
+                }}
+              >
+                소속 거래처 전용몰에서 이용해 주세요.
+                {rc?.name ? (
+                  <>
+                    <br />
+                    <br />
+                    <strong>{rc.name}</strong> 몰에 등록되어 있습니다.
+                    <br />
+                    소속 거래처 전용몰인 <strong>{rc.name}</strong>에서 회원정보를
+                    확인해 주세요.
+                  </>
+                ) : (
+                  <>
+                    <br />
+                    <br />
+                    (이 계정에 연결된 소속 거래처 정보를 찾지 못했습니다. 관리자에게
+                    문의해 주세요.)
+                  </>
+                )}
+              </p>
+              {registeredHref ? (
+                <button
+                  type="button"
+                  onClick={() => router.replace(registeredHref!)}
+                  style={{
+                    padding: "14px 28px",
+                    backgroundColor: "#D6A8E0",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    maxWidth: "280px",
+                    width: "100%",
+                  }}
+                >
+                  {rc?.name ? `${rc.name} 회원정보로 이동` : "소속 몰로 이동"}
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#1e293b" }}>
+                {loadIssue?.status === 404
+                  ? "회원 정보를 찾을 수 없습니다"
+                  : loadIssue?.status === 400
+                    ? "잘못된 요청입니다"
+                    : "회원정보를 불러오지 못했습니다"}
+              </h1>
+              <p
+                style={{
+                  marginTop: "12px",
+                  fontSize: "0.875rem",
+                  color: "#64748b",
+                  lineHeight: 1.6,
+                  maxWidth: "320px",
+                }}
+              >
+                {loadIssue?.body?.error ||
+                  "일시적인 오류일 수 있습니다. 잠시 후 다시 시도해 주세요."}
+              </p>
+            </>
+          )}
         </div>
       </OrderGuard>
     );

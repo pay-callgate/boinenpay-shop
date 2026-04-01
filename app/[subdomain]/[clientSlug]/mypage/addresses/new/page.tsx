@@ -38,12 +38,16 @@ export default function NewAddressPage() {
       toast("배송지 정보를 모두 입력해주세요.");
       return;
     }
+    if (!client?.id) {
+      toast("거래처 정보를 불러올 수 없습니다.", "error");
+      return;
+    }
     setSaving(true);
     try {
       const res = await shopFetch(`/api/mypage/addresses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, clientId: client.id }),
       });
       if (res.ok) {
         toast("배송지가 추가되었습니다.", "success");

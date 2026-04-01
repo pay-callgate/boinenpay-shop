@@ -197,8 +197,11 @@ export default function CheckoutPage() {
   }, [session?.user?.id, session?.user?.name, clientId]);
 
   useEffect(() => {
+    if (!clientId) return;
     async function loadAddresses() {
-      const res = await shopFetch("/api/mypage/addresses");
+      const res = await shopFetch(
+        `/api/mypage/addresses?clientId=${encodeURIComponent(clientId)}`
+      );
       if (res.ok) {
         const data = await res.json();
         const list = data.addresses || [];
@@ -221,7 +224,7 @@ export default function CheckoutPage() {
       }
     }
     loadAddresses();
-  }, []);
+  }, [clientId]);
 
   useEffect(() => {
     if (!addressesLoadedRef.current || addresses.length > 0) return;
@@ -351,6 +354,7 @@ export default function CheckoutPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              clientId,
               name,
               phone,
               postcode: postcode || "",
@@ -999,15 +1003,18 @@ export default function CheckoutPage() {
         </div>
       </form>
 
-      <AddressSelectModal
-        isOpen={showAddressModal}
-        onClose={() => setShowAddressModal(false)}
-        addresses={addresses}
-        selectedId={selectedAddressId}
-        onSelect={handleSelectAddress}
-        ordererName={ordererName}
-        ordererPhone={ordererPhone}
-      />
+      {clientId && (
+        <AddressSelectModal
+          isOpen={showAddressModal}
+          onClose={() => setShowAddressModal(false)}
+          clientId={clientId}
+          addresses={addresses}
+          selectedId={selectedAddressId}
+          onSelect={handleSelectAddress}
+          ordererName={ordererName}
+          ordererPhone={ordererPhone}
+        />
+      )}
     </OrderGuard>
   );
 }

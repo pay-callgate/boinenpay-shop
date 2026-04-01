@@ -23,6 +23,8 @@ export interface Address {
 interface AddressSelectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** 현재 거래처 배송지 격리 — POST 시 필수 */
+  clientId: string;
   addresses: Address[];
   selectedId: string | null;
   onSelect: (address: Address) => void;
@@ -41,6 +43,7 @@ interface AddressSelectModalProps {
 export function AddressSelectModal({
   isOpen,
   onClose,
+  clientId,
   addresses,
   selectedId,
   onSelect,
@@ -132,6 +135,7 @@ export function AddressSelectModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          clientId,
           name: formName.trim(),
           phone: formPhone.trim(),
           postcode: formPostcode || "",

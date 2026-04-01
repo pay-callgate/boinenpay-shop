@@ -49,7 +49,9 @@ export default function EditAddressPage() {
   useEffect(() => {
     if (!id || !partner?.id || !client?.id) return;
     let cancelled = false;
-    shopFetch(`/api/mypage/addresses/${id}`)
+    shopFetch(
+      `/api/mypage/addresses/${id}?clientId=${encodeURIComponent(client.id)}`
+    )
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;
@@ -79,9 +81,14 @@ export default function EditAddressPage() {
       toast("배송지 정보를 모두 입력해주세요.");
       return;
     }
+    if (!client?.id) {
+      toast("거래처 정보를 불러올 수 없습니다.", "error");
+      return;
+    }
     setSaving(true);
     try {
-      const res = await shopFetch(`/api/mypage/addresses/${id}`, {
+      const cid = encodeURIComponent(client.id);
+      const res = await shopFetch(`/api/mypage/addresses/${id}?clientId=${cid}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -101,10 +108,17 @@ export default function EditAddressPage() {
   };
 
   const handleDelete = async () => {
+    if (!client?.id) {
+      toast("거래처 정보를 불러올 수 없습니다.", "error");
+      return;
+    }
     if (!confirm("이 배송지를 삭제하시겠습니까?")) return;
     setDeleting(true);
     try {
-      const res = await shopFetch(`/api/mypage/addresses/${id}`, { method: "DELETE" });
+      const cid = encodeURIComponent(client.id);
+      const res = await shopFetch(`/api/mypage/addresses/${id}?clientId=${cid}`, {
+        method: "DELETE",
+      });
       if (res.ok) {
         toast("배송지가 삭제되었습니다.", "success");
         router.push(`/${subdomain}/${clientSlug}/mypage/addresses`);

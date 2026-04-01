@@ -9,9 +9,8 @@ import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 
 /**
- * T6-3: 배송지 관리 (통합 배송지 — clientId 미사용)
+ * T6-3: 배송지 관리 — 거래처(`client_id`) 단위 격리
  * /{subdomain}/{clientSlug}/mypage/addresses
- * partner/client는 ShopTemplateContext에서 사용.
  */
 
 interface Address {
@@ -50,9 +49,12 @@ export default function AddressesPage() {
 
   // 배송지 목록 조회 (전역 shopFetch 사용 — 401/403 시 자동 세션 만료 처리)
   const refetchAddresses = async () => {
+    if (!client?.id) return;
     setLoading(true);
     try {
-      const res = await shopFetch(`/api/mypage/addresses`);
+      const res = await shopFetch(
+        `/api/mypage/addresses?clientId=${encodeURIComponent(client.id)}`
+      );
       if (res.ok) {
         const data = await res.json();
         setAddresses(data?.addresses ?? []);
@@ -63,11 +65,14 @@ export default function AddressesPage() {
   };
 
   useEffect(() => {
+    if (!client?.id) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
       try {
-        const res = await shopFetch(`/api/mypage/addresses`);
+        const res = await shopFetch(
+          `/api/mypage/addresses?clientId=${encodeURIComponent(client.id)}`
+        );
         if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
@@ -82,7 +87,7 @@ export default function AddressesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [client?.id]);
 
   // 폼 초기화
   const resetForm = () => {
@@ -121,14 +126,22 @@ export default function AddressesPage() {
       return;
     }
 
+    if (!client?.id) {
+      toast("거래처 정보를 불러올 수 없습니다.", "error");
+      return;
+    }
+    const cid = encodeURIComponent(client.id);
     try {
       if (editingAddress) {
         // 수정
-        const res = await shopFetch(`/api/mypage/addresses/${editingAddress.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        });
+        const res = await shopFetch(
+          `/api/mypage/addresses/${editingAddress.id}?clientId=${cid}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formData),
+          }
+        );
 
         if (res.ok) {
           toast("배송지가 수정되었습니다.", "success");
@@ -143,7 +156,7 @@ export default function AddressesPage() {
         const res = await shopFetch(`/api/mypage/addresses`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, clientId: client.id }),
         });
 
         if (res.ok) {
@@ -162,9 +175,16 @@ export default function AddressesPage() {
 
   // 배송지 삭제 (수정 페이지에서 사용; 목록에서는 삭제 버튼 없음)
   const handleDelete = async (id: string) => {
+    if (!client?.id) {
+      toast("거래처 정보를 불러올 수 없습니다.", "error");
+      return;
+    }
     if (!confirm("이 배송지를 삭제하시겠습니까?")) return;
     try {
-      const res = await shopFetch(`/api/mypage/addresses/${id}`, { method: "DELETE" });
+      const res = await shopFetch(
+        `/api/mypage/addresses/${id}?clientId=${encodeURIComponent(client.id)}`,
+        { method: "DELETE" }
+      );
       if (res.ok) {
         toast("배송지가 삭제되었습니다.", "success");
         refetchAddresses();
