@@ -2,8 +2,9 @@
 
 import { signIn } from "next-auth/react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getStorefrontUrl } from "@/lib/app-url";
+import { sanitizeCallbackUrlAgainstLoginLoop } from "@/lib/shop-callback-url";
 
 /**
  * 거래처 쇼핑몰 고객(Client User) 전용 로그인 페이지.
@@ -23,8 +24,14 @@ export default function CustomerLoginPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const subdomain = (params?.subdomain as string) ?? "";
-  const callbackUrl =
-    searchParams?.get("callbackUrl") ?? getStorefrontUrl(subdomain);
+  const callbackUrl = useMemo(() => {
+    const raw = searchParams?.get("callbackUrl");
+    const fallback = getStorefrontUrl(subdomain);
+    if (raw == null || raw === "") return fallback;
+    const safe = sanitizeCallbackUrlAgainstLoginLoop(raw);
+    if (safe === "") return fallback;
+    return safe;
+  }, [searchParams, subdomain]);
 
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
   const [contextLoading, setContextLoading] = useState(true);

@@ -15,6 +15,7 @@ import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { addRecentProduct } from "@/lib/recent-products";
+import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
 
 /**
  * T4-3: 상품 상세 페이지 (PDP) - Snowfox Flowers 스타일
@@ -820,7 +821,7 @@ export default function ProductDetailPage() {
         clientSlug={clientSlug}
         callbackUrl={
           typeof window !== "undefined"
-            ? window.location.href
+            ? getShopRelativeReturnPath()
             : `/${subdomain}/${clientSlug}/products/${productSlug}`
         }
         shopClientName={template?.client?.name}

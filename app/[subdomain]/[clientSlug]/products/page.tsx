@@ -13,6 +13,7 @@ import { useUserClient } from "@/hooks/useUserClient";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
+import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
 
 const PRIMARY = "#D6A8E0";
 
@@ -662,7 +663,7 @@ export default function ProductListPage() {
         clientSlug={clientSlug}
         callbackUrl={
           typeof window !== "undefined"
-            ? window.location.href
+            ? getShopRelativeReturnPath()
             : `/${subdomain}/${clientSlug}/products`
         }
         shopClientName={template?.client?.name}

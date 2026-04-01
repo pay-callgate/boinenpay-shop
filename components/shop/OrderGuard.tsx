@@ -79,7 +79,10 @@ export function OrderGuard({
 
     if (requireAuth === false) return;
     if (status !== "unauthenticated" || !subdomain) return;
-    const callbackUrl = typeof window !== "undefined" ? window.location.href : "";
+    const callbackUrl =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}`
+        : "";
     const url = `/${subdomain}/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 
     if (typeof window !== "undefined") {
@@ -265,7 +268,7 @@ export function OrderGuard({
     const handleLoginAsAnotherAccount = async () => {
       if (typeof window === "undefined" || !subdomain) return;
       const origin = window.location.origin;
-      const returnTo = window.location.href;
+      const returnTo = `${window.location.pathname}${window.location.search}`;
       const loginPath = `/${subdomain}/login?callbackUrl=${encodeURIComponent(returnTo)}`;
       const loginUrl = `${origin}${loginPath}`;
       try {

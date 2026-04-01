@@ -8,6 +8,7 @@ import { X, Heart, ShoppingBag, User, Search, ChevronDown } from "lucide-react";
 import type { ShopPartner, ShopClient } from "./ShopLayout";
 import { PREVIEW_SLUG } from "./ShopLayout";
 import { useShopTemplate } from "./ShopTemplateContext";
+import { buildShopRelativeReturnPath } from "@/lib/shop-callback-url";
 
 const PRIMARY = "#D6A8E0";
 
@@ -93,6 +94,10 @@ export function SideMenu({
   const [flatCategories, setFlatCategories] = useState<SideMenuCategoryFlat[]>([]);
 
   const categoriesTree = useMemo(() => buildCategoryTree(flatCategories), [flatCategories]);
+  const loginReturnPath = useMemo(() => {
+    const q = searchParams?.toString() ? `?${searchParams.toString()}` : "";
+    return buildShopRelativeReturnPath(pathname ?? "", q);
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     setLogoLoadError(false);
@@ -185,7 +190,7 @@ export function SideMenu({
                 </button>
               ) : (
                 <Link
-                  href={`/${subdomain}/login?callbackUrl=${encodeURIComponent(pathname ?? base)}`}
+                  href={`/${subdomain}/login?callbackUrl=${encodeURIComponent(loginReturnPath)}`}
                   onClick={() => onClose()}
                   className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
                 >

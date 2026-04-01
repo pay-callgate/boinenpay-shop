@@ -350,6 +350,12 @@ export function ShopLayout({
     client: client ?? undefined,
   };
 
+  useEffect(() => {
+    if (typeof document === "undefined" || !subdomain) return;
+    const maxAge = 60 * 60 * 24 * 180;
+    document.cookie = `last_partner_subdomain=${encodeURIComponent(subdomain)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  }, [subdomain]);
+
   return (
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>

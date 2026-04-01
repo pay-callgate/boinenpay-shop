@@ -2,6 +2,7 @@
 
 import { signOut } from "next-auth/react";
 import { toast } from "@/components/shop/ToastContext";
+import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
 
 const SESSION_EXPIRED_MESSAGE =
   "안전한 이용을 위해 세션이 만료되었습니다. 다시 로그인해 주세요.";
@@ -20,9 +21,10 @@ async function handleSessionExpiry(): Promise<never> {
   }
   sessionExpiryHandling = true;
 
+  const returnPath = getShopRelativeReturnPath();
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-  const subdomain = pathname.split("/")[1] ?? "shop";
-  const loginUrl = `/${subdomain}/login?callbackUrl=${encodeURIComponent(pathname)}`;
+  const subdomain = pathname.split("/").filter(Boolean)[0] ?? "shop";
+  const loginUrl = `/${subdomain}/login?callbackUrl=${encodeURIComponent(returnPath)}`;
   toast(SESSION_EXPIRED_MESSAGE, "error");
   try {
     await signOut({ redirect: false });

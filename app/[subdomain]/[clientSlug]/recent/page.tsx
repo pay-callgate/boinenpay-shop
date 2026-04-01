@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Clock } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
@@ -14,9 +15,10 @@ import {
   removeRecentProduct,
   type RecentProductItem,
 } from "@/lib/recent-products";
+import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
 
 /**
- * T8-2: 최근 본 상품 (localStorage 기반)
+ * T8-2: 최근 본 상품 (localStorage 기반, 비로그인·타 소속도 목록 열람 가능)
  * /{subdomain}/{clientSlug}/recent
  */
 
@@ -44,6 +46,7 @@ export default function RecentProductsPage() {
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
+  const { status: sessionStatus } = useSession();
 
   const [items, setItems] = useState<RecentProductItem[]>([]);
 
@@ -74,7 +77,8 @@ export default function RecentProductsPage() {
       .split("; ")
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
-    if (!clientIdCookie) {
+    const cartClientId = client?.id ?? clientIdCookie;
+    if (!cartClientId) {
       toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
@@ -82,7 +86,8 @@ export default function RecentProductsPage() {
       const res = await shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
+        body: JSON.stringify({ clientId: cartClientId, productId, quantity: 1 }),
+        handleSessionExpiry: false,
       });
       if (res.ok) {
         const data = await res.json();
@@ -106,7 +111,8 @@ export default function RecentProductsPage() {
       .split("; ")
       .find((row) => row.startsWith("client_source_id="))
       ?.split("=")[1];
-    if (!clientIdCookie) {
+    const cartClientId = client?.id ?? clientIdCookie;
+    if (!cartClientId) {
       toast("거래처 정보를 찾을 수 없습니다.");
       return;
     }
@@ -114,7 +120,8 @@ export default function RecentProductsPage() {
       const res = await shopFetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
+        body: JSON.stringify({ clientId: cartClientId, productId, quantity: 1 }),
+        handleSessionExpiry: false,
       });
       if (res.ok) {
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
@@ -165,15 +172,46 @@ export default function RecentProductsPage() {
             strokeWidth={1.25}
             aria-hidden
           />
-          <p className="mb-6 text-[15px] text-gray-600">최근 본 상품이 없습니다</p>
-          <button
-            type="button"
-            onClick={() => router.push(`${base}/products`)}
-            className="rounded-xl px-6 py-3 text-sm font-semibold text-white"
-            style={{ backgroundColor: PRIMARY }}
-          >
-            쇼핑하러 가기
-          </button>
+          {sessionStatus === "unauthenticated" ? (
+            <>
+              <p className="mb-6 max-w-[300px] text-center text-[15px] leading-relaxed text-gray-700">
+                최근 본 상품이 없습니다. 로그인하시면 상품을 기록해 드릴게요!
+              </p>
+              <div className="flex w-full max-w-[280px] flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/${subdomain}/login?callbackUrl=${encodeURIComponent(typeof window !== "undefined" ? getShopRelativeReturnPath() : `${base}/recent`)}`
+                    )
+                  }
+                  className="rounded-xl px-6 py-3 text-sm font-semibold text-white"
+                  style={{ backgroundColor: PRIMARY }}
+                >
+                  로그인하기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push(`${base}/products`)}
+                  className="rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-800"
+                >
+                  쇼핑하러 가기
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mb-6 text-[15px] text-gray-600">최근 본 상품이 없습니다</p>
+              <button
+                type="button"
+                onClick={() => router.push(`${base}/products`)}
+                className="rounded-xl px-6 py-3 text-sm font-semibold text-white"
+                style={{ backgroundColor: PRIMARY }}
+              >
+                쇼핑하러 가기
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <ul className="flex flex-col gap-4 px-4 pb-8 pt-4">
@@ -280,6 +318,8 @@ export default function RecentProductsPage() {
       partnerId={partner.id}
       shopClientId={client?.id}
       shopClientName={client?.name ?? undefined}
+      requireAuth={false}
+      blockAffiliationMismatch={false}
     >
       {content}
     </OrderGuard>

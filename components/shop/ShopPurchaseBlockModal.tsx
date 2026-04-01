@@ -62,7 +62,8 @@ export function ShopPurchaseBlockModal({
   const handleSwitchAccount = async () => {
     if (typeof window === "undefined" || !subdomain) return;
     const origin = window.location.origin;
-    const loginPath = `/${subdomain}/login?callbackUrl=${encodeURIComponent(window.location.href)}`;
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    const loginPath = `/${subdomain}/login?callbackUrl=${encodeURIComponent(returnTo)}`;
     try {
       await signOut({ redirect: false });
     } catch {

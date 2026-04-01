@@ -2,31 +2,56 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
+import {
+  inferPartnerSubdomainForRootLogin,
+  sanitizeCallbackUrlAgainstLoginLoop,
+} from "@/lib/shop-callback-url";
 
-/** 데모/실서버: 우리부고(wooribugo). callbackUrl에서 subdomain 추출 실패 시 사용 */
+/** callbackUrl·추론 실패 시 최후 폴백 (레거시 데모 파트너) */
 const DEFAULT_SUBDOMAIN = "wooribugo";
+
+const RESERVED_SUBDOMAIN_HINT = new Set(["login", "admin", "api", "_next"]);
+
+function subdomainFromCallbackPath(rawCallback: string): string | null {
+  try {
+    const pathnameOnly = rawCallback.startsWith("http")
+      ? new URL(rawCallback).pathname
+      : rawCallback.split("?")[0] ?? "";
+    const first = pathnameOnly.split("/").filter(Boolean)[0];
+    if (first && !RESERVED_SUBDOMAIN_HINT.has(first)) return first;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 function LoginRedirectContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
-    const callbackUrl = searchParams?.get("callbackUrl") ?? "";
-    let subdomain = DEFAULT_SUBDOMAIN;
+    const rawCallback = searchParams?.get("callbackUrl") ?? "";
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
 
-    if (callbackUrl) {
-      try {
-        const pathname = callbackUrl.startsWith("http")
-          ? new URL(callbackUrl).pathname
-          : callbackUrl;
-        const parts = pathname.split("/").filter(Boolean);
-        if (parts.length >= 1) subdomain = parts[0];
-      } catch {
-        // keep default
+    let subdomain = DEFAULT_SUBDOMAIN;
+    if (rawCallback) {
+      const fromPath = subdomainFromCallbackPath(rawCallback);
+      subdomain = fromPath ?? inferPartnerSubdomainForRootLogin(DEFAULT_SUBDOMAIN);
+    } else {
+      subdomain = inferPartnerSubdomainForRootLogin(DEFAULT_SUBDOMAIN);
+    }
+
+    if (rawCallback) {
+      let safe = sanitizeCallbackUrlAgainstLoginLoop(rawCallback);
+      if (safe === "") {
+        safe = `/${subdomain}`;
+      }
+      if (safe !== rawCallback) {
+        params.set("callbackUrl", safe);
       }
     }
 
-    const query = searchParams?.toString() ? `?${searchParams.toString()}` : "";
+    const query = params.toString() ? `?${params.toString()}` : "";
     router.replace(`/${subdomain}/login${query}`);
   }, [searchParams, router]);
 
@@ -43,7 +68,8 @@ function LoginRedirectContent() {
 /**
  * NextAuth 에러/로그인 리다이렉트용 루트 로그인 페이지.
  * - OAuthCallback 등 에러 시 NextAuth가 /login?error=...&callbackUrl=... 로 보냄.
- * - callbackUrl에서 subdomain을 추출해 /{subdomain}/login 로 리다이렉트.
+ * - callbackUrl이 로그인 자기참조면 몰 홈으로 치환 후 /{subdomain}/login 로 리다이렉트.
+ * - callbackUrl이 없으면 호스트·referrer·last_partner_subdomain 쿠키로 subdomain 추론.
  * - useSearchParams는 Suspense 경계 필요.
  */
 export default function LoginRedirectPage() {

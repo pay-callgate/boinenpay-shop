@@ -16,6 +16,7 @@ import {
   ShopPurchaseBlockModal,
   type ShopPurchaseBlockReason,
 } from "./ShopPurchaseBlockModal";
+import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
 
 const PRIMARY = "#D6A8E0";
 
@@ -653,7 +654,7 @@ export function ShopMainHome({
         clientSlug={slugForPath}
         callbackUrl={
           typeof window !== "undefined"
-            ? window.location.href
+            ? getShopRelativeReturnPath()
             : `/${subdomain}/${slugForPath}`
         }
         shopClientName={shop?.client?.name}
