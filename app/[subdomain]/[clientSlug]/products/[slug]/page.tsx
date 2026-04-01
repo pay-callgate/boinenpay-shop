@@ -127,18 +127,6 @@ export default function ProductDetailPage() {
               status: prod.status ?? "active",
             });
           }
-          const clientIdCookie = document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("client_source_id="))
-            ?.split("=")[1];
-          const viewClientId = mallCid ?? clientIdCookie;
-          if (viewClientId && prod?.id) {
-            shopFetch("/api/mypage/product-views", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ productId: prod.id, clientId: viewClientId }),
-            }).catch(() => {});
-          }
         } else {
           setProduct(null);
         }
@@ -152,6 +140,32 @@ export default function ProductDetailPage() {
   }, [partnerId, productSlug]);
 
   const clientId = template?.client?.id ?? null;
+
+  // 조회수 기록: 로그인 확인된 경우에만 호출. 비로그인 탐색과 충돌 방지 + 401 시에도 전역 세션 만료 UX 금지
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || !product?.id) return;
+    const clientIdCookie =
+      typeof document !== "undefined"
+        ? document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("client_source_id="))
+            ?.split("=")[1]
+        : undefined;
+    const viewClientId = clientId ?? clientIdCookie;
+    if (!viewClientId) return;
+    shopFetch("/api/mypage/product-views", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productId: product.id,
+        clientId: viewClientId,
+      }),
+      handleSessionExpiry: false,
+    }).catch(() => {
+      /* 401 등 — 상세 탐색 UX 방해 없음 */
+    });
+  }, [sessionStatus, product?.id, clientId]);
+
   useEffect(() => {
     // 비로그인 시 관심상품 API는 401 → shopFetch가 전역 로그아웃·로그인 이동을 트리거함
     if (sessionStatus !== "authenticated" || !clientId || !product?.id) return;
