@@ -6,6 +6,34 @@ import { getSubdomainFromRequest } from "@/lib/tenant";
 const CALLGATE_REDIRECT_URL = "https://www.callgate.com/index.html";
 
 /**
+ * NEXTAUTH_URL이 https://www... 인데 사용자가 apex(calllinkshop.com)로 진입하면
+ * OAuth state 쿠키는 apex에 심기고 콜백은 www로만 들어가 OAuthCallback이 난다.
+ * NEXTAUTH_URL의 hostname으로 308 리다이렉트하여 호스트를 통일한다.
+ */
+function redirectApexToNextAuthCanonicalHost(
+  request: NextRequest
+): NextResponse | null {
+  const authBase = process.env.NEXTAUTH_URL?.trim();
+  if (!authBase) return null;
+  let canonicalHost: string;
+  try {
+    canonicalHost = new URL(authBase).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+  const rawHost = request.headers.get("host") ?? "";
+  const host = rawHost.split(":")[0]?.toLowerCase() ?? "";
+  if (!host || host === canonicalHost) return null;
+
+  const apex = canonicalHost.replace(/^www\./, "");
+  if (host !== apex) return null;
+
+  const dest = request.nextUrl.clone();
+  dest.hostname = canonicalHost;
+  return NextResponse.redirect(dest, 308);
+}
+
+/**
  * Phase 0 T0-5: 루트 라우팅 규칙
  * - 루트(/) 접속 시 무조건 /admin(파트너사 로그인)으로 리다이렉트 (B2B SaaS 대문)
  * - 프로덕션: shopping.com(/www) → CallGate 리다이렉트
@@ -16,6 +44,9 @@ const CALLGATE_REDIRECT_URL = "https://www.callgate.com/index.html";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") ?? "";
+
+  const canonicalHostRedirect = redirectApexToNextAuthCanonicalHost(request);
+  if (canonicalHostRedirect) return canonicalHostRedirect;
 
   // 루트(/) 접속 시 무조건 파트너사 로그인(어드민)으로 리다이렉트 (B2B SaaS 대문)
   if (pathname === "/" || pathname === "") {
