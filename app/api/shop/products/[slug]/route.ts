@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { SHOP_PRODUCT_DETAIL_ALLOWED_STATUSES } from "@/lib/shop-product-visibility";
 
 /**
  * T4-3: 상품 상세 조회 API
  * GET /api/shop/products/[slug]?partnerId=xxx
  * - 상품 상세 정보 조회 (쇼핑몰용)
+ * - 판매중·품절만 조회 가능. 임시저장(draft) 등은 404.
  * - 옵션, 갤러리 이미지 포함
  */
 
@@ -43,6 +45,7 @@ export async function GET(
       )
       .eq("partner_id", partnerId)
       .eq("slug", slug)
+      .in("status", [...SHOP_PRODUCT_DETAIL_ALLOWED_STATUSES])
       .single();
 
     if (error || !product) {

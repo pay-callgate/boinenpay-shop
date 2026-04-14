@@ -14,14 +14,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { adminFetch } from "@/lib/admin-fetch";
+import {
+  DEFAULT_PRODUCT_DELIVERY_METHODS,
+  normalizeDeliveryMethodsForDb,
+} from "@/lib/product-delivery-methods";
 
+/** 노출 순서: 당일배송 → 새벽배송 → 퀵서비스 → 택배 → 매장픽업 */
 const deliveryOptions = [
-  { id: "parcel", label: "택배" },
+  { id: "same_day", label: "당일배송" },
   { id: "dawn", label: "새벽배송" },
-  { id: "pickup", label: "매장픽업" },
   { id: "quick", label: "퀵서비스" },
+  { id: "parcel", label: "택배" },
+  { id: "pickup", label: "매장픽업" },
 ] as const;
 
 const formSchema = z.object({
@@ -29,7 +34,8 @@ const formSchema = z.object({
   categoryId: z.string().optional(),
   status: z.enum(["active", "draft", "sold_out"]).default("draft"),
   basePrice: z.coerce.number().min(0, "정상가는 0원 이상이어야 합니다.").default(0),
-  salePrice: z.union([z.coerce.number().min(0, "판매가는 0원 이상이어야 합니다."), z.literal("")]),
+  salePrice: z.union([z.coerce.number().min(0, "비회원 판매가는 0원 이상이어야 합니다."), z.literal("")]),
+  memberPrice: z.union([z.coerce.number().min(0, "회원 특별가는 0원 이상이어야 합니다."), z.literal("")]),
   stockQty: z.coerce.number().min(0, "재고는 0개 이상이어야 합니다.").default(0),
 });
 
@@ -51,6 +57,7 @@ export interface ProductInitialData {
   status: string;
   base_price: number;
   sale_price?: number | null;
+  member_price?: number | null;
   stock_qty: number;
   thumbnail_url?: string | null;
   product_category_mappings?: { category_id: string }[];
@@ -78,9 +85,14 @@ export function ProductRegistrationModal({
   const [categories, setCategories] = useState<Category[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState("");
-  const [deliveryMethods, setDeliveryMethods] = useState<string[]>([]);
+  const [deliveryMethods, setDeliveryMethods] = useState<string[]>(() => [
+    ...DEFAULT_PRODUCT_DELIVERY_METHODS,
+  ]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  /** 할인율(%) 표시용 — 정상가 대비, 양방향 동기화 */
+  const [guestPctDraft, setGuestPctDraft] = useState("0");
+  const [memberPctDraft, setMemberPctDraft] = useState("");
 
   const {
     register,
@@ -96,17 +108,28 @@ export function ProductRegistrationModal({
       status: "draft",
       basePrice: 0,
       salePrice: "",
+      memberPrice: "",
       stockQty: 0,
     },
   });
 
   const basePrice = watch("basePrice");
   const salePrice = watch("salePrice");
+  const memberPrice = watch("memberPrice");
   const salePriceNum = typeof salePrice === "number" ? salePrice : Number(salePrice) || 0;
-  const discountPercent =
-    basePrice > 0 && salePriceNum > 0 && salePriceNum < basePrice
-      ? Math.round((1 - salePriceNum / basePrice) * 100)
-      : 0;
+  const memberPriceNum =
+    typeof memberPrice === "number" ? memberPrice : Number(memberPrice) || 0;
+  /** 회원 특별가 > 비회원 판매가 (유효성) */
+  const memberHigherThanGuest =
+    salePriceNum > 0 &&
+    memberPriceNum > 0 &&
+    memberPriceNum > salePriceNum;
+
+  function pctFromBaseAndSale(base: number, sale: number): string {
+    if (base <= 0) return "0";
+    const pct = Math.round((1 - sale / base) * 100);
+    return String(Math.min(100, Math.max(0, pct)));
+  }
 
   useEffect(() => {
     if (!partnerId || !open) return;
@@ -121,42 +144,60 @@ export function ProductRegistrationModal({
     if (initialData) {
       const categoryIdsFromMappings = initialData.product_category_mappings?.map((m) => m.category_id) ?? [];
       const firstCategoryId = categoryIdsFromMappings[0] ?? "";
+      const bp = initialData.base_price;
+      const sp = initialData.sale_price ?? bp;
       reset({
         name: initialData.name,
         status: initialData.status as FormValues["status"],
-        basePrice: initialData.base_price,
-        salePrice: initialData.sale_price ?? "",
+        basePrice: bp,
+        salePrice: initialData.sale_price ?? bp,
+        memberPrice: initialData.member_price ?? "",
         stockQty: initialData.stock_qty,
         categoryId: firstCategoryId,
       });
+      setGuestPctDraft(pctFromBaseAndSale(bp, typeof sp === "number" ? sp : Number(sp) || 0));
+      if (initialData.member_price != null && initialData.member_price > 0 && bp > 0) {
+        setMemberPctDraft(pctFromBaseAndSale(bp, initialData.member_price));
+      } else {
+        setMemberPctDraft("");
+      }
       setThumbnailUrl(initialData.thumbnail_url ?? "");
       setImagePreview(null);
       setCategoryIds(categoryIdsFromMappings);
-      setDeliveryMethods(initialData.delivery_methods ?? []);
+      setDeliveryMethods(normalizeDeliveryMethodsForDb(initialData.delivery_methods));
     } else {
       reset({
         name: "",
         status: "draft",
         basePrice: 0,
         salePrice: "",
+        memberPrice: "",
         stockQty: 0,
         categoryId: "",
       });
+      setGuestPctDraft("0");
+      setMemberPctDraft("");
       setThumbnailUrl("");
       setImagePreview(null);
       setCategoryIds([]);
-      setDeliveryMethods([]);
+      setDeliveryMethods([...DEFAULT_PRODUCT_DELIVERY_METHODS]);
     }
   }, [open, initialData, reset]);
 
   const onClose = useCallback(() => {
     reset();
+    setGuestPctDraft("0");
+    setMemberPctDraft("");
     setImagePreview(null);
     setThumbnailUrl("");
-    setDeliveryMethods([]);
+    setDeliveryMethods([...DEFAULT_PRODUCT_DELIVERY_METHODS]);
     setCategoryIds([]);
     onOpenChange(false);
   }, [onOpenChange, reset]);
+
+  const regBase = register("basePrice", { valueAsNumber: true });
+  const regSale = register("salePrice");
+  const regMember = register("memberPrice");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -182,15 +223,24 @@ export function ProductRegistrationModal({
     if (!partnerId) return;
     setSaving(true);
     try {
-      const salePriceNum = typeof data.salePrice === "number" ? data.salePrice : Number(data.salePrice) || null;
+      const saleNum =
+        typeof data.salePrice === "number" ? data.salePrice : Number(data.salePrice) || 0;
+      const memberNum =
+        typeof data.memberPrice === "number" ? data.memberPrice : Number(data.memberPrice) || 0;
+      if (saleNum > 0 && memberNum > 0 && memberNum > saleNum) {
+        alert("회원가가 비회원가보다 높습니다. 가격을 확인해 주세요.");
+        setSaving(false);
+        return;
+      }
       const payload = {
         name: data.name,
         basePrice: data.basePrice,
-        salePrice: salePriceNum || undefined,
+        salePrice: saleNum || undefined,
+        memberPrice: memberNum > 0 ? memberNum : undefined,
         stockQty: data.stockQty,
         status: data.status,
         thumbnailUrl: thumbnailUrl || undefined,
-        deliveryMethods: deliveryMethods.length ? deliveryMethods : null,
+        deliveryMethods: normalizeDeliveryMethodsForDb(deliveryMethods),
         categoryIds: data.categoryId ? [data.categoryId] : categoryIds.length ? categoryIds : undefined,
       };
 
@@ -309,45 +359,238 @@ export function ProductRegistrationModal({
               </CardContent>
             </Card>
 
-            {/* C. 가격 및 재고 */}
+            {/* C. 가격 및 재고 — Smart Pricing (정상가 대비 할인율 ↔ 판매가 양방향) */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">가격 및 재고</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">정상가 (소비자가)</label>
-                    <input
-                      type="number"
-                      {...register("basePrice")}
-                      min={0}
-                      className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">판매가 (실제 가격)</label>
-                    <input
-                      type="number"
-                      {...register("salePrice")}
-                      min={0}
-                      className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">할인율</label>
-                    <div className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3">
-                      {discountPercent > 0 ? (
-                        <Badge variant="sold_out" className="bg-red-100 text-red-700">
-                          {discountPercent}%
-                        </Badge>
-                      ) : (
-                        <span className="text-sm text-slate-500">-</span>
-                      )}
+                <div className="w-full">
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-800">
+                    정상가 (소비자가)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    {...regBase}
+                    onChange={(e) => {
+                      regBase.onChange(e);
+                      const v = parseFloat(e.target.value);
+                      const next = Number.isFinite(v) ? v : 0;
+                      setValue("salePrice", next, { shouldValidate: true, shouldDirty: true });
+                      setGuestPctDraft("0");
+                    }}
+                    className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800"
+                  />
+                  {errors.basePrice && (
+                    <p className="mt-1 text-xs text-red-600">{errors.basePrice.message}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  {/* 비회원: 할인율 % + 판매가 원 */}
+                  <div className="min-w-0">
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-800">
+                      비회원 판매가
+                    </label>
+                    <div className="flex w-full min-w-0 overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={guestPctDraft}
+                        disabled={basePrice <= 0}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^\d.]/g, "");
+                          setGuestPctDraft(raw);
+                          if (raw === "" || raw === ".") return;
+                          const pct = parseFloat(raw);
+                          if (Number.isNaN(pct)) return;
+                          const c = Math.min(100, Math.max(0, pct));
+                          setValue(
+                            "salePrice",
+                            Math.round(basePrice * (1 - c / 100)),
+                            { shouldValidate: true, shouldDirty: true }
+                          );
+                        }}
+                        onBlur={() => {
+                          if (basePrice <= 0) return;
+                          if (guestPctDraft === "" || guestPctDraft === ".") {
+                            setGuestPctDraft(pctFromBaseAndSale(basePrice, salePriceNum));
+                            return;
+                          }
+                          const pct = parseFloat(guestPctDraft);
+                          if (Number.isNaN(pct)) {
+                            setGuestPctDraft(pctFromBaseAndSale(basePrice, salePriceNum));
+                            return;
+                          }
+                          const c = Math.min(100, Math.max(0, pct));
+                          setGuestPctDraft(String(c));
+                          setValue(
+                            "salePrice",
+                            Math.round(basePrice * (1 - c / 100)),
+                            { shouldValidate: true }
+                          );
+                        }}
+                        className="w-[4.5rem] shrink-0 border-r border-slate-200 bg-slate-50 py-2.5 text-center text-sm tabular-nums text-slate-900 placeholder:text-slate-400 focus:z-10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="0"
+                        aria-label="비회원 할인율 퍼센트"
+                      />
+                      <span
+                        className="flex shrink-0 select-none items-center border-r border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-500"
+                        aria-hidden
+                      >
+                        %
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        disabled={basePrice <= 0}
+                        {...regSale}
+                        onChange={(e) => {
+                          regSale.onChange(e);
+                          const raw = e.target.value;
+                          if (raw === "") return;
+                          const num = parseFloat(raw);
+                          if (!Number.isFinite(num) || basePrice <= 0) return;
+                          setGuestPctDraft(pctFromBaseAndSale(basePrice, num));
+                        }}
+                        onBlur={(e) => {
+                          regSale.onBlur(e);
+                          if (basePrice > 0) {
+                            const raw = e.target.value;
+                            const num = raw === "" ? 0 : parseFloat(raw) || 0;
+                            setGuestPctDraft(pctFromBaseAndSale(basePrice, num));
+                          }
+                        }}
+                        className="min-w-0 flex-1 border-0 bg-white py-2.5 pl-3 pr-2 text-sm tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label="비회원 판매가 원"
+                      />
+                      <span className="flex shrink-0 items-center border-l border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500">
+                        원
+                      </span>
                     </div>
+                    <p className="mt-1.5 text-xs text-slate-500">정상가 대비 할인율 · 판매가 (연동)</p>
+                    {errors.salePrice && (
+                      <p className="mt-1 text-xs text-red-600">{String(errors.salePrice.message)}</p>
+                    )}
+                  </div>
+
+                  {/* 회원: 할인율 % + 특별가 원 (비우면 비회원가와 동일 저장) */}
+                  <div className="min-w-0">
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-800">
+                      회원 특별가
+                    </label>
+                    <div className="flex w-full min-w-0 overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={memberPctDraft}
+                        disabled={basePrice <= 0}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^\d.]/g, "");
+                          setMemberPctDraft(raw);
+                          if (raw === "") {
+                            setValue("memberPrice", "", { shouldValidate: true, shouldDirty: true });
+                            return;
+                          }
+                          const pct = parseFloat(raw);
+                          if (Number.isNaN(pct)) return;
+                          const c = Math.min(100, Math.max(0, pct));
+                          setValue(
+                            "memberPrice",
+                            Math.round(basePrice * (1 - c / 100)),
+                            { shouldValidate: true, shouldDirty: true }
+                          );
+                        }}
+                        onBlur={() => {
+                          if (memberPctDraft === "" || memberPctDraft === ".") {
+                            setValue("memberPrice", "", { shouldValidate: true });
+                            setMemberPctDraft("");
+                            return;
+                          }
+                          const pct = parseFloat(memberPctDraft);
+                          if (Number.isNaN(pct)) {
+                            if (memberPriceNum > 0 && basePrice > 0) {
+                              setMemberPctDraft(pctFromBaseAndSale(basePrice, memberPriceNum));
+                            } else {
+                              setMemberPctDraft("");
+                              setValue("memberPrice", "");
+                            }
+                            return;
+                          }
+                          const c = Math.min(100, Math.max(0, pct));
+                          setMemberPctDraft(String(c));
+                          setValue(
+                            "memberPrice",
+                            Math.round(basePrice * (1 - c / 100)),
+                            { shouldValidate: true }
+                          );
+                        }}
+                        className="w-[4.5rem] shrink-0 border-r border-slate-200 bg-slate-50 py-2.5 text-center text-sm tabular-nums text-slate-900 placeholder:text-slate-400 focus:z-10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="—"
+                        aria-label="회원 할인율 퍼센트"
+                      />
+                      <span
+                        className="flex shrink-0 select-none items-center border-r border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-500"
+                        aria-hidden
+                      >
+                        %
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="비우면 비회원가와 동일"
+                        disabled={basePrice <= 0}
+                        {...regMember}
+                        onChange={(e) => {
+                          regMember.onChange(e);
+                          const raw = e.target.value;
+                          if (raw === "") {
+                            setMemberPctDraft("");
+                            return;
+                          }
+                          const num = parseFloat(raw);
+                          if (!Number.isFinite(num) || basePrice <= 0) return;
+                          setMemberPctDraft(pctFromBaseAndSale(basePrice, num));
+                        }}
+                        onBlur={(e) => {
+                          regMember.onBlur(e);
+                          const raw = e.target.value;
+                          if (raw === "") {
+                            setMemberPctDraft("");
+                            return;
+                          }
+                          if (basePrice > 0) {
+                            const num = parseFloat(raw) || 0;
+                            setMemberPctDraft(pctFromBaseAndSale(basePrice, num));
+                          }
+                        }}
+                        className="min-w-0 flex-1 border-0 bg-white py-2.5 pl-3 pr-2 text-sm tabular-nums text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label="회원 특별가 원"
+                      />
+                      <span className="flex shrink-0 items-center border-l border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-500">
+                        원
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      비우면 저장 시 회원가는 비회원가와 동일(null)로 처리됩니다.
+                    </p>
+                    {errors.memberPrice && (
+                      <p className="mt-1 text-xs text-red-600">{String(errors.memberPrice.message)}</p>
+                    )}
                   </div>
                 </div>
+
+                {memberHigherThanGuest && (
+                  <p className="text-sm font-medium text-red-600" role="alert">
+                    회원가가 비회원가보다 높습니다.
+                  </p>
+                )}
                 <div className="max-w-xs">
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">재고 수량</label>
                   <input
@@ -373,8 +616,14 @@ export function ProductRegistrationModal({
                         type="checkbox"
                         checked={deliveryMethods.includes(opt.id)}
                         onChange={(e) => {
-                          if (e.target.checked) setDeliveryMethods((prev) => [...prev, opt.id]);
-                          else setDeliveryMethods((prev) => prev.filter((id) => id !== opt.id));
+                          const id = opt.id as string;
+                          if (e.target.checked) {
+                            setDeliveryMethods((prev) =>
+                              prev.includes(id) ? prev : [...prev, id]
+                            );
+                          } else {
+                            setDeliveryMethods((prev) => prev.filter((x) => x !== id));
+                          }
                         }}
                         className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-slate-600"
                       />

@@ -10,6 +10,10 @@ import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { AddressSelectModal, type Address } from "@/components/shop/AddressSelectModal";
+import {
+  effectiveGuestUnitPrice,
+  effectiveMemberUnitPrice,
+} from "@/lib/product-pricing";
 
 /**
  * 주문서(Checkout) - 네이버 쇼핑 결제 프로세스 99% 일치
@@ -46,6 +50,7 @@ interface CartItem {
     thumbnail_url: string | null;
     base_price: number;
     sale_price: number | null;
+    member_price?: number | null;
     status: string;
   };
 }
@@ -75,10 +80,11 @@ export default function CheckoutPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
+  const isGuestCheckout = searchParams?.get("guest") === "1";
   const itemsQuery = searchParams?.get("items") ?? "";
   const selectedItemIds = useMemo(
     () => (itemsQuery ? itemsQuery.split(",").filter(Boolean) : []),
@@ -125,6 +131,9 @@ export default function CheckoutPage() {
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [profileNotice, setProfileNotice] = useState<string | null>(null);
+  const [guestPassword, setGuestPassword] = useState("");
+  const [guestPasswordConfirm, setGuestPasswordConfirm] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
 
   const addressSectionRef = useRef<HTMLDivElement>(null);
   const addressesLoadedRef = useRef(false);
@@ -143,15 +152,18 @@ export default function CheckoutPage() {
     }
   }, [searchParams]);
 
-  // 세션(userId)이 바뀌면 장바구니 재조회 — 재로그인 후에도 상품 목록 복구
+  // 세션 또는 비회원(guest=1) 장바구니
   useEffect(() => {
     async function loadItems() {
       if (!clientId) {
         setLoading(false);
         return;
       }
-      // 세션 없이 호출하면 401 → items 빈 배열 → "주문할 상품이 없습니다". 세션 올 때까지 로딩 유지.
-      if (!session?.user?.id) {
+      if (sessionStatus === "loading") {
+        return;
+      }
+      if (sessionStatus !== "authenticated" && !isGuestCheckout) {
+        setLoading(false);
         return;
       }
       setLoading(true);
@@ -170,7 +182,7 @@ export default function CheckoutPage() {
       setLoading(false);
     }
     loadItems();
-  }, [clientId, selectedItemIds, session?.user?.id]);
+  }, [clientId, selectedItemIds, session?.user?.id, sessionStatus, isGuestCheckout]);
 
   useEffect(() => {
     if (session?.user?.name) {
@@ -234,8 +246,17 @@ export default function CheckoutPage() {
   }, [addresses.length, ordererName, ordererPhone]);
 
   const formatPrice = (price: number) => new Intl.NumberFormat("ko-KR").format(price);
-  const getItemPrice = (item: CartItem) =>
-    (item.product.sale_price || item.product.base_price) * item.quantity;
+  const getItemUnit = (item: CartItem) => {
+    const p = {
+      base_price: item.product.base_price,
+      sale_price: item.product.sale_price,
+      member_price: item.product.member_price ?? null,
+    };
+    return session?.user?.id
+      ? effectiveMemberUnitPrice(p)
+      : effectiveGuestUnitPrice(p);
+  };
+  const getItemPrice = (item: CartItem) => getItemUnit(item) * item.quantity;
   const getTotalProductPrice = () => items.reduce((sum, item) => sum + getItemPrice(item), 0);
   const finalTotal = getTotalProductPrice() + deliveryFee;
 
@@ -319,8 +340,25 @@ export default function CheckoutPage() {
       }
       return;
     }
+
+    const isGuestOrder = isGuestCheckout && !session?.user?.id;
+    if (isGuestOrder) {
+      if (guestPassword.trim().length < 4) {
+        toast("주문 조회용 비밀번호는 4자 이상 입력해 주세요.");
+        return;
+      }
+      if (guestPassword !== guestPasswordConfirm) {
+        toast("비밀번호 확인이 일치하지 않습니다.");
+        return;
+      }
+      if (!guestEmail.trim()) {
+        toast("결제 안내를 위해 이메일을 입력해 주세요.");
+        return;
+      }
+    }
+
     setSubmitting(true);
-    const orderPayload = {
+    const orderPayload: Record<string, unknown> = {
       partnerId,
       clientId,
       cartItemIds: items.map((i) => i.id),
@@ -335,7 +373,15 @@ export default function CheckoutPage() {
       deliveryFee,
       paymentMethod,
     };
-    console.debug("[Order:Checkout] 주문 생성 요청", { partnerId, clientId, cartItemIds: orderPayload.cartItemIds.length });
+    if (isGuestOrder) {
+      orderPayload.isGuest = true;
+      orderPayload.guestPassword = guestPassword.trim();
+    }
+    console.debug("[Order:Checkout] 주문 생성 요청", {
+      partnerId,
+      clientId,
+      cartItemCount: items.length,
+    });
     try {
       const res = await shopFetch("/api/orders", {
         method: "POST",
@@ -345,12 +391,13 @@ export default function CheckoutPage() {
       if (res.ok) {
         const data = await res.json();
         const order = data.order as { id: string; order_no: string; total_amount: number };
+        const guestTok = data.guestCheckoutToken as string | undefined;
         console.debug("[Order:Checkout] 주문 생성 완료", { orderId: order.id, order_no: order.order_no, total_amount: order.total_amount });
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("cart-updated"));
         }
         // 기본배송지 저장은 대기하지 않고 비동기로 처리 → ViewPay 결제창 노출 지연 단축
-        if (saveAsDefaultAddress) {
+        if (saveAsDefaultAddress && session?.user?.id) {
           shopFetch("/api/mypage/addresses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -369,10 +416,14 @@ export default function CheckoutPage() {
         }
         // Phase D: ViewPay 결제창으로 이동 (returnUrl = 주문 완료 페이지)
         const origin = typeof window !== "undefined" ? window.location.origin : "";
-        const returnUrl = `${origin}/${subdomain}/${clientSlug}/order/complete?orderId=${order.id}`;
+        const paySig = data.paymentSignature as string | undefined;
+        let returnUrl = `${origin}/${subdomain}/${clientSlug}/order/complete?orderId=${order.id}`;
+        if (guestTok && paySig) {
+          returnUrl += `&guestToken=${encodeURIComponent(guestTok)}&sig=${encodeURIComponent(paySig)}`;
+        }
         const cancelUrl = `${origin}/${subdomain}/${clientSlug}/checkout?cancel=1`;
         const productName = items.length > 0 ? items[0].product?.name ?? "주문상품" : "주문상품";
-        const prepareBody = {
+        const prepareBody: Record<string, unknown> = {
           orderId: order.id,
           orderNo: order.order_no,
           amount: order.total_amount,
@@ -381,8 +432,15 @@ export default function CheckoutPage() {
           cancelUrl,
           buyerName: ordererName || name,
           buyerPhone: ordererPhone || phone,
-          buyerEmail: ordererEmail || "",
+          buyerEmail:
+            isGuestCheckout && !session?.user?.id
+              ? guestEmail.trim()
+              : ordererEmail || "",
         };
+        if (guestTok && paySig) {
+          prepareBody.guestCheckoutToken = guestTok;
+          prepareBody.paymentSignature = paySig;
+        }
         console.debug("[Order:Checkout] ViewPay prepare 요청", { orderId: order.id, amount: order.total_amount, returnUrl });
         const prepareRes = await shopFetch("/api/payment/viewpay/prepare", {
           method: "POST",
@@ -960,14 +1018,84 @@ export default function CheckoutPage() {
     </section>
   );
 
+  const guestModeUi = isGuestCheckout && !session?.user?.id;
+
   return (
     <OrderGuard
       partnerId={partnerId}
       shopClientId={clientId ?? undefined}
       shopClientName={template?.client?.name ?? undefined}
+      requireAuth={!isGuestCheckout}
     >
       <form onSubmit={handleSubmit} className="mx-auto min-h-screen max-w-[430px] bg-white pb-36 lg:max-w-6xl lg:px-6 lg:pb-40">
         <div className="px-4 py-4 lg:py-6">
+          {guestModeUi && (
+            <section
+              className="mb-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4"
+              aria-label="비회원 주문 정보"
+            >
+              <h2 className="mb-3 text-sm font-bold text-amber-900">비회원 주문 정보</h2>
+              <p className="mb-3 text-xs text-amber-900/70">
+                수령인 정보는 아래 배송지와 동일하게 입력해 주세요.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-amber-900/80">이름</label>
+                  <input
+                    type="text"
+                    value={shippingName}
+                    onChange={(e) => setShippingName(e.target.value)}
+                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
+                    placeholder="수령인 이름"
+                    autoComplete="name"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-amber-900/80">휴대폰 번호</label>
+                  <input
+                    type="tel"
+                    value={shippingPhone}
+                    onChange={(e) => setShippingPhone(e.target.value)}
+                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
+                    placeholder="010-0000-0000"
+                    autoComplete="tel"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-amber-900/80">이메일 (결제 안내)</label>
+                  <input
+                    type="email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
+                    placeholder="example@email.com"
+                    autoComplete="email"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-amber-900/80">주문 조회 비밀번호</label>
+                  <input
+                    type="password"
+                    value={guestPassword}
+                    onChange={(e) => setGuestPassword(e.target.value)}
+                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
+                    placeholder="4자 이상"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-amber-900/80">비밀번호 확인</label>
+                  <input
+                    type="password"
+                    value={guestPasswordConfirm}
+                    onChange={(e) => setGuestPasswordConfirm(e.target.value)}
+                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
           <div className="lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
             <div className="lg:col-span-2">{LeftColumn}</div>
             <div className="mt-6 lg:mt-0 lg:col-span-1">{PaymentSummary}</div>

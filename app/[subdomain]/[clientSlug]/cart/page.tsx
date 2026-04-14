@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
@@ -30,6 +31,7 @@ interface CartItem {
 export default function CartPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
 
@@ -132,8 +134,15 @@ export default function CartPage() {
     }
     const ids = selectedOnly ? Array.from(selectedItems) : items.map((i) => i.id);
     if (ids.length === 0) return;
-    const query = selectedOnly ? `?items=${ids.join(",")}` : "";
-    router.push(`/${subdomain}/${clientSlug}/checkout${query}`);
+    const qs = new URLSearchParams();
+    if (selectedOnly) {
+      qs.set("items", ids.join(","));
+    }
+    if (!session?.user?.id) {
+      qs.set("guest", "1");
+    }
+    const q = qs.toString();
+    router.push(`/${subdomain}/${clientSlug}/checkout${q ? `?${q}` : ""}`);
   };
 
   const isPreview = clientSlug === "_preview";
@@ -199,6 +208,7 @@ export default function CartPage() {
       partnerId={partnerId}
       shopClientId={clientId ?? undefined}
       shopClientName={client?.name ?? undefined}
+      requireAuth={false}
     >
       <div className="mx-auto max-w-[430px] min-h-screen bg-white pb-28">
         {/* 탭: 국내배송상품(N) / 해외배송상품(0) */}

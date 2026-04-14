@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import {
+  SHOP_LIST_PRODUCT_STATUS,
+  SHOP_PRODUCT_DETAIL_ALLOWED_STATUSES,
+} from "@/lib/shop-product-visibility";
 
 /**
  * T4-1: 거래처 쇼핑몰 상품 조회 API
  * GET /api/shop/products?partnerId=xxx&categoryId=xxx&search=xxx&limit=4
  * - 파트너의 상품 조회 (쇼핑몰용)
  * - 카테고리별 필터링, 상품명/슬러그 검색 지원
- * - 품절(sold_out) 상품 제외 또는 별도 표시
+ * - 기본: 판매중(active)만. includeSoldOut=true 시 품절(sold_out) 포함. 임시저장(draft)은 제외.
  */
 
 export async function GET(request: NextRequest) {
@@ -46,9 +50,11 @@ export async function GET(request: NextRequest) {
       )
       .eq("partner_id", partnerId);
 
-    // 품절 제외 옵션
-    if (!includeSoldOut) {
-      query = query.neq("status", "sold_out");
+    // 목록은 판매중만; includeSoldOut 시 판매중+품절(임시저장·기타 상태 제외)
+    if (includeSoldOut) {
+      query = query.in("status", [...SHOP_PRODUCT_DETAIL_ALLOWED_STATUSES]);
+    } else {
+      query = query.eq("status", SHOP_LIST_PRODUCT_STATUS);
     }
 
     // 카테고리 필터

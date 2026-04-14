@@ -26,7 +26,15 @@ export default async function AdminDashboardLayout({
     redirect("/admin/login?callbackUrl=/admin");
   }
 
-  const supabase = createServerSupabase();
+  let supabase: ReturnType<typeof createServerSupabase>;
+  try {
+    supabase = createServerSupabase();
+  } catch (e) {
+    console.error("[AdminDashboardLayout] Supabase 초기화 실패", e);
+    redirect(
+      "/admin/login?error=Config&callbackUrl=/admin"
+    );
+  }
   const { data: adminRow } = await supabase
     .from("partner_admins")
     .select("partner_id")

@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { verifyGuestCheckout } from "@/lib/guest-checkout-signature";
 
 /**
  * T5-2: 주문 상세 조회 API
  * GET /api/orders/[id]
- * - 주문 정보, 주문 항목, 상태 이력 조회
+ * - 회원: 본인 주문
+ * - 비회원: ?guestToken=&sig= (guest_checkout_token + HMAC)
  */
 
 export async function GET(
@@ -15,18 +17,22 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-    }
-
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const guestToken =
+      searchParams.get("guestToken") ?? searchParams.get("guestCheckoutToken");
+    const sig = searchParams.get("sig") ?? searchParams.get("paymentSignature");
+
     const supabase = createServerSupabase();
 
-    // 주문 조회: 본인 주문만 접근 가능 (고객용 API - 엄격한 테넌트 격리)
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select(
-        `
+    let order: Record<string, unknown> | null = null;
+    let orderError: { code?: string; message?: string } | null = null;
+
+    if (session?.user?.id) {
+      const res = await supabase
+        .from("orders")
+        .select(
+          `
         *,
         client:clients (
           id,
@@ -41,10 +47,56 @@ export async function GET(
           phone
         )
       `
-      )
-      .eq("id", id)
-      .eq("user_id", session.user.id)
-      .single();
+        )
+        .eq("id", id)
+        .eq("user_id", session.user.id)
+        .single();
+      order = res.data as Record<string, unknown> | null;
+      orderError = res.error;
+    } else if (
+      typeof guestToken === "string" &&
+      typeof sig === "string" &&
+      guestToken &&
+      sig
+    ) {
+      const res = await supabase
+        .from("orders")
+        .select(
+          `
+        *,
+        client:clients (
+          id,
+          name,
+          slug,
+          logo_url
+        ),
+        user:users (
+          id,
+          name,
+          email,
+          phone
+        )
+      `
+        )
+        .eq("id", id)
+        .single();
+      const row = res.data as {
+        is_guest?: boolean;
+        guest_checkout_token?: string | null;
+      } | null;
+      if (
+        !row ||
+        !row.is_guest ||
+        row.guest_checkout_token !== guestToken ||
+        !verifyGuestCheckout(id, guestToken, sig)
+      ) {
+        return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
+      }
+      order = res.data as Record<string, unknown>;
+      orderError = null;
+    } else {
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
 
     if (orderError || !order) {
       return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });

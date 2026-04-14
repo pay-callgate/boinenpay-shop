@@ -63,6 +63,11 @@ export default function RecentProductsPage() {
 
   const base = `/${subdomain}/${clientSlug}`;
 
+  /** 임시저장 등은 목록에서 제외(판매중·품절만 표시, localStorage 과거 데이터 대비) */
+  const visibleItems = items.filter(
+    (item) => item.status === "active" || item.status === "sold_out"
+  );
+
   const handleRemove = (productId: string) => {
     removeRecentProduct(subdomain, clientSlug, productId);
     setItems((prev) => prev.filter((p) => p.id !== productId));
@@ -165,7 +170,7 @@ export default function RecentProductsPage() {
         <h1 className="text-xl font-bold tracking-tight text-gray-900">최근 본 상품</h1>
       </div>
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center px-4 py-16">
           <Clock
             className="mb-4 h-14 w-14 text-gray-300"
@@ -215,7 +220,7 @@ export default function RecentProductsPage() {
         </div>
       ) : (
         <ul className="flex flex-col gap-4 px-4 pb-8 pt-4">
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const basePrice = Number(item.base_price) || 0;
             const salePrice =
               item.sale_price != null ? Number(item.sale_price) : null;

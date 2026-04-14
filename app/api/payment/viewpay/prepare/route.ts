@@ -10,6 +10,7 @@ import {
   getRedirectUrlFromStartpayResponse,
   clearViewpayTokenCache,
 } from "@/lib/viewpay";
+import { verifyGuestCheckout } from "@/lib/guest-checkout-signature";
 
 /**
  * Phase B1: 결제 준비 (ViewPay startpay 호출 → 결제창 URL 반환)
@@ -21,9 +22,6 @@ const LOG = "[Order:Prepare]";
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, message: "로그인이 필요합니다." }, { status: 401 });
-    }
 
     const body = await request.json().catch(() => ({}));
     logger.info(`${LOG} 요청 수신`, { action: "payment_viewpay_prepare_request", data: { bodyKeys: Object.keys(body as object) } });
@@ -39,6 +37,8 @@ export async function POST(request: NextRequest) {
       buyerName,
       buyerPhone,
       buyerEmail,
+      guestCheckoutToken,
+      paymentSignature,
     } = body;
 
     if (!orderId || amount == null || !returnUrl) {
@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
     const supabase = createServerSupabase();
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, user_id, order_no, total_amount, payment_status")
+      .select(
+        "id, user_id, order_no, total_amount, payment_status, is_guest, guest_checkout_token"
+      )
       .eq("id", orderId)
       .single();
 
@@ -72,12 +74,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (order.user_id !== session.user.id) {
-      logger.warn(`${LOG} 권한 없음`, { action: "payment_viewpay_prepare_forbidden", data: { orderId } });
-      return NextResponse.json(
-        { success: false, message: "해당 주문에 대한 권한이 없습니다." },
-        { status: 403 }
-      );
+    if (session?.user?.id) {
+      if (order.user_id !== session.user.id) {
+        logger.warn(`${LOG} 권한 없음`, { action: "payment_viewpay_prepare_forbidden", data: { orderId } });
+        return NextResponse.json(
+          { success: false, message: "해당 주문에 대한 권한이 없습니다." },
+          { status: 403 }
+        );
+      }
+    } else {
+      const okGuest =
+        order.is_guest &&
+        order.guest_checkout_token &&
+        typeof guestCheckoutToken === "string" &&
+        typeof paymentSignature === "string" &&
+        order.guest_checkout_token === guestCheckoutToken &&
+        verifyGuestCheckout(orderId, guestCheckoutToken, paymentSignature);
+      if (!okGuest) {
+        logger.warn(`${LOG} 비회원 인증 실패`, { action: "payment_viewpay_prepare_guest_auth_failed", data: { orderId } });
+        return NextResponse.json(
+          { success: false, message: "로그인이 필요하거나 비회원 결제 인증이 올바르지 않습니다." },
+          { status: 401 }
+        );
+      }
     }
 
     if (order.payment_status === "paid") {

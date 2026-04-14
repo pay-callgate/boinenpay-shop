@@ -112,6 +112,12 @@ export default function OrderCompletePage() {
   const clientSlug = params?.clientSlug as string;
   const orderId = searchParams?.get("orderId")?.trim() ?? "";
   const cgTidFromQuery = getPaymentIdFromSearch(searchParams);
+  const guestToken = searchParams?.get("guestToken")?.trim() ?? "";
+  const guestSig = searchParams?.get("sig")?.trim() ?? "";
+  const guestOrderQs =
+    guestToken && guestSig
+      ? `&guestToken=${encodeURIComponent(guestToken)}&sig=${encodeURIComponent(guestSig)}`
+      : "";
 
   const [cgTid, setCgTid] = useState(cgTidFromQuery);
   const [hashChecked, setHashChecked] = useState(false);
@@ -131,7 +137,11 @@ export default function OrderCompletePage() {
     let cancelled = false;
     setOrderDetailLoading(true);
     setOrderDetail(null);
-    shopFetch(`/api/orders/${orderId}`)
+    const orderUrl =
+      guestOrderQs.length > 0
+        ? `/api/orders/${orderId}?guestToken=${encodeURIComponent(guestToken)}&sig=${encodeURIComponent(guestSig)}`
+        : `/api/orders/${orderId}`;
+    shopFetch(orderUrl, { handleSessionExpiry: guestOrderQs.length === 0 })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;
@@ -145,7 +155,7 @@ export default function OrderCompletePage() {
     return () => {
       cancelled = true;
     };
-  }, [state, orderId]);
+  }, [state, orderId, guestToken, guestSig, guestOrderQs.length]);
 
   useEffect(() => {
     if (cgTidFromQuery) {
@@ -176,8 +186,8 @@ export default function OrderCompletePage() {
     }
     let cancelled = false;
     setState("loading");
-    const url = `/api/payment/viewpay/complete?orderId=${encodeURIComponent(orderId)}&cgTid=${encodeURIComponent(cgTid)}`;
-    shopFetch(url)
+    const url = `/api/payment/viewpay/complete?orderId=${encodeURIComponent(orderId)}&cgTid=${encodeURIComponent(cgTid)}${guestOrderQs}`;
+    shopFetch(url, { handleSessionExpiry: guestOrderQs.length === 0 })
       .then((res) => res.json().catch(() => ({})))
       .then((data) => {
         if (cancelled) return;
@@ -199,7 +209,7 @@ export default function OrderCompletePage() {
     return () => {
       cancelled = true;
     };
-  }, [orderId, cgTid, partner?.id, client?.id, hashChecked]);
+  }, [orderId, cgTid, partner?.id, client?.id, hashChecked, guestOrderQs]);
 
   const handleContinueShopping = () => {
     router.push(`/${subdomain}/${clientSlug}`);
@@ -437,6 +447,8 @@ export default function OrderCompletePage() {
       partnerId={partner?.id ?? undefined}
       shopClientId={client?.id}
       shopClientName={client?.name ?? undefined}
+      requireAuth={false}
+      blockAffiliationMismatch={false}
     >
       <div
         className="min-h-[60vh] w-full"

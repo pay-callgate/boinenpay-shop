@@ -4,9 +4,24 @@ import React, { Suspense, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
+const NEXTAUTH_ERROR_MESSAGES: Record<string, string> = {
+  Config:
+    "서버 설정(Supabase URL·Service Role 키 등)을 확인해 주세요. .env.local을 점검한 뒤 개발 서버를 재시작하세요.",
+  OAuthSignin: "OAuth 로그인 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+  OAuthCallback: "OAuth 콜백 처리에 실패했습니다. NEXTAUTH_URL이 브라우저 주소(포트 포함)와 일치하는지 확인해 주세요.",
+  OAuthAccountNotLinked: "이미 다른 방식으로 가입된 이메일일 수 있습니다.",
+  AccessDenied: "접근이 거부되었습니다.",
+  SessionRequired: "로그인이 필요합니다.",
+  Default: "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+};
+
 function AdminLoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") ?? "/admin";
+  const errorCode = searchParams?.get("error")?.trim() ?? null;
+  const errorMessage = errorCode
+    ? NEXTAUTH_ERROR_MESSAGES[errorCode] ?? NEXTAUTH_ERROR_MESSAGES.Default
+    : null;
 
   useEffect(() => {
     console.log("[AdminLogin] mount", {
@@ -116,6 +131,14 @@ function AdminLoginContent() {
             padding: "2rem",
           }}
         >
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-left text-xs text-red-800"
+            >
+              {errorMessage}
+            </div>
+          )}
           <p
             className="text-center text-sm text-[#666666]"
             style={{ fontSize: "0.875rem", color: "#666", textAlign: "center", marginBottom: "1.5rem" }}

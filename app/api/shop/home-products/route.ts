@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { SHOP_LIST_PRODUCT_STATUS } from "@/lib/shop-product-visibility";
 
 /**
  * 홈 전용: 카테고리 + 카테고리별 상품(각 limit)을 한 번에 반환.
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
           `
           )
           .eq("partner_id", partnerId)
-          .neq("status", "sold_out")
+          .eq("status", SHOP_LIST_PRODUCT_STATUS)
           .eq("product_category_mappings.category_id", cat.id)
           .order("created_at", { ascending: false })
           .range(0, HOME_PRODUCTS_PER_CATEGORY - 1);

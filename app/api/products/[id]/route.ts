@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { normalizeDeliveryMethodsForDb } from "@/lib/product-delivery-methods";
 
 /**
  * T2-3: 상품 상세 API
@@ -78,6 +79,7 @@ export async function PUT(
       thumbnailUrl,
       basePrice,
       salePrice,
+      memberPrice,
       stockQty,
       safetyStock,
       status,
@@ -130,6 +132,7 @@ export async function PUT(
     if (thumbnailUrl !== undefined) updateData.thumbnail_url = thumbnailUrl;
     if (basePrice !== undefined) updateData.base_price = basePrice;
     if (salePrice !== undefined) updateData.sale_price = salePrice;
+    if (memberPrice !== undefined) updateData.member_price = memberPrice;
     if (stockQty !== undefined) updateData.stock_qty = stockQty;
     if (safetyStock !== undefined) updateData.safety_stock = safetyStock;
     if (status !== undefined) updateData.status = status;
@@ -138,7 +141,9 @@ export async function PUT(
       updateData.status = "active";
     }
     if (stickerOptions !== undefined) updateData.sticker_options = stickerOptions;
-    if (deliveryMethods !== undefined) updateData.delivery_methods = deliveryMethods;
+    if (deliveryMethods !== undefined) {
+      updateData.delivery_methods = normalizeDeliveryMethodsForDb(deliveryMethods);
+    }
     if (allowDeliveryDate !== undefined) updateData.allow_delivery_date = allowDeliveryDate;
 
     const { data: product, error } = await supabase

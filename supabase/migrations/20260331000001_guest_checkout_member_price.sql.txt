@@ -1,0 +1,18 @@
+-- Phase A: 회원/비회원 차등가 + 비회원 주문 식별
+-- products.sale_price = 비회원 판매가 (기존 유지)
+-- products.member_price = 회원 전용가 (NULL이면 sale_price와 동일 적용)
+
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS member_price DECIMAL(12,2) NULL;
+
+COMMENT ON COLUMN products.member_price IS '회원 전용 판매가. NULL이면 sale_price(비회원가)와 동일';
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS guest_checkout_token UUID NULL,
+  ADD COLUMN IF NOT EXISTS guest_password_hash TEXT NULL,
+  ADD COLUMN IF NOT EXISTS is_guest BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_orders_guest_checkout_token ON orders (guest_checkout_token) WHERE guest_checkout_token IS NOT NULL;
+
+COMMENT ON COLUMN orders.guest_password_hash IS '주문 조회용 비밀번호 (scrypt 해시)';
+COMMENT ON COLUMN orders.is_guest IS '비회원 주문 여부';

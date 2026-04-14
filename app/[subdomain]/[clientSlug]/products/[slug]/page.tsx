@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ChevronLeft, ChevronRight, Heart, Share2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gift, Heart, Share2, ShoppingCart } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import {
   ShopPurchaseBlockModal,
@@ -16,6 +16,10 @@ import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { addRecentProduct } from "@/lib/recent-products";
 import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
+import {
+  effectiveGuestUnitPrice,
+  effectiveMemberUnitPrice,
+} from "@/lib/product-pricing";
 
 /**
  * T4-3: 상품 상세 페이지 (PDP) - Snowfox Flowers 스타일
@@ -51,6 +55,7 @@ interface Product {
   thumbnail_url: string | null;
   base_price: number;
   sale_price: number | null;
+  member_price?: number | null;
   stock_qty: number;
   status: string;
   delivery_methods: string[] | null;
@@ -66,9 +71,11 @@ const ROSE = "#F43F5E";
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
   const productSlug = params?.slug as string;
+  const memberBuy = searchParams?.get("memberBuy") === "1";
 
   const template = useShopTemplate();
   const partnerId = template?.partner?.id ?? null;
@@ -95,6 +102,7 @@ export default function ProductDetailPage() {
   const sectionReviewRef = useRef<HTMLDivElement>(null);
   const sectionQnaRef = useRef<HTMLDivElement>(null);
   const sectionDeliveryRef = useRef<HTMLDivElement>(null);
+  const memberBuyHandledRef = useRef(false);
 
   useEffect(() => {
     async function fetchProduct() {
@@ -183,6 +191,84 @@ export default function ProductDetailPage() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [sessionStatus, clientId, product?.id]);
+
+  useEffect(() => {
+    if (!memberBuy) memberBuyHandledRef.current = false;
+  }, [memberBuy]);
+
+  /** 로그인 후 회원가 구매 콜백: 장바구니 담고 결제창으로 이동 */
+  useEffect(() => {
+    if (!memberBuy || !product || sessionStatus !== "authenticated" || !clientId) return;
+    if (!template?.orderAllowed) return;
+    const optionsReady =
+      !product.options?.length ||
+      product.options.every((o) => Boolean(selectedOptions[o.id]));
+    if (!optionsReady) return;
+    if (memberBuyHandledRef.current) return;
+    memberBuyHandledRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const res = await shopFetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          productId: product.id,
+          optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
+          quantity,
+        }),
+      });
+      if (cancelled) return;
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast(err.error ?? "장바구니 추가에 실패했습니다.", "error");
+        memberBuyHandledRef.current = false;
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      const cartItemId = data?.cartItem?.id as string | undefined;
+      if (!cartItemId) {
+        memberBuyHandledRef.current = false;
+        return;
+      }
+      router.replace(`/${subdomain}/${clientSlug}/checkout?items=${encodeURIComponent(cartItemId)}`);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    memberBuy,
+    product,
+    sessionStatus,
+    clientId,
+    subdomain,
+    clientSlug,
+    template?.orderAllowed,
+    selectedOptions,
+    quantity,
+    router,
+  ]);
+
+  const optionExtra = useMemo(() => {
+    if (!product) return 0;
+    let ex = 0;
+    product.options?.forEach((opt) => {
+      if (opt?.price_modifier != null && selectedOptions[opt.id]) {
+        ex += opt.price_modifier;
+      }
+    });
+    return ex;
+  }, [product, selectedOptions]);
+
+  const guestUnitTotal = useMemo(() => {
+    if (!product) return 0;
+    return (effectiveGuestUnitPrice(product) + optionExtra) * quantity;
+  }, [product, optionExtra, quantity]);
+
+  const memberUnitTotal = useMemo(() => {
+    if (!product) return 0;
+    return (effectiveMemberUnitPrice(product) + optionExtra) * quantity;
+  }, [product, optionExtra, quantity]);
 
   const tryPurchaseOrWishlistAction = (): boolean => {
     if (!clientId) {
@@ -294,14 +380,26 @@ export default function ProductDetailPage() {
     return price * quantity;
   };
 
-  const addToCart = async () => {
-    if (!product) return;
+  const canGuestShop = () => {
+    if (!clientId) {
+      toast("거래처 정보를 불러올 수 없습니다.");
+      return false;
+    }
     if (!template?.orderAllowed) {
       toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
-      return;
+      return false;
     }
-    if (!tryPurchaseOrWishlistAction()) return;
-    if (!clientId) return;
+    if (sessionStatus === "loading") {
+      toast("잠시만 기다려 주세요.");
+      return false;
+    }
+    return true;
+  };
+
+  const addToCart = async () => {
+    if (!product) return;
+    if (!canGuestShop()) return;
+    if (sessionStatus === "authenticated" && !tryPurchaseOrWishlistAction()) return;
     setAddingToCart(true);
     try {
       const res = await shopFetch("/api/cart", {
@@ -329,14 +427,10 @@ export default function ProductDetailPage() {
     }
   };
 
-  const goToBuyNow = async () => {
+  const goToGuestCheckout = async () => {
     if (!product) return;
-    if (!template?.orderAllowed) {
-      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
-      return;
-    }
-    if (!tryPurchaseOrWishlistAction()) return;
-    if (!clientId) return;
+    if (!canGuestShop()) return;
+    if (sessionStatus === "authenticated" && !tryPurchaseOrWishlistAction()) return;
     setAddingToCart(true);
     try {
       const res = await shopFetch("/api/cart", {
@@ -351,7 +445,54 @@ export default function ProductDetailPage() {
       });
       if (res.ok) {
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
-        router.push(`/${subdomain}/${clientSlug}/checkout`);
+        const data = await res.json();
+        const cartItemId = data?.cartItem?.id as string | undefined;
+        if (!cartItemId) return;
+        if (sessionStatus === "authenticated") {
+          router.push(`/${subdomain}/${clientSlug}/checkout?items=${encodeURIComponent(cartItemId)}`);
+        } else {
+          router.push(
+            `/${subdomain}/${clientSlug}/checkout?guest=1&items=${encodeURIComponent(cartItemId)}`
+          );
+        }
+        return;
+      }
+      const err = await res.json();
+      toast(err.error ?? "장바구니 추가에 실패했습니다.", "error");
+    } catch {
+      toast("네트워크 오류가 발생했습니다.", "error");
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  const goToMemberCheckout = async () => {
+    if (!product) return;
+    if (!canGuestShop()) return;
+    if (sessionStatus !== "authenticated") {
+      const callbackUrl = `/${subdomain}/${clientSlug}/products/${productSlug}?memberBuy=1`;
+      router.push(`/${subdomain}/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+      return;
+    }
+    if (!tryPurchaseOrWishlistAction()) return;
+    setAddingToCart(true);
+    try {
+      const res = await shopFetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          productId: product.id,
+          optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
+          quantity,
+        }),
+      });
+      if (res.ok) {
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
+        const data = await res.json();
+        const cartItemId = data?.cartItem?.id as string | undefined;
+        if (!cartItemId) return;
+        router.push(`/${subdomain}/${clientSlug}/checkout?items=${encodeURIComponent(cartItemId)}`);
         return;
       }
       const err = await res.json();
@@ -431,6 +572,7 @@ export default function ProductDetailPage() {
   const isSoldOut = product.status === "sold_out";
   const discountRate = getDiscountRate(product.base_price, product.sale_price);
   const salePrice = product.sale_price ?? product.base_price;
+  const compareMemberUnit = effectiveMemberUnitPrice(product);
 
   const regClient = userClients[0]?.clients;
 
@@ -503,23 +645,30 @@ export default function ProductDetailPage() {
           {product.short_description && (
             <p className="mt-0.5 text-sm text-gray-500">{product.short_description}</p>
           )}
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="flex flex-wrap items-baseline gap-2">
-              {discountRate != null && discountRate > 0 && (
-                <span className="text-xl font-bold" style={{ color: ROSE }}>
-                  {discountRate}%
+          <div className="mt-2 flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-2">
+                {discountRate != null && discountRate > 0 && (
+                  <span className="text-xl font-bold" style={{ color: ROSE }}>
+                    {discountRate}%
+                  </span>
+                )}
+                <span className="text-xl font-bold text-gray-900">
+                  {formatPrice(salePrice)}원
                 </span>
-              )}
-              <span className="text-xl font-bold text-gray-900">
-                {formatPrice(salePrice)}원
-              </span>
-              {product.sale_price != null && product.sale_price < product.base_price && (
-                <span className="text-sm text-gray-400 line-through">
-                  {formatPrice(product.base_price)}원
+                {product.sale_price != null && product.sale_price < product.base_price && (
+                  <span className="text-sm text-gray-400 line-through">
+                    {formatPrice(product.base_price)}원
+                  </span>
+                )}
+              </div>
+              <div className="mt-2">
+                <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 text-sm font-bold text-purple-700">
+                  🎁 회원특별가(로그인 시) {formatPrice(compareMemberUnit)}원
                 </span>
-              )}
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-gray-400">
+            <div className="flex shrink-0 items-center gap-2 text-gray-400">
               <button
                 type="button"
                 onClick={toggleWishlist}
@@ -702,53 +851,68 @@ export default function ProductDetailPage() {
           </p>
         </div>
 
-        {/* 하단 구매 바: 글로벌 하단 네비 바로 위에 고정 */}
+        {/* 하단 1-Depth 액션 바: ♡ | 장바구니 | 비회원가 | 회원가 */}
         <div
           className="fixed left-0 right-0 z-50 border-t border-gray-200 bg-white"
           style={{
             bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM_NAV_HEIGHT}px)`,
           }}
         >
-          <div className="mx-auto flex h-14 max-w-[430px]">
-          <button
-            type="button"
-            onClick={toggleWishlist}
-            disabled={wishlistChecking}
-            className="flex w-14 shrink-0 items-center justify-center border-r border-gray-200 bg-white text-gray-500 hover:bg-gray-50 active:opacity-80 disabled:opacity-50"
-            aria-label="찜"
-          >
-            <Heart
-              strokeWidth={1.5}
-              className="h-6 w-6"
-              fill={isInWishlist ? PRIMARY : "none"}
-              style={{ color: isInWishlist ? PRIMARY : undefined }}
-            />
-          </button>
-          <button
-            type="button"
-            disabled={isSoldOut || addingToCart}
-            onClick={addToCart}
-            className="flex flex-1 items-center justify-center border-r border-gray-200 bg-white text-base font-medium text-gray-900 hover:bg-gray-50 active:opacity-90 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-          >
-            {/* NOTE: 데모 동안에는 "추가 중..." 상태 문구를 숨기고, 항상 "장바구니"로 노출한다.
-                - 기존: {isSoldOut ? "품절" : addingToCart ? "추가 중..." : "장바구니"}
-                - 이후: 로딩 상태 문구/스피너를 다시 도입할 때 UX 관점에서 재검토 예정. */}
-            {isSoldOut ? "품절" : "장바구니"}
-          </button>
-          <button
-            type="button"
-            disabled={isSoldOut}
-            onClick={goToBuyNow}
-            className="flex flex-1 items-center justify-center text-lg font-medium text-white active:opacity-90 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            style={{ backgroundColor: isSoldOut ? undefined : PRIMARY }}
-          >
-            {isSoldOut ? "품절" : "구매하기"}
-          </button>
+          <div className="mx-auto grid max-w-[430px] grid-cols-[48px_48px_1fr_1fr] items-stretch gap-0 min-h-[56px]">
+            <button
+              type="button"
+              onClick={toggleWishlist}
+              disabled={wishlistChecking}
+              className="flex items-center justify-center border-r border-gray-200 bg-white text-gray-500 hover:bg-gray-50 active:opacity-80 disabled:opacity-50"
+              aria-label="찜"
+            >
+              <Heart
+                strokeWidth={1.5}
+                className="h-6 w-6"
+                fill={isInWishlist ? PRIMARY : "none"}
+                style={{ color: isInWishlist ? PRIMARY : undefined }}
+              />
+            </button>
+            <button
+              type="button"
+              disabled={isSoldOut || addingToCart}
+              onClick={addToCart}
+              className="flex items-center justify-center border-r border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:opacity-90 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+              aria-label="장바구니 담기"
+            >
+              <ShoppingCart strokeWidth={1.5} className="h-6 w-6" />
+            </button>
+            <button
+              type="button"
+              disabled={isSoldOut || addingToCart}
+              onClick={goToGuestCheckout}
+              className="flex min-w-0 flex-col items-center justify-center border-r border-gray-200 bg-white px-1 py-2 text-center active:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="text-[10px] font-medium leading-tight text-gray-500">비회원가</span>
+              <span className="truncate text-xs font-bold tabular-nums text-gray-900">
+                {isSoldOut ? "품절" : `${formatPrice(guestUnitTotal)}원`}
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled={isSoldOut || addingToCart}
+              onClick={goToMemberCheckout}
+              className="flex min-w-0 flex-col items-center justify-center gap-0.5 bg-[#F8F5FF] px-1 py-2 text-center active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ color: PRIMARY }}
+            >
+              <span className="flex items-center gap-0.5 text-[10px] font-semibold leading-tight">
+                <Gift className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
+                회원가
+              </span>
+              <span className="truncate text-xs font-bold tabular-nums">
+                {isSoldOut ? "—" : `${formatPrice(memberUnitTotal)}원`}
+              </span>
+            </button>
           </div>
         </div>
 
         {/* 하단 네비 + CTA 바 높이만큼 패딩 */}
-        <div style={{ height: BOTTOM_NAV_HEIGHT + 56 }} />
+        <div style={{ height: BOTTOM_NAV_HEIGHT + 64 }} />
       </div>
 
       {/* 관심상품담기 모달 — 컴팩트 슬림 UI, 브랜드 컬러(PRIMARY) 유지 */}

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { logApiRequest } from "@/lib/logger";
+import { normalizeDeliveryMethodsForDb } from "@/lib/product-delivery-methods";
 
 /**
  * T2-2, T2-3: 상품 API
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest) {
       thumbnailUrl,
       basePrice,
       salePrice,
+      memberPrice,
       stockQty,
       safetyStock,
       status,
@@ -198,11 +200,12 @@ export async function POST(request: NextRequest) {
         thumbnail_url: thumbnailUrl || null,
         base_price: basePrice || 0,
         sale_price: salePrice || null,
+        member_price: memberPrice != null ? memberPrice : null,
         stock_qty: stockQty ?? 0,
         safety_stock: safetyStock ?? 0,
         status: status || "draft",
         sticker_options: stickerOptions || null,
-        delivery_methods: deliveryMethods || null,
+        delivery_methods: normalizeDeliveryMethodsForDb(deliveryMethods),
         allow_delivery_date: allowDeliveryDate ?? false,
       })
       .select()
