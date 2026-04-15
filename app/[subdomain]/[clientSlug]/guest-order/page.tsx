@@ -26,13 +26,12 @@ const BORDER = "#E5E7EB";
 const CARD_RADIUS = "12px";
 const PAYMENT_BG = "#F5F0F8";
 const ACCENT_DARK = "#5B21B6";
-const DELIVERY_FEE_BLUE = "#2563EB";
-
-const DELIVERY_OPTIONS = [
-  { value: "parcel", label: "택배 배송", fee: 4000 },
-  { value: "quick", label: "퀵배송", fee: 5000 },
-  { value: "store_pickup", label: "스토어픽업", fee: 1000 },
-] as const;
+// 배송 방식 UI 제거 — 이전 옵션별 배송비 (복구 시 참고)
+// const DELIVERY_OPTIONS = [
+//   { value: "parcel", label: "택배 배송", fee: 4000 },
+//   { value: "quick", label: "퀵배송", fee: 5000 },
+//   { value: "store_pickup", label: "스토어픽업", fee: 1000 },
+// ] as const;
 
 const TIME_SLOTS = [
   "09:00~11:00",
@@ -145,8 +144,10 @@ export default function GuestOrderPage() {
   const [ribbonPreset, setRibbonPreset] = useState(RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__");
   const [ribbonMessageCustom, setRibbonMessageCustom] = useState("");
 
-  const [deliveryMethod, setDeliveryMethod] = useState<"parcel" | "quick" | "store_pickup">("parcel");
-  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.value === deliveryMethod)?.fee ?? 4000;
+  /** 배송 방식 선택 UI 제거 — API/주문 레코드 호환용 기본값 */
+  const deliveryMethod = "parcel" as const;
+  // const deliveryFee = DELIVERY_OPTIONS.find((o) => o.value === deliveryMethod)?.fee ?? 4000;
+  const deliveryFee = 0;
 
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
@@ -221,7 +222,8 @@ export default function GuestOrderPage() {
     });
   const getItemPrice = (item: CartItem) => getItemUnit(item) * item.quantity;
   const getTotalProductPrice = () => items.reduce((sum, item) => sum + getItemPrice(item), 0);
-  const finalTotal = getTotalProductPrice() + deliveryFee;
+  const finalTotal = getTotalProductPrice();
+  // + deliveryFee (배송비 계산 비활성화)
 
   const resolvedRibbonMessage =
     ribbonPreset === "__custom__" ? ribbonMessageCustom.trim() : ribbonPreset;
@@ -730,41 +732,6 @@ export default function GuestOrderPage() {
 
           <SectionDivider />
 
-          {/* 배송 방식 + 상품 요약 */}
-          <section className="py-2">
-            <h2 className="mb-3 text-base font-bold" style={{ color: TEXT }}>
-              배송 방식
-            </h2>
-            <div className="grid grid-cols-3 gap-2">
-              {DELIVERY_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className="flex cursor-pointer items-center justify-center rounded-lg border px-2 py-3 text-center text-xs font-medium transition-colors sm:text-sm"
-                  style={{
-                    borderColor: deliveryMethod === opt.value ? PRIMARY : BORDER,
-                    backgroundColor: deliveryMethod === opt.value ? PRIMARY_LIGHT : "white",
-                    color: deliveryMethod === opt.value ? PRIMARY : TEXT,
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="deliveryMethod"
-                    value={opt.value}
-                    checked={deliveryMethod === opt.value}
-                    onChange={() => setDeliveryMethod(opt.value)}
-                    className="sr-only"
-                  />
-                  {opt.label}
-                </label>
-              ))}
-            </div>
-            <p className="mt-3 text-sm font-semibold" style={{ color: DELIVERY_FEE_BLUE }}>
-              배송비: {formatPrice(deliveryFee)}원
-            </p>
-          </section>
-
-          <SectionDivider />
-
           <section className="py-2">
             <h2 className="mb-3 text-base font-bold" style={{ color: TEXT }}>
               주문 상품 ({items.length}개)
@@ -817,10 +784,6 @@ export default function GuestOrderPage() {
               <div className="flex justify-between">
                 <span style={{ color: TEXT_MUTED }}>상품 합계</span>
                 <span style={{ color: TEXT }}>{formatPrice(getTotalProductPrice())}원</span>
-              </div>
-              <div className="flex justify-between">
-                <span style={{ color: TEXT_MUTED }}>배송비</span>
-                <span style={{ color: TEXT }}>{formatPrice(deliveryFee)}원</span>
               </div>
               <div
                 className="mt-4 flex items-center justify-between gap-4 border-t pt-4"

@@ -28,8 +28,6 @@ const BORDER = "#E5E7EB";
 const CARD_RADIUS = "12px";
 const PAYMENT_BG = "#F5F0F8";
 const ACCENT_DARK = "#5B21B6";
-const DELIVERY_FEE_BLUE = "#2563EB";
-
 const DELIVERY_NOTE_OPTIONS = [
   { value: "", label: "배송 요청사항을 선택해주세요" },
   { value: "door", label: "문 앞에 놓아주세요" },
@@ -55,11 +53,12 @@ interface CartItem {
   };
 }
 
-const DELIVERY_OPTIONS = [
-  { value: "parcel", label: "택배 배송", fee: 4000 },
-  { value: "quick", label: "퀵배송", fee: 5000 },
-  { value: "store_pickup", label: "스토어픽업", fee: 1000 },
-] as const;
+// 배송 방식 UI 제거 — 이전 옵션별 배송비 (복구 시 참고)
+// const DELIVERY_OPTIONS = [
+//   { value: "parcel", label: "택배 배송", fee: 4000 },
+//   { value: "quick", label: "퀵배송", fee: 5000 },
+//   { value: "store_pickup", label: "스토어픽업", fee: 1000 },
+// ] as const;
 
 const TIME_SLOTS = [
   "09:00~11:00",
@@ -105,8 +104,10 @@ export default function CheckoutPage() {
 
   const [ordererAccordionOpen, setOrdererAccordionOpen] = useState(false);
 
-  const [deliveryMethod, setDeliveryMethod] = useState<"parcel" | "quick" | "store_pickup">("parcel");
-  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.value === deliveryMethod)?.fee ?? 4000;
+  /** 배송 방식 선택 UI 제거 — API/주문 레코드 호환용 기본값 */
+  const deliveryMethod = "parcel" as const;
+  // const deliveryFee = DELIVERY_OPTIONS.find((o) => o.value === deliveryMethod)?.fee ?? 4000;
+  const deliveryFee = 0;
 
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [shippingName, setShippingName] = useState("");
@@ -258,7 +259,8 @@ export default function CheckoutPage() {
   };
   const getItemPrice = (item: CartItem) => getItemUnit(item) * item.quantity;
   const getTotalProductPrice = () => items.reduce((sum, item) => sum + getItemPrice(item), 0);
-  const finalTotal = getTotalProductPrice() + deliveryFee;
+  const finalTotal = getTotalProductPrice();
+  // + deliveryFee (배송비 계산 비활성화)
 
   const handleSelectAddress = (a: Address) => {
     setSelectedAddressId(a.id);
@@ -785,39 +787,6 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        {/* 배송 방식 - 인터랙티브 가격 연동 UI */}
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-medium" style={{ color: TEXT_MUTED }}>
-            배송 방식
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {DELIVERY_OPTIONS.map((opt) => (
-              <label
-                key={opt.value}
-                className="flex cursor-pointer items-center justify-center rounded-lg border px-3 py-3 text-sm font-medium transition-colors"
-                style={{
-                  borderColor: deliveryMethod === opt.value ? PRIMARY : "#E5E7EB",
-                  backgroundColor: deliveryMethod === opt.value ? PRIMARY_LIGHT : "white",
-                  color: deliveryMethod === opt.value ? PRIMARY : TEXT,
-                }}
-              >
-                <input
-                  type="radio"
-                  name="deliveryMethod"
-                  value={opt.value}
-                  checked={deliveryMethod === opt.value}
-                  onChange={() => setDeliveryMethod(opt.value)}
-                  className="sr-only"
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-          <p className="mt-3 text-sm font-semibold" style={{ color: DELIVERY_FEE_BLUE }}>
-            배송비 : {formatPrice(deliveryFee)}원
-          </p>
-        </div>
-
         {/* 희망배송일/시간 (아코디언) */}
         <div className="mt-4 space-y-2">
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
@@ -998,10 +967,6 @@ export default function CheckoutPage() {
         <div className="flex justify-between">
           <span style={{ color: TEXT_MUTED }}>상품 합계</span>
           <span style={{ color: TEXT }}>{formatPrice(getTotalProductPrice())}원</span>
-        </div>
-        <div className="flex justify-between">
-          <span style={{ color: TEXT_MUTED }}>배송비</span>
-          <span style={{ color: TEXT }}>{formatPrice(deliveryFee)}원</span>
         </div>
         <div
           className="flex items-center justify-between gap-4 border-t pt-4 mt-4"
