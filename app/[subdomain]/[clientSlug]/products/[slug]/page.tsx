@@ -430,7 +430,7 @@ export default function ProductDetailPage() {
   const goToGuestCheckout = async () => {
     if (!product) return;
     if (!canGuestShop()) return;
-    if (sessionStatus === "authenticated" && !tryPurchaseOrWishlistAction()) return;
+    /** 비회원가: 전용몰 미소속 로그인 사용자도 게스트 장바구니로 담아야 하므로 소속 검사 생략 */
     setAddingToCart(true);
     try {
       const res = await shopFetch("/api/cart", {
@@ -441,6 +441,7 @@ export default function ProductDetailPage() {
           productId: product.id,
           optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
           quantity,
+          forceGuestCart: true,
         }),
       });
       if (res.ok) {
@@ -448,13 +449,9 @@ export default function ProductDetailPage() {
         const data = await res.json();
         const cartItemId = data?.cartItem?.id as string | undefined;
         if (!cartItemId) return;
-        if (sessionStatus === "authenticated") {
-          router.push(`/${subdomain}/${clientSlug}/checkout?items=${encodeURIComponent(cartItemId)}`);
-        } else {
-          router.push(
-            `/${subdomain}/${clientSlug}/checkout?guest=1&items=${encodeURIComponent(cartItemId)}`
-          );
-        }
+        router.push(
+          `/${subdomain}/${clientSlug}/guest-order?items=${encodeURIComponent(cartItemId)}`
+        );
         return;
       }
       const err = await res.json();

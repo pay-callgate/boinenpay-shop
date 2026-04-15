@@ -138,10 +138,11 @@ export default function CartPage() {
     if (selectedOnly) {
       qs.set("items", ids.join(","));
     }
-    if (!session?.user?.id) {
-      qs.set("guest", "1");
-    }
     const q = qs.toString();
+    if (!session?.user?.id) {
+      router.push(`/${subdomain}/${clientSlug}/guest-order${q ? `?${q}` : ""}`);
+      return;
+    }
     router.push(`/${subdomain}/${clientSlug}/checkout${q ? `?${q}` : ""}`);
   };
 

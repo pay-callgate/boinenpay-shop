@@ -1,0 +1,906 @@
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { OrderGuard } from "@/components/shop/OrderGuard";
+import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
+import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
+import { shopFetch } from "@/lib/shop-fetch";
+import { toast } from "@/components/shop/ToastContext";
+import { effectiveGuestUnitPrice } from "@/lib/product-pricing";
+import { openDaumPostcode } from "@/lib/daum-postcode";
+import { useUserClient } from "@/hooks/useUserClient";
+
+/**
+ * 비회원 전용 주문서 — 화환/꽃배달(우리부고) 입력 구성
+ * /{subdomain}/{clientSlug}/guest-order?items=cartItemId[,...]
+ */
+
+const PRIMARY = "#D6A8E0";
+const PRIMARY_LIGHT = "#F3E8F5";
+const TEXT = "#333333";
+const TEXT_MUTED = "#6B7280";
+const BORDER = "#E5E7EB";
+const CARD_RADIUS = "12px";
+const PAYMENT_BG = "#F5F0F8";
+const ACCENT_DARK = "#5B21B6";
+const DELIVERY_FEE_BLUE = "#2563EB";
+
+const DELIVERY_OPTIONS = [
+  { value: "parcel", label: "택배 배송", fee: 4000 },
+  { value: "quick", label: "퀵배송", fee: 5000 },
+  { value: "store_pickup", label: "스토어픽업", fee: 1000 },
+] as const;
+
+const TIME_SLOTS = [
+  "09:00~11:00",
+  "11:00~13:00",
+  "13:00~15:00",
+  "14:00~16:00",
+  "15:00~17:00",
+  "17:00~19:00",
+];
+
+const RIBBON_MESSAGE_PRESETS: { value: string; label: string }[] = [
+  { value: "__custom__", label: "직접 입력" },
+  { value: "삼가 고인의 명복을 빕니다", label: "삼가 고인의 명복을 빕니다" },
+  { value: "근조", label: "근조" },
+  { value: "축하합니다", label: "축하합니다" },
+  { value: "정성을 담아 보냅니다", label: "정성을 담아 보냅니다" },
+];
+
+function getTomorrowDateString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split("T")[0];
+}
+
+interface CartItem {
+  id: string;
+  product_id: string;
+  option_json: Record<string, string> | null;
+  quantity: number;
+  product: {
+    id: string;
+    name: string;
+    slug: string;
+    thumbnail_url: string | null;
+    base_price: number;
+    sale_price: number | null;
+    member_price?: number | null;
+    status: string;
+  };
+}
+
+const inputClass =
+  "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
+const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
+const sectionCardClass = "overflow-hidden rounded-xl border border-gray-200 bg-gray-50/90 p-5";
+
+function digitsOnlyPhone(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function buildGuestShippingDetail(parts: {
+  venueDetail: string;
+  deliveryDate: string;
+  deliveryTimeSlot: string;
+  ordererName: string;
+  ordererPhone: string;
+  ribbonSender: string;
+  ribbonMessage: string;
+}): string {
+  const lines: string[] = [];
+  const v = parts.venueDetail.trim();
+  if (v) lines.push(v);
+  lines.push("");
+  lines.push(`[배달 희망] ${parts.deliveryDate} ${parts.deliveryTimeSlot}`);
+  lines.push(`[주문자] ${parts.ordererName.trim()} / ${parts.ordererPhone.trim()}`);
+  lines.push(`[보내는 분(리본)] ${parts.ribbonSender.trim()}`);
+  lines.push(`[리본 문구] ${parts.ribbonMessage.trim()}`);
+  return lines.join("\n");
+}
+
+export default function GuestOrderPage() {
+  const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status: sessionStatus } = useSession();
+
+  const subdomain = params?.subdomain as string;
+  const clientSlug = params?.clientSlug as string;
+  const itemsQuery = searchParams?.get("items") ?? "";
+  const selectedItemIds = useMemo(
+    () => (itemsQuery ? itemsQuery.split(",").filter(Boolean) : []),
+    [itemsQuery]
+  );
+
+  const template = useShopTemplate();
+  const partnerId = template?.partner?.id ?? null;
+  const clientId = template?.client?.id ?? null;
+  const { userClients, loading: userClientLoading } = useUserClient(partnerId ?? undefined);
+
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [ordererName, setOrdererName] = useState("");
+  const [ordererPhone, setOrdererPhone] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPassword, setGuestPassword] = useState("");
+  const [guestPasswordConfirm, setGuestPasswordConfirm] = useState("");
+
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(() => getTomorrowDateString());
+  const DEFAULT_TIME_SLOT = "14:00~16:00";
+  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(DEFAULT_TIME_SLOT);
+  const [openTimeAccordion, setOpenTimeAccordion] = useState(false);
+  const [shippingPostcode, setShippingPostcode] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [venueDetail, setVenueDetail] = useState("");
+
+  const [ribbonSender, setRibbonSender] = useState("");
+  const [ribbonPreset, setRibbonPreset] = useState(RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__");
+  const [ribbonMessageCustom, setRibbonMessageCustom] = useState("");
+
+  const [deliveryMethod, setDeliveryMethod] = useState<"parcel" | "quick" | "store_pickup">("parcel");
+  const deliveryFee = DELIVERY_OPTIONS.find((o) => o.value === deliveryMethod)?.fee ?? 4000;
+
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  /** 이 전용몰 소속 회원이면 일반 체크아웃으로 (회원가 결제) */
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || !itemsQuery || !clientId) return;
+    if (userClientLoading) return;
+    const belongs = userClients.some((uc) => uc.client_id === clientId);
+    if (belongs) {
+      router.replace(
+        `/${subdomain}/${clientSlug}/checkout?items=${encodeURIComponent(itemsQuery)}`
+      );
+    }
+  }, [
+    sessionStatus,
+    itemsQuery,
+    clientId,
+    subdomain,
+    clientSlug,
+    router,
+    userClients,
+    userClientLoading,
+  ]);
+
+  useEffect(() => {
+    async function loadCart() {
+      if (!clientId) {
+        setLoading(false);
+        return;
+      }
+      if (sessionStatus === "loading") return;
+
+      setLoading(true);
+      const res = await shopFetch(`/api/cart?clientId=${clientId}&guestCart=1`);
+      if (res.ok) {
+        const data = await res.json();
+        const all = (data.items || []) as CartItem[];
+        const filtered =
+          selectedItemIds.length > 0
+            ? all.filter((item) => selectedItemIds.includes(item.id))
+            : all;
+        setItems(filtered);
+      } else {
+        setItems([]);
+      }
+      setLoading(false);
+    }
+    loadCart();
+  }, [clientId, selectedItemIds, sessionStatus]);
+
+  useEffect(() => {
+    const cancel = searchParams?.get("cancel");
+    if (cancel === "1") {
+      toast("결제가 취소되었습니다. 아래에서 다시 결제를 시도해 주세요.", "error");
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("cancel");
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }
+    }
+  }, [searchParams]);
+
+  const formatPrice = (price: number) => new Intl.NumberFormat("ko-KR").format(price);
+
+  const getItemUnit = (item: CartItem) =>
+    effectiveGuestUnitPrice({
+      base_price: item.product.base_price,
+      sale_price: item.product.sale_price,
+      member_price: item.product.member_price ?? null,
+    });
+  const getItemPrice = (item: CartItem) => getItemUnit(item) * item.quantity;
+  const getTotalProductPrice = () => items.reduce((sum, item) => sum + getItemPrice(item), 0);
+  const finalTotal = getTotalProductPrice() + deliveryFee;
+
+  const resolvedRibbonMessage =
+    ribbonPreset === "__custom__" ? ribbonMessageCustom.trim() : ribbonPreset;
+
+  const openPostcodeSearch = () => {
+    openDaumPostcode(({ zonecode, address }) => {
+      setShippingPostcode(zonecode);
+      setShippingAddress(address);
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!privacyAgreed) {
+      toast("개인정보 수집 및 이용에 동의해 주세요.");
+      return;
+    }
+    if (!template?.orderAllowed) {
+      toast("마스터 템플릿 미리보기 상태에서는 주문이 불가능합니다.");
+      return;
+    }
+    if (!partnerId || !clientId || items.length === 0) {
+      toast("주문 정보가 올바르지 않습니다.");
+      return;
+    }
+    const on = ordererName.trim();
+    const op = digitsOnlyPhone(ordererPhone);
+    const pw = guestPassword.trim();
+    const em = guestEmail.trim();
+    if (!on || !op) {
+      toast("주문자 성명과 연락처를 입력해 주세요.");
+      return;
+    }
+    if (op.length < 8) {
+      toast("주문자 연락처를 올바르게 입력해 주세요.");
+      return;
+    }
+    if (pw.length < 4) {
+      toast("주문 조회용 비밀번호는 4자 이상 입력해 주세요.");
+      return;
+    }
+    if (pw !== guestPasswordConfirm.trim()) {
+      toast("주문 조회 비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+    if (!em) {
+      toast("결제 안내를 위해 이메일을 입력해 주세요.");
+      return;
+    }
+    const rn = recipientName.trim();
+    const rp = digitsOnlyPhone(recipientPhone);
+    if (!rn || !rp) {
+      toast("받으시는 분 성명과 배달지 연락처를 입력해 주세요.");
+      return;
+    }
+    if (!shippingAddress.trim()) {
+      toast("배달지 주소를 입력해 주세요. 우편번호 찾기를 이용해 주세요.");
+      return;
+    }
+    if (!venueDetail.trim()) {
+      toast("장례식장·예식장명, 빈소 및 홀 호수 등을 입력해 주세요.");
+      return;
+    }
+    if (!ribbonSender.trim()) {
+      toast("보내는 분(리본)을 입력해 주세요.");
+      return;
+    }
+    if (!resolvedRibbonMessage) {
+      toast("리본 메시지를 선택하거나 입력해 주세요.");
+      return;
+    }
+
+    const shippingDetail = buildGuestShippingDetail({
+      venueDetail,
+      deliveryDate,
+      deliveryTimeSlot,
+      ordererName: on,
+      ordererPhone: op,
+      ribbonSender,
+      ribbonMessage: resolvedRibbonMessage,
+    });
+
+    setSubmitting(true);
+    const orderPayload: Record<string, unknown> = {
+      partnerId,
+      clientId,
+      cartItemIds: items.map((i) => i.id),
+      shippingName: rn,
+      shippingPhone: rp,
+      shippingPostcode: shippingPostcode.trim() || "00000",
+      shippingAddress: shippingAddress.trim(),
+      shippingDetail,
+      deliveryDate: deliveryDate || null,
+      deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
+      deliveryMethod,
+      deliveryFee,
+      paymentMethod,
+      isGuest: true,
+      guestPassword: pw,
+    };
+
+    try {
+      const res = await shopFetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast((err as { error?: string }).error || "주문에 실패했습니다.", "error");
+        setSubmitting(false);
+        return;
+      }
+      const data = await res.json();
+      const order = data.order as { id: string; order_no: string; total_amount: number };
+      const guestTok = data.guestCheckoutToken as string | undefined;
+      const paySig = data.paymentSignature as string | undefined;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("cart-updated"));
+      }
+
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      let returnUrl = `${origin}/${subdomain}/${clientSlug}/order/complete?orderId=${order.id}`;
+      if (guestTok && paySig) {
+        returnUrl += `&guestToken=${encodeURIComponent(guestTok)}&sig=${encodeURIComponent(paySig)}`;
+      }
+      const cancelUrl = `${origin}/${subdomain}/${clientSlug}/guest-order?cancel=1&items=${encodeURIComponent(itemsQuery)}`;
+      const productName = items.length > 0 ? items[0].product?.name ?? "주문상품" : "주문상품";
+      const prepareBody: Record<string, unknown> = {
+        orderId: order.id,
+        orderNo: order.order_no,
+        amount: order.total_amount,
+        productName,
+        returnUrl,
+        cancelUrl,
+        buyerName: on,
+        buyerPhone: op,
+        buyerEmail: em,
+      };
+      if (guestTok && paySig) {
+        prepareBody.guestCheckoutToken = guestTok;
+        prepareBody.paymentSignature = paySig;
+      }
+      const prepareRes = await shopFetch("/api/payment/viewpay/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prepareBody),
+      });
+      const prepareData = await prepareRes.json().catch(() => ({}));
+      if (prepareRes.ok && prepareData.success && prepareData.redirectUrl) {
+        window.location.href = prepareData.redirectUrl as string;
+        return;
+      }
+      toast(
+        (prepareData as { message?: string }).message ||
+          "결제창을 열 수 없습니다. 주문은 접수되었습니다.",
+        "error"
+      );
+    } catch {
+      toast("네트워크 오류가 발생했습니다.", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (template == null || !partnerId || !clientId || loading) {
+    return <div className="min-h-screen" style={{ backgroundColor: "#FAFAFA" }} />;
+  }
+
+  const isMallMember =
+    session?.user?.id &&
+    clientId &&
+    userClients.some((uc) => uc.client_id === clientId);
+
+  if (sessionStatus === "authenticated" && userClientLoading) {
+    return <div className="min-h-screen" style={{ backgroundColor: "#FAFAFA" }} />;
+  }
+
+  if (isMallMember) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 text-center text-sm text-gray-600">
+        회원 주문(체크아웃)으로 이동 중…
+      </div>
+    );
+  }
+
+  if (selectedItemIds.length === 0 || items.length === 0) {
+    return (
+      <div
+        className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
+        style={{ backgroundColor: "#FAFAFA" }}
+      >
+        <h1 className="mb-2 text-lg font-bold" style={{ color: TEXT }}>
+          주문할 상품이 없습니다
+        </h1>
+        <p className="mb-4 text-sm" style={{ color: TEXT_MUTED }}>
+          상품을 담은 뒤 비회원 구매를 다시 시도해 주세요.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.push(`/${subdomain}/${clientSlug}`)}
+          className="rounded-xl px-6 py-3 text-sm font-medium text-white"
+          style={{ backgroundColor: PRIMARY }}
+        >
+          쇼핑몰 홈으로
+        </button>
+      </div>
+    );
+  }
+
+  const SectionDivider = () => <div className="h-2 bg-gray-100" aria-hidden />;
+
+  return (
+    <OrderGuard
+      partnerId={partnerId}
+      shopClientId={clientId ?? undefined}
+      shopClientName={template?.client?.name ?? undefined}
+      requireAuth={false}
+    >
+      <form
+        onSubmit={handleSubmit}
+        className="mx-auto min-h-screen max-w-[430px] bg-white pb-40"
+        style={{ paddingBottom: `calc(9rem + env(safe-area-inset-bottom, 0px))` }}
+      >
+        <div className="px-4 py-5">
+          <header className="mb-6">
+            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: PRIMARY }}>
+              비회원 주문
+            </p>
+            <h1 className="mt-1 text-xl font-bold leading-tight" style={{ color: TEXT }}>
+              배달 정보 입력
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
+              화환·꽃 배달(우리부고) 주문을 위해 정보를 입력해 주세요.
+            </p>
+          </header>
+
+          {/* 1. 주문자 정보 */}
+          <section className={sectionCardClass}>
+            <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
+              1. 주문자 정보
+            </h2>
+            <div className="flex flex-col gap-5">
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  주문자 성명 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="ordererName"
+                  autoComplete="name"
+                  value={ordererName}
+                  onChange={(e) => setOrdererName(e.target.value)}
+                  className={inputClass}
+                  placeholder="홍길동"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  주문자 연락처 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  name="ordererPhone"
+                  autoComplete="tel"
+                  value={ordererPhone}
+                  onChange={(e) => setOrdererPhone(digitsOnlyPhone(e.target.value))}
+                  className={inputClass}
+                  placeholder="01012345678 (숫자만)"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  이메일 (결제·영수증 안내) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  name="guestEmail"
+                  autoComplete="email"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  className={inputClass}
+                  placeholder="example@email.com"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  주문조회 비밀번호 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  name="guestPassword"
+                  autoComplete="new-password"
+                  value={guestPassword}
+                  onChange={(e) => setGuestPassword(e.target.value)}
+                  className={inputClass}
+                  placeholder="4자 이상 (배송 조회 시 사용)"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  주문조회 비밀번호 확인 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  name="guestPasswordConfirm"
+                  autoComplete="new-password"
+                  value={guestPasswordConfirm}
+                  onChange={(e) => setGuestPasswordConfirm(e.target.value)}
+                  className={inputClass}
+                  placeholder="비밀번호 재입력"
+                />
+              </div>
+            </div>
+          </section>
+
+          <SectionDivider />
+
+          {/* 2. 받으시는 분 */}
+          <section className={sectionCardClass}>
+            <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
+              2. 받으시는 분 (배송지)
+            </h2>
+            <div className="flex flex-col gap-5">
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  수취인 성명 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  className={inputClass}
+                  placeholder="받으시는 분 성함"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  배달지 연락처 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={recipientPhone}
+                  onChange={(e) => setRecipientPhone(digitsOnlyPhone(e.target.value))}
+                  className={inputClass}
+                  placeholder="01012345678 (숫자만)"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  배달 일시 <span className="text-rose-500">*</span>
+                </label>
+                <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={18} style={{ color: PRIMARY }} aria-hidden />
+                    <input
+                      type="date"
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                      className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
+                      style={{ color: TEXT }}
+                    />
+                  </div>
+                  <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={() => setOpenTimeAccordion((v) => !v)}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left"
+                    >
+                      <span className="text-sm" style={{ color: TEXT }}>
+                        희망 시간대
+                      </span>
+                      <span className="flex items-center gap-2 text-sm" style={{ color: TEXT_MUTED }}>
+                        {deliveryTimeSlot}
+                        {openTimeAccordion ? (
+                          <ChevronUp size={16} />
+                        ) : (
+                          <ChevronDown size={16} />
+                        )}
+                      </span>
+                    </button>
+                    {openTimeAccordion && (
+                      <div className="border-t border-gray-200 px-3 pb-3 pt-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          {TIME_SLOTS.map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => {
+                                setDeliveryTimeSlot(slot);
+                                setOpenTimeAccordion(false);
+                              }}
+                              className="rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors"
+                              style={{
+                                borderColor: deliveryTimeSlot === slot ? PRIMARY : BORDER,
+                                backgroundColor: deliveryTimeSlot === slot ? PRIMARY_LIGHT : "white",
+                                color: deliveryTimeSlot === slot ? PRIMARY : TEXT,
+                              }}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  배달지 주소 <span className="text-rose-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={shippingPostcode}
+                    placeholder="우편번호"
+                    className={`${inputClass} w-24 shrink-0 bg-gray-50`}
+                  />
+                  <button
+                    type="button"
+                    onClick={openPostcodeSearch}
+                    className="shrink-0 rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm font-bold"
+                    style={{ color: PRIMARY }}
+                  >
+                    주소 검색
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={shippingAddress}
+                  onChange={(e) => setShippingAddress(e.target.value)}
+                  className={`${inputClass} mt-3`}
+                  placeholder="도로명 주소"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  장소 상세 <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  value={venueDetail}
+                  onChange={(e) => setVenueDetail(e.target.value)}
+                  rows={4}
+                  className={`${inputClass} min-h-[112px] resize-y`}
+                  placeholder="장례식장명/예식장명, 빈소 및 홀 호수를 정확히 입력해 주세요."
+                />
+              </div>
+            </div>
+          </section>
+
+          <SectionDivider />
+
+          {/* 3. 리본 */}
+          <section className={sectionCardClass}>
+            <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
+              3. 리본 문구 정보
+            </h2>
+            <div className="flex flex-col gap-5">
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  보내는 분 <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={ribbonSender}
+                  onChange={(e) => setRibbonSender(e.target.value)}
+                  className={inputClass}
+                  placeholder="예: 주식회사 ○○○ 대표이사 홍길동"
+                />
+              </div>
+              <div>
+                <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                  메시지 (근조/축하) <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={ribbonPreset}
+                  onChange={(e) => {
+                    setRibbonPreset(e.target.value);
+                    if (e.target.value !== "__custom__") setRibbonMessageCustom("");
+                  }}
+                  className={inputClass}
+                  style={{ color: TEXT }}
+                >
+                  {RIBBON_MESSAGE_PRESETS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+                {ribbonPreset === "__custom__" && (
+                  <textarea
+                    value={ribbonMessageCustom}
+                    onChange={(e) => setRibbonMessageCustom(e.target.value)}
+                    rows={3}
+                    className={`${inputClass} mt-3 min-h-[88px] resize-y`}
+                    placeholder="리본에 들어갈 문구를 입력해 주세요."
+                  />
+                )}
+              </div>
+            </div>
+          </section>
+
+          <SectionDivider />
+
+          {/* 배송 방식 + 상품 요약 */}
+          <section className="py-2">
+            <h2 className="mb-3 text-base font-bold" style={{ color: TEXT }}>
+              배송 방식
+            </h2>
+            <div className="grid grid-cols-3 gap-2">
+              {DELIVERY_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex cursor-pointer items-center justify-center rounded-lg border px-2 py-3 text-center text-xs font-medium transition-colors sm:text-sm"
+                  style={{
+                    borderColor: deliveryMethod === opt.value ? PRIMARY : BORDER,
+                    backgroundColor: deliveryMethod === opt.value ? PRIMARY_LIGHT : "white",
+                    color: deliveryMethod === opt.value ? PRIMARY : TEXT,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="deliveryMethod"
+                    value={opt.value}
+                    checked={deliveryMethod === opt.value}
+                    onChange={() => setDeliveryMethod(opt.value)}
+                    className="sr-only"
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-sm font-semibold" style={{ color: DELIVERY_FEE_BLUE }}>
+              배송비: {formatPrice(deliveryFee)}원
+            </p>
+          </section>
+
+          <SectionDivider />
+
+          <section className="py-2">
+            <h2 className="mb-3 text-base font-bold" style={{ color: TEXT }}>
+              주문 상품 ({items.length}개)
+            </h2>
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <ul className="space-y-3">
+                {items.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex gap-3 rounded-lg border border-gray-200 bg-white p-4"
+                  >
+                    <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                      {item.product.thumbnail_url ? (
+                        <img
+                          src={item.product.thumbnail_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gray-200" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium" style={{ color: TEXT }}>
+                        {item.product.name}
+                      </p>
+                      <p className="mt-1 text-xs" style={{ color: TEXT_MUTED }}>
+                        비회원 판매가 {formatPrice(getItemUnit(item))}원 × {item.quantity}개
+                      </p>
+                      <p className="mt-1 text-sm font-bold" style={{ color: TEXT }}>
+                        {formatPrice(getItemPrice(item))}원
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          <SectionDivider />
+
+          <section
+            className="mt-4 rounded-2xl p-5"
+            style={{ backgroundColor: PAYMENT_BG, borderRadius: CARD_RADIUS }}
+          >
+            <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
+              결제 금액
+            </h2>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span style={{ color: TEXT_MUTED }}>상품 합계</span>
+                <span style={{ color: TEXT }}>{formatPrice(getTotalProductPrice())}원</span>
+              </div>
+              <div className="flex justify-between">
+                <span style={{ color: TEXT_MUTED }}>배송비</span>
+                <span style={{ color: TEXT }}>{formatPrice(deliveryFee)}원</span>
+              </div>
+              <div
+                className="mt-4 flex items-center justify-between gap-4 border-t pt-4"
+                style={{ borderColor: BORDER }}
+              >
+                <span className="text-base font-bold" style={{ color: TEXT }}>
+                  총 결제금액
+                </span>
+                <span className="shrink-0 text-2xl font-extrabold" style={{ color: ACCENT_DARK }}>
+                  {formatPrice(finalTotal)}원
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="py-4">
+            <h2 className="mb-3 text-base font-bold" style={{ color: TEXT }}>
+              결제 수단
+            </h2>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "card", label: "카드결제" },
+                { value: "transfer", label: "무통장입금" },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border py-3 transition-colors ${
+                    paymentMethod === opt.value ? "ring-2" : ""
+                  }`}
+                  style={{
+                    borderColor: paymentMethod === opt.value ? PRIMARY : BORDER,
+                    backgroundColor: paymentMethod === opt.value ? PRIMARY_LIGHT : "white",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={opt.value}
+                    checked={paymentMethod === opt.value}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="accent-[#D6A8E0]"
+                  />
+                  <span className="text-sm font-medium" style={{ color: TEXT }}>
+                    {opt.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Sticky footer */}
+        <div
+          className="fixed left-0 right-0 z-50 mx-auto max-w-[430px] border-t bg-white px-4 py-4 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]"
+          style={{
+            borderColor: BORDER,
+            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM_NAV_HEIGHT}px)`,
+          }}
+        >
+          <label className="mb-3 flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={privacyAgreed}
+              onChange={(e) => setPrivacyAgreed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#D6A8E0]"
+            />
+            <span className="text-xs leading-relaxed" style={{ color: TEXT_MUTED }}>
+              <span className="font-semibold text-gray-800">[필수]</span> 개인정보 수집 및 이용에 동의합니다.
+            </span>
+          </label>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-xl py-4 text-base font-bold text-white transition-opacity disabled:opacity-60"
+            style={{ backgroundColor: submitting ? "#9CA3AF" : PRIMARY }}
+          >
+            {submitting ? "처리 중…" : `${formatPrice(finalTotal)}원 결제하기`}
+          </button>
+        </div>
+      </form>
+    </OrderGuard>
+  );
+}

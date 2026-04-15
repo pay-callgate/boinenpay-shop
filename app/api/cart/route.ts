@@ -8,8 +8,8 @@ import { CART_SESSION_COOKIE, CART_SESSION_MAX_AGE } from "@/lib/cart-session-co
 
 /**
  * T4-4: 장바구니 API
- * GET /api/cart?clientId=xxx
- * POST /api/cart
+ * GET /api/cart?clientId=xxx  (&guestCart=1 이면 로그인 중에도 게스트 장바구니)
+ * POST /api/cart  (body.forceGuestCart === true 이면 소속 검사 생략·게스트 카트)
  * - 로그인: user_id 기반
  * - 비회원: 쿠키 calllink_cart_sid + carts.session_id
  */
@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get("clientId");
     const countOnly = searchParams.get("countOnly") === "1";
+    /** 비회원 주문 등: 로그인 중이어도 쿠키 기반 게스트 장바구니만 사용 */
+    const guestCart = searchParams.get("guestCart") === "1";
 
     if (!clientId) {
       return NextResponse.json({ error: "clientId가 필요합니다." }, { status: 400 });
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabase();
 
-    if (session?.user?.id) {
+    if (session?.user?.id && !guestCart) {
       const belongs = await userBelongsToClient(supabase, session.user.id, clientId);
       if (!belongs) {
         return NextResponse.json(
@@ -225,15 +227,16 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const body = await request.json();
-    const { clientId, productId, optionJson, quantity } = body;
+    const { clientId, productId, optionJson, quantity, forceGuestCart } = body;
 
     if (!clientId || !productId || !quantity) {
       return NextResponse.json({ error: "필수 항목이 누락되었습니다." }, { status: 400 });
     }
 
+    const useGuestCart = forceGuestCart === true;
     const supabase = createServerSupabase();
 
-    if (session?.user?.id) {
+    if (session?.user?.id && !useGuestCart) {
       const belongs = await userBelongsToClient(supabase, session.user.id, clientId);
       if (!belongs) {
         return NextResponse.json(
@@ -268,7 +271,7 @@ export async function POST(request: NextRequest) {
     let cart: { id: string } | null = null;
     let sessionIdOut: string | null = null;
 
-    if (session?.user?.id) {
+    if (session?.user?.id && !useGuestCart) {
       let { data: c } = await supabase
         .from("carts")
         .select("*")
