@@ -397,9 +397,9 @@ export function LinkNotificationModal({
                   <div className="flex shrink-0 justify-center border-b border-gray-200/80 py-2">
                     <div className="h-4 w-12 rounded-full bg-gray-300" />
                   </div>
-                  <div className="min-h-[220px] flex-1 overflow-y-auto p-4">
-                    <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+                  <div className="min-h-[220px] min-w-0 flex-1 overflow-y-auto p-4">
+                    <div className="min-w-0 max-w-full rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                      <p className="min-w-0 whitespace-pre-wrap text-sm leading-relaxed text-gray-800 [overflow-wrap:anywhere]">
                         {message || "메시지가 여기에 표시됩니다."}
                       </p>
                     </div>
