@@ -8,6 +8,7 @@ export {
   NEWRUN_CALLBACK_PATHS,
   type NewrunCallbackKind,
 } from "@/lib/newrun/constants";
+export { getRequestAppOrigin } from "@/lib/newrun/request-app-origin";
 export { buildRoseSession } from "@/lib/newrun/rose-session";
 export {
   buildFloristSearchUrlForServer,

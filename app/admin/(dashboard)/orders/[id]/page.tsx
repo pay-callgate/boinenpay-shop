@@ -146,6 +146,58 @@ export default function OrderDetailPage() {
   const [memo, setMemo] = useState("");
   const [updating, setUpdating] = useState(false);
 
+  /** 뉴런(Newrun) 협회 검색 팝업 — var_ret postMessage 결과 (Phase 3, 주문 저장은 후속) */
+  const [newrunFloristPayload, setNewrunFloristPayload] = useState<Record<
+    string,
+    string
+  > | null>(null);
+  const [newrunProductPayload, setNewrunProductPayload] = useState<Record<
+    string,
+    string
+  > | null>(null);
+  const [newrunOptionPayload, setNewrunOptionPayload] = useState<Record<
+    string,
+    string
+  > | null>(null);
+  const [newrunOpening, setNewrunOpening] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.origin !== window.location.origin) return;
+      const data = ev.data as { type?: string; kind?: string; payload?: Record<string, string> };
+      if (!data || data.type !== "NEWRUN_VAR_RET") return;
+      if (data.kind === "florist" && data.payload) setNewrunFloristPayload(data.payload);
+      if (data.kind === "product" && data.payload) setNewrunProductPayload(data.payload);
+      if (data.kind === "option" && data.payload) setNewrunOptionPayload(data.payload);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  const openNewrunSearch = async (kind: "florist" | "product" | "option") => {
+    if (!orderId) return;
+    setNewrunOpening(kind);
+    try {
+      const res = await adminFetch(
+        `/api/partner/integrations/newrun/search-url?kind=${encodeURIComponent(kind)}&orderId=${encodeURIComponent(orderId)}`
+      );
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok) {
+        alert(data.error || "검색 URL을 가져오지 못했습니다.");
+        return;
+      }
+      if (!data.url) {
+        alert("검색 URL이 비어 있습니다.");
+        return;
+      }
+      window.open(data.url, "_blank", "noopener,noreferrer,width=1100,height=800");
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setNewrunOpening(null);
+    }
+  };
+
   useEffect(() => {
     async function fetchOrder() {
       if (!orderId) return;
@@ -283,6 +335,72 @@ export default function OrderDetailPage() {
               >
                 {STATUS_LABELS[order.status] || order.status}
               </span>
+            </div>
+          </div>
+
+          {/* 뉴런(Newrun) 협회 검색 — 수주화원·상품·옵션 (Phase 3) */}
+          <div className="bg-white rounded-lg border border-violet-200 shadow-sm p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-1">뉴런 발주 — 협회 검색</h2>
+            <p className="text-xs text-slate-500 mb-4">
+              꽃돼지플라워 등 협회 인트라넷에서 선택 후 이 창으로 돌아오면 아래에 반영됩니다. (팝업 허용 필요)
+            </p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                type="button"
+                disabled={!!newrunOpening}
+                onClick={() => openNewrunSearch("florist")}
+                className="h-9 px-4 rounded-lg text-sm font-medium text-white bg-violet-700 hover:bg-violet-800 disabled:opacity-50"
+              >
+                {newrunOpening === "florist" ? "열는 중…" : "수주화원 검색"}
+              </button>
+              <button
+                type="button"
+                disabled={!!newrunOpening}
+                onClick={() => openNewrunSearch("product")}
+                className="h-9 px-4 rounded-lg text-sm font-medium text-violet-900 bg-violet-100 hover:bg-violet-200 disabled:opacity-50"
+              >
+                {newrunOpening === "product" ? "열는 중…" : "상품 검색"}
+              </button>
+              <button
+                type="button"
+                disabled={!!newrunOpening}
+                onClick={() => openNewrunSearch("option")}
+                className="h-9 px-4 rounded-lg text-sm font-medium text-violet-900 bg-violet-100 hover:bg-violet-200 disabled:opacity-50"
+              >
+                {newrunOpening === "option" ? "열는 중…" : "옵션 상품 검색"}
+              </button>
+            </div>
+            <div className="grid gap-3 text-sm">
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold text-slate-600 mb-1">수주화원 선택값</p>
+                {newrunFloristPayload ? (
+                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all text-slate-800">
+                    {JSON.stringify(newrunFloristPayload, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="text-xs text-slate-500">아직 없음 (var_sid 등)</p>
+                )}
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold text-slate-600 mb-1">상품 선택값</p>
+                {newrunProductPayload ? (
+                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all text-slate-800">
+                    {JSON.stringify(newrunProductPayload, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="text-xs text-slate-500">아직 없음</p>
+                )}
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold text-slate-600 mb-1">옵션 선택값</p>
+                {newrunOptionPayload ? (
+                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all text-slate-800">
+                    {JSON.stringify(newrunOptionPayload, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="text-xs text-slate-500">아직 없음</p>
+                )}
+              </div>
             </div>
           </div>
 

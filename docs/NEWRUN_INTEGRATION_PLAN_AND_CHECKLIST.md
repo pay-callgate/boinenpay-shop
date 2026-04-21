@@ -130,13 +130,21 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 **목표:** 문서 2.2·2.3(·2.4) 패턴 — **협회 호스트 UI**를 열고 결과를 주문 발주 데이터에 반영.
 
+### 구현 요약 (코드)
+
+| 구분 | 내용 |
+|------|------|
+| 검색 URL API | `GET /api/partner/integrations/newrun/search-url?kind=florist` (또는 `product` / `option`) `&orderId=` — 파트너 어드민·주문 소속 검증 후 서버에서 `build*SearchUrlForServer(origin)` |
+| origin | `lib/newrun/request-app-origin.ts` — `NEXT_PUBLIC_APP_URL` 우선, 없으면 요청 Host |
+| 어드민 UI | `app/admin/(dashboard)/orders/[id]/page.tsx` — 세 버튼, `postMessage`(`NEWRUN_VAR_RET`)로 화면에 payload 표시 |
+
 ### Tasks
 
-- [ ] **T3.1** **주문 상세** (`app/admin/(dashboard)/orders/[id]/page.tsx`)에 **「수주화원 검색」** 버튼 → `window.open(buildMemberSearchUrl(...))` (또는 동일 기능 모듈)
-- [ ] **T3.2** 동일 화면에 **「상품 검색」**(필요 시 **옵션 상품 검색**) 버튼
-- [ ] **T3.3** 콜백으로 받은 `rw_sujuid` / `rw_menucode`(및 옵션 필드)를 **주문 발주 draft** 또는 `orders` 확장 컬럼에 저장
-- [ ] **T3.4** 폴백: 거래처·상품별 **기본 수주화원·기본 상품코드**(DB/설정) — 팝업 없이 발주 가능
-- [ ] **T3.5** (선택) 고객 체크아웃에 노출할지 **정책 결정** — 1차는 **어드민 주문 상세**만 권장
+- [x] **T3.1** 주문 상세 **「수주화원 검색」** → API로 URL 수신 후 `window.open`
+- [x] **T3.2** **「상품 검색」**, **「옵션 상품 검색」** 동일 패턴
+- [ ] **T3.3** 콜백 payload를 **`orders` 확장 컬럼·발주 draft DB 저장** — Phase 4~5에서 연계
+- [ ] **T3.4** 폴백: 거래처·상품별 **기본 수주화원·기본 상품코드**(DB/설정)
+- [x] **T3.5** 1차는 **어드민 주문 상세**만 (고객 체크아웃 미노출)
 
 ### 테스트·체크리스트
 
@@ -360,7 +368,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 0 | 스텁 | [x] | [ ] | T0.3·테스트는 배포/로컬 확인 |
 | 1 | rose_session / URL | [x] | [ ] | T1.4·협회 실측은 세팅 후 |
 | 2 | var_ret 콜백 | [x] | [ ] | T2.4·실연동 테스트 남음 |
-| 3 | 선택 UX | [ ] | [ ] | |
+| 3 | 선택 UX | [x] | [ ] | T3.3·T3.4·실협회 테스트 남음 |
 | 4 | 매핑 | [ ] | [ ] | |
 | 5 | 발주 전송 | [ ] | [ ] | Mock→실연동 |
 | 6 | po-return 고도화 | [ ] | [ ] | |
@@ -385,3 +393,4 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 - Phase 0: `delivery-status`에 `HEAD`, `force-dynamic`, GET 쿼리 객체 로그 — T0.1 코드 완료 표기.
 - Phase 1: `lib/newrun/*` — `rose_session`, 협회 검색 URL 빌더, 서버용 `build*UsingAppConfig` — `var_ret`는 Phase 2 콜백 경로를 가리킴(현재 404 가능).
 - Phase 2: `callback/[kind]/route.ts`, `newrun_callback_results` 테이블, `postMessage` + JSON 테스트 모드.
+- Phase 3: `GET /api/partner/integrations/newrun/search-url`, `request-app-origin.ts`, 어드민 주문 상세 뉴런 검색 카드 + `postMessage` 수신.
