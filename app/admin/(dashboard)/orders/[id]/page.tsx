@@ -1,10 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { COURIER_OPTIONS, formatTrackingDisplay } from "@/lib/courier";
+import {
+  mergeFloristDraftForOrder,
+  mergeProductDraftForOrder,
+} from "@/lib/newrun/merge-order-drafts";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -22,6 +26,7 @@ interface Client {
   name: string;
   slug: string;
   logo_url: string | null;
+  newrun_default_florist_draft?: Record<string, unknown> | null;
 }
 
 interface User {
@@ -36,6 +41,8 @@ interface Product {
   name: string;
   slug: string;
   thumbnail_url: string | null;
+  newrun_default_product_draft?: Record<string, unknown> | null;
+  newrun_default_option_draft?: Record<string, unknown> | null;
 }
 
 interface OrderItem {
@@ -71,11 +78,28 @@ interface Order {
   tracking_number: string | null;
   courier_company: string | null;
   created_at: string;
+  /** 뉴런(Newrun) 협회 검색 선택값 — JSONB (T3.3) */
+  newrun_florist_draft?: Record<string, unknown> | null;
+  newrun_product_draft?: Record<string, unknown> | null;
+  newrun_option_draft?: Record<string, unknown> | null;
   client: Client;
   user: User | null;
 }
 
+function coerceStringMapFromJson(v: unknown): Record<string, string> | null {
+  if (v == null || typeof v !== "object" || Array.isArray(v)) return null;
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === "string") out[k] = val;
+    else if (typeof val === "number" || typeof val === "boolean") out[k] = String(val);
+    else if (val != null) out[k] = JSON.stringify(val);
+    else out[k] = "";
+  }
+  return out;
+}
+
 const STATUS_LABELS: Record<string, string> = {
+  received: "접수",
   pending_payment: "입금대기",
   paid: "결제완료",
   preparing: "배송준비중",
@@ -85,6 +109,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_OPTIONS = [
+  { value: "received", label: "접수" },
   { value: "paid", label: "결제완료" },
   { value: "preparing", label: "배송준비중" },
   { value: "shipping", label: "배송중" },
@@ -94,6 +119,7 @@ const STATUS_OPTIONS = [
 
 function getStatusBadgeClass(status: string): string {
   const map: Record<string, string> = {
+    received: "bg-slate-100 text-slate-800",
     pending_payment: "bg-amber-100 text-amber-800",
     paid: "bg-emerald-100 text-emerald-800",
     preparing: "bg-blue-100 text-blue-800",
@@ -106,6 +132,7 @@ function getStatusBadgeClass(status: string): string {
 
 function getStatusBorderClass(status: string): string {
   const map: Record<string, string> = {
+    received: "border-l-slate-500",
     pending_payment: "border-l-amber-500",
     paid: "border-l-emerald-500",
     preparing: "border-l-blue-500",
@@ -118,6 +145,7 @@ function getStatusBorderClass(status: string): string {
 
 function getStatusTextClass(status: string): string {
   const map: Record<string, string> = {
+    received: "text-slate-800",
     pending_payment: "text-amber-800",
     paid: "text-emerald-800",
     preparing: "text-blue-800",
@@ -146,7 +174,7 @@ export default function OrderDetailPage() {
   const [memo, setMemo] = useState("");
   const [updating, setUpdating] = useState(false);
 
-  /** 뉴런(Newrun) 협회 검색 팝업 — var_ret postMessage 결과 (Phase 3, 주문 저장은 후속) */
+  /** 뉴런(Newrun) 협회 검색 팝업 — var_ret postMessage 결과 + DB 초안(T3.3) */
   const [newrunFloristPayload, setNewrunFloristPayload] = useState<Record<
     string,
     string
@@ -161,18 +189,70 @@ export default function OrderDetailPage() {
   > | null>(null);
   const [newrunOpening, setNewrunOpening] = useState<string | null>(null);
 
+  /** T3.4: 거래처·상품 기본 draft + 주문 저장 draft 병합(발주 매핑 Phase 4 입력) */
+  const effectiveNewrunFlorist = useMemo(() => {
+    if (!order) return null;
+    return mergeFloristDraftForOrder(
+      order.client?.newrun_default_florist_draft,
+      newrunFloristPayload ?? coerceStringMapFromJson(order.newrun_florist_draft) ?? undefined
+    );
+  }, [order, newrunFloristPayload]);
+
+  const effectiveNewrunProduct = useMemo(() => {
+    if (!order) return null;
+    const p = items[0]?.product;
+    return mergeProductDraftForOrder(
+      p?.newrun_default_product_draft,
+      newrunProductPayload ?? coerceStringMapFromJson(order.newrun_product_draft) ?? undefined
+    );
+  }, [order, items, newrunProductPayload]);
+
+  const effectiveNewrunOption = useMemo(() => {
+    if (!order) return null;
+    const p = items[0]?.product;
+    return mergeProductDraftForOrder(
+      p?.newrun_default_option_draft,
+      newrunOptionPayload ?? coerceStringMapFromJson(order.newrun_option_draft) ?? undefined
+    );
+  }, [order, items, newrunOptionPayload]);
+
+  const persistNewrunDraft = React.useCallback(
+    async (kind: "florist" | "product" | "option", payload: Record<string, string>) => {
+      if (!orderId) return;
+      const res = await adminFetch(`/api/partner/orders/${orderId}/newrun-draft`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, payload }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        alert(err.error || "뉴런 선택값 저장에 실패했습니다. 다시 시도해 주세요.");
+      }
+    },
+    [orderId]
+  );
+
   useEffect(() => {
     const onMessage = (ev: MessageEvent) => {
       if (ev.origin !== window.location.origin) return;
       const data = ev.data as { type?: string; kind?: string; payload?: Record<string, string> };
       if (!data || data.type !== "NEWRUN_VAR_RET") return;
-      if (data.kind === "florist" && data.payload) setNewrunFloristPayload(data.payload);
-      if (data.kind === "product" && data.payload) setNewrunProductPayload(data.payload);
-      if (data.kind === "option" && data.payload) setNewrunOptionPayload(data.payload);
+      if (data.kind === "florist" && data.payload) {
+        setNewrunFloristPayload(data.payload);
+        void persistNewrunDraft("florist", data.payload);
+      }
+      if (data.kind === "product" && data.payload) {
+        setNewrunProductPayload(data.payload);
+        void persistNewrunDraft("product", data.payload);
+      }
+      if (data.kind === "option" && data.payload) {
+        setNewrunOptionPayload(data.payload);
+        void persistNewrunDraft("option", data.payload);
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [persistNewrunDraft]);
 
   const openNewrunSearch = async (kind: "florist" | "product" | "option") => {
     if (!orderId) return;
@@ -212,6 +292,9 @@ export default function OrderDetailPage() {
         setNewStatus(data.order.status);
         setCourierCompany(data.order.courier_company || "");
         setTrackingNumber(data.order.tracking_number || "");
+        setNewrunFloristPayload(coerceStringMapFromJson(data.order.newrun_florist_draft));
+        setNewrunProductPayload(coerceStringMapFromJson(data.order.newrun_product_draft));
+        setNewrunOptionPayload(coerceStringMapFromJson(data.order.newrun_option_draft));
       }
       setLoading(false);
     }
@@ -341,8 +424,12 @@ export default function OrderDetailPage() {
           {/* 뉴런(Newrun) 협회 검색 — 수주화원·상품·옵션 (Phase 3) */}
           <div className="bg-white rounded-lg border border-violet-200 shadow-sm p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-1">뉴런 발주 — 협회 검색</h2>
-            <p className="text-xs text-slate-500 mb-4">
-              꽃돼지플라워 등 협회 인트라넷에서 선택 후 이 창으로 돌아오면 아래에 반영됩니다. (팝업 허용 필요)
+            <p className="text-xs text-slate-500 mb-2">
+              협회 인트라넷에서 선택 후 이 창으로 돌아오면 아래에 표시되며, 주문에 자동 저장됩니다. (팝업 허용 필요)
+            </p>
+            <p className="text-xs text-violet-800/90 mb-4 rounded-md bg-violet-50 border border-violet-100 px-2 py-1.5">
+              <span className="font-semibold">병합(T3.4):</span> 수주화원은 거래처 기본 → 주문 저장 순으로 합치고, 상품·옵션은{" "}
+              <strong>첫 번째 주문 품목</strong>의 상품 기본 → 주문 저장 순입니다. 같은 키는 뒤쪽(주문 저장)이 우선합니다.
             </p>
             <div className="flex flex-wrap gap-2 mb-4">
               <button
@@ -372,34 +459,54 @@ export default function OrderDetailPage() {
             </div>
             <div className="grid gap-3 text-sm">
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold text-slate-600 mb-1">수주화원 선택값</p>
-                {newrunFloristPayload ? (
+                <p className="text-xs font-semibold text-slate-600 mb-1">
+                  수주화원 — 발주 시 적용(병합)
+                </p>
+                {effectiveNewrunFlorist ? (
                   <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all text-slate-800">
-                    {JSON.stringify(newrunFloristPayload, null, 2)}
+                    {JSON.stringify(effectiveNewrunFlorist, null, 2)}
                   </pre>
                 ) : (
-                  <p className="text-xs text-slate-500">아직 없음 (var_sid 등)</p>
+                  <p className="text-xs text-slate-500">거래처 기본·주문 저장 모두 없음</p>
                 )}
+                <p className="text-[11px] text-slate-500 mt-1">
+                  거래처 기본: {order.client?.newrun_default_florist_draft ? "있음" : "없음"} · 주문 저장:{" "}
+                  {newrunFloristPayload || order.newrun_florist_draft ? "있음" : "없음"}
+                </p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold text-slate-600 mb-1">상품 선택값</p>
-                {newrunProductPayload ? (
+                <p className="text-xs font-semibold text-slate-600 mb-1">
+                  상품 — 발주 시 적용(병합, 1번 품목)
+                </p>
+                {effectiveNewrunProduct ? (
                   <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all text-slate-800">
-                    {JSON.stringify(newrunProductPayload, null, 2)}
+                    {JSON.stringify(effectiveNewrunProduct, null, 2)}
                   </pre>
                 ) : (
-                  <p className="text-xs text-slate-500">아직 없음</p>
+                  <p className="text-xs text-slate-500">상품 기본·주문 저장 모두 없음</p>
                 )}
+                <p className="text-[11px] text-slate-500 mt-1">
+                  1번 품목 상품 기본:{" "}
+                  {items[0]?.product?.newrun_default_product_draft ? "있음" : "없음"} · 주문 저장:{" "}
+                  {newrunProductPayload || order.newrun_product_draft ? "있음" : "없음"}
+                </p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold text-slate-600 mb-1">옵션 선택값</p>
-                {newrunOptionPayload ? (
+                <p className="text-xs font-semibold text-slate-600 mb-1">
+                  옵션 — 발주 시 적용(병합, 1번 품목)
+                </p>
+                {effectiveNewrunOption ? (
                   <pre className="text-xs overflow-x-auto whitespace-pre-wrap break-all text-slate-800">
-                    {JSON.stringify(newrunOptionPayload, null, 2)}
+                    {JSON.stringify(effectiveNewrunOption, null, 2)}
                   </pre>
                 ) : (
-                  <p className="text-xs text-slate-500">아직 없음</p>
+                  <p className="text-xs text-slate-500">상품 기본·주문 저장 모두 없음</p>
                 )}
+                <p className="text-[11px] text-slate-500 mt-1">
+                  1번 품목 옵션 기본:{" "}
+                  {items[0]?.product?.newrun_default_option_draft ? "있음" : "없음"} · 주문 저장:{" "}
+                  {newrunOptionPayload || order.newrun_option_draft ? "있음" : "없음"}
+                </p>
               </div>
             </div>
           </div>

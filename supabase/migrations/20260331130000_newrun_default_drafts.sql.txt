@@ -1,0 +1,11 @@
+-- T3.4: 거래처·상품별 뉴런 발주 기본 초안 (주문 draft 없을 때 폴백)
+ALTER TABLE clients
+  ADD COLUMN IF NOT EXISTS newrun_default_florist_draft JSONB;
+
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS newrun_default_product_draft JSONB,
+  ADD COLUMN IF NOT EXISTS newrun_default_option_draft JSONB;
+
+COMMENT ON COLUMN clients.newrun_default_florist_draft IS '뉴런 연동: 거래처 단위 기본 수주화원 var_ret 페이로드 (주문 newrun_florist_draft가 비어 있을 때 병합)';
+COMMENT ON COLUMN products.newrun_default_product_draft IS '뉴런 연동: 상품 단위 기본 상품 검색 페이로드';
+COMMENT ON COLUMN products.newrun_default_option_draft IS '뉴런 연동: 상품 단위 기본 옵션 검색 페이로드';

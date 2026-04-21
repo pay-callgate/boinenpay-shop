@@ -1,0 +1,9 @@
+-- T3.3: 뉴런(Newrun) 협회 검색 var_ret 선택값 — 주문별 발주 초안 (Phase 4 매핑 입력)
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS newrun_florist_draft JSONB,
+  ADD COLUMN IF NOT EXISTS newrun_product_draft JSONB,
+  ADD COLUMN IF NOT EXISTS newrun_option_draft JSONB;
+
+COMMENT ON COLUMN orders.newrun_florist_draft IS '뉴런 연동: 수주화원 검색 콜백 페이로드 (협회 파라미터 원문)';
+COMMENT ON COLUMN orders.newrun_product_draft IS '뉴런 연동: 상품 검색 콜백 페이로드';
+COMMENT ON COLUMN orders.newrun_option_draft IS '뉴런 연동: 옵션 검색 콜백 페이로드';

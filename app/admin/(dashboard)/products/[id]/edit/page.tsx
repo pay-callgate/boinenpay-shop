@@ -28,9 +28,31 @@ interface Product {
   safety_stock: number;
   status: string;
   allow_delivery_date: boolean;
+  newrun_default_product_draft?: Record<string, unknown> | null;
+  newrun_default_option_draft?: Record<string, unknown> | null;
   product_category_mappings?: {
     category_id: string;
   }[];
+}
+
+function parseNewrunDraftJsonField(
+  raw: string,
+  fieldLabel: string
+): Record<string, unknown> | null {
+  const t = raw.trim();
+  if (t === "") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(t);
+  } catch {
+    throw new Error(`${fieldLabel}: JSON 파싱 실패`);
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${fieldLabel}: 최상위는 객체여야 합니다.`);
+  }
+  const o = parsed as Record<string, unknown>;
+  if (Object.keys(o).length === 0) return null;
+  return o;
 }
 
 export default function ProductEditPage() {
@@ -57,6 +79,9 @@ export default function ProductEditPage() {
     status: "draft",
     allowDeliveryDate: false,
     categoryIds: [] as string[],
+    /** T3.4: 뉴런 협회 상품·옵션 검색 기본 payload (JSON 객체) */
+    newrunProductDraftJson: "{}",
+    newrunOptionDraftJson: "{}",
   });
 
   // 파트너 정보 조회
@@ -106,6 +131,8 @@ export default function ProductEditPage() {
           status: p.status,
           allowDeliveryDate: p.allow_delivery_date,
           categoryIds: p.product_category_mappings?.map((m) => m.category_id) || [],
+          newrunProductDraftJson: JSON.stringify(p.newrun_default_product_draft ?? {}, null, 2),
+          newrunOptionDraftJson: JSON.stringify(p.newrun_default_option_draft ?? {}, null, 2),
         });
       }
       setLoading(false);
@@ -142,6 +169,22 @@ export default function ProductEditPage() {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
+    let newrunDefaultProductDraft: Record<string, unknown> | null;
+    let newrunDefaultOptionDraft: Record<string, unknown> | null;
+    try {
+      newrunDefaultProductDraft = parseNewrunDraftJsonField(
+        formData.newrunProductDraftJson,
+        "뉴런 상품 기본값"
+      );
+      newrunDefaultOptionDraft = parseNewrunDraftJsonField(
+        formData.newrunOptionDraftJson,
+        "뉴런 옵션 기본값"
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "JSON 형식 오류");
+      return;
+    }
+
     setSaving(true);
 
     const res = await adminFetch(`/api/products/${productId}`, {
@@ -160,6 +203,8 @@ export default function ProductEditPage() {
         status: formData.status,
         allowDeliveryDate: formData.allowDeliveryDate,
         categoryIds: formData.categoryIds,
+        newrunDefaultProductDraft,
+        newrunDefaultOptionDraft,
       }),
     });
 
@@ -488,6 +533,50 @@ export default function ProductEditPage() {
               />
               <span style={{ fontSize: "14px" }}>희망 배송일 선택 허용</span>
             </label>
+          </div>
+        </div>
+
+        {/* 뉴런 발주 기본값 T3.4 */}
+        <div
+          style={{
+            backgroundColor: "#FAF5FF",
+            padding: "24px",
+            borderRadius: "8px",
+            border: "1px solid #DDD6FE",
+            marginBottom: "20px",
+          }}
+        >
+          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "8px" }}>
+            뉴런 발주 — 상품·옵션 기본값 (선택)
+          </h2>
+          <p style={{ fontSize: "12px", color: "#5B21B6", marginBottom: "16px", lineHeight: 1.5 }}>
+            협회 상품/옵션 검색에서 넘어오는 키·값을 JSON 객체로 넣습니다. 비우거나{" "}
+            <code style={{ fontSize: "11px" }}>{`{}`}</code>만 두면 저장 시 DB에서 제거됩니다. 주문
+            상세에서 검색으로 저장한 값이 있으면 그쪽이 우선합니다.
+          </p>
+          <div style={{ display: "grid", gap: "16px" }}>
+            <div>
+              <label style={labelStyle}>상품 검색 기본 payload (JSON)</label>
+              <textarea
+                value={formData.newrunProductDraftJson}
+                onChange={(e) =>
+                  setFormData({ ...formData, newrunProductDraftJson: e.target.value })
+                }
+                rows={5}
+                style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: "12px" }}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>옵션 검색 기본 payload (JSON)</label>
+              <textarea
+                value={formData.newrunOptionDraftJson}
+                onChange={(e) =>
+                  setFormData({ ...formData, newrunOptionDraftJson: e.target.value })
+                }
+                rows={5}
+                style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: "12px" }}
+              />
+            </div>
           </div>
         </div>
 

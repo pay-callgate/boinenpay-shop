@@ -32,7 +32,8 @@ export async function GET(
           id,
           name,
           slug,
-          logo_url
+          logo_url,
+          newrun_default_florist_draft
         ),
         user:users (
           id,
@@ -71,7 +72,9 @@ export async function GET(
           id,
           name,
           slug,
-          thumbnail_url
+          thumbnail_url,
+          newrun_default_product_draft,
+          newrun_default_option_draft
         )
       `
       )

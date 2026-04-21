@@ -87,6 +87,9 @@ export async function PUT(
       deliveryMethods,
       allowDeliveryDate,
       categoryIds,
+      /** T3.4: 뉴런 상품·옵션 기본 draft (`null`이면 비움) */
+      newrunDefaultProductDraft,
+      newrunDefaultOptionDraft,
     } = body;
 
     const supabase = createServerSupabase();
@@ -145,6 +148,27 @@ export async function PUT(
       updateData.delivery_methods = normalizeDeliveryMethodsForDb(deliveryMethods);
     }
     if (allowDeliveryDate !== undefined) updateData.allow_delivery_date = allowDeliveryDate;
+
+    const assertDraft = (v: unknown): boolean =>
+      v === null || (typeof v === "object" && !Array.isArray(v));
+    if (newrunDefaultProductDraft !== undefined) {
+      if (!assertDraft(newrunDefaultProductDraft)) {
+        return NextResponse.json(
+          { error: "newrunDefaultProductDraft는 객체 또는 null이어야 합니다." },
+          { status: 400 }
+        );
+      }
+      updateData.newrun_default_product_draft = newrunDefaultProductDraft;
+    }
+    if (newrunDefaultOptionDraft !== undefined) {
+      if (!assertDraft(newrunDefaultOptionDraft)) {
+        return NextResponse.json(
+          { error: "newrunDefaultOptionDraft는 객체 또는 null이어야 합니다." },
+          { status: 400 }
+        );
+      }
+      updateData.newrun_default_option_draft = newrunDefaultOptionDraft;
+    }
 
     const { data: product, error } = await supabase
       .from("products")

@@ -17,6 +17,7 @@ interface Stats {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  received: "접수",
   pending_payment: "입금대기",
   paid: "결제완료",
   preparing: "배송준비중",

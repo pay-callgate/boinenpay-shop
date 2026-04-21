@@ -64,6 +64,7 @@ interface Order {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  received: "접수",
   pending_payment: "입금대기",
   paid: "결제완료",
   preparing: "배송준비중",
@@ -191,6 +192,7 @@ export default function MyOrderDetailPage() {
   // 상태 배지 색상
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
+      received: "#64748B",
       pending_payment: "#F59E0B",
       paid: "#10B981",
       preparing: "#3B82F6",

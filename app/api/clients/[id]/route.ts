@@ -75,6 +75,8 @@ export async function PUT(
       zipCode,
       address,
       addressDetail,
+      /** T3.4: 뉴런 수주화원 기본 draft (`null`이면 컬럼 비움) */
+      newrunDefaultFloristDraft,
     } = body;
 
     const supabase = createServerSupabase();
@@ -127,6 +129,21 @@ export async function PUT(
     if (zipCode !== undefined) updateData.zip_code = zipCode;
     if (address !== undefined) updateData.address = address;
     if (addressDetail !== undefined) updateData.address_detail = addressDetail;
+    if (newrunDefaultFloristDraft !== undefined) {
+      if (newrunDefaultFloristDraft === null) {
+        updateData.newrun_default_florist_draft = null;
+      } else if (
+        typeof newrunDefaultFloristDraft === "object" &&
+        !Array.isArray(newrunDefaultFloristDraft)
+      ) {
+        updateData.newrun_default_florist_draft = newrunDefaultFloristDraft;
+      } else {
+        return NextResponse.json(
+          { error: "newrunDefaultFloristDraft는 객체 또는 null이어야 합니다." },
+          { status: 400 }
+        );
+      }
+    }
 
     const { data: client, error } = await supabase
       .from("clients")

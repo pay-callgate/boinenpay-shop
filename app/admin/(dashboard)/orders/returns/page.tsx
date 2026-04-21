@@ -35,6 +35,7 @@ interface Order {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  received: "접수",
   cancelled: "취소됨",
 };
 

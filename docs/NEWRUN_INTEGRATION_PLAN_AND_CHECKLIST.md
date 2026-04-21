@@ -42,6 +42,19 @@
 | `NEWRUN_ASSOC_CODE` | `rw_assoc` |
 | `NEWRUN_INTRANET_POST_URL` | 기본값 `http://ext2intra.roseweb.co.kr/intranet_post.html` — **최신 URL 뉴런 확인** |
 
+### 0.4 용어: 코드의 `florist`와 우리부고 상품 범위(화환 전용)
+
+**요지:** DB·API에서 쓰는 `florist`는 **“꽃다발·꽃바구니를 파는지 여부”와 무관**하다. 뉴런·협회 문서 **2.2 수주화원 검색**에 대응하는 콜백 종류(`kind`)를 코드에서 영문 관례로 붙인 이름이다.
+
+| 구분 | 의미 |
+|------|------|
+| **협회·뉴런 문맥** | **수주화원** — 발주를 **받는** 쪽 가맹·화원(배정·인수 주체). `member_search` 등으로 선택한다. |
+| **코드 `kind` 값 `florist`** | 위 **수주화원 검색** `var_ret` 한 줄기. 콜백 경로: `/api/integrations/newrun/callback/florist`. |
+| **DB 컬럼 `orders.newrun_florist_draft`** | 그 콜백에서 돌아온 선택값(JSON). `kind`·라우트명과 맞추기 위해 `florist`를 유지한다. |
+| **우리부고 사업 범위** | **꽃다발·꽃바구니는 상품에서 제외**, **근조·축하 화환** 중심 판매. 이는 **쇼핑몰 카탈로그·주문 품목** 이야기이며, **수주화원(배송 받을 가맹)을 고르는 단계**와는 별개다. 화환만 팔더라도 협회 발주 흐름상 수주화원 검색·저장은 동일하게 필요하다. |
+
+**UI·문서 표기:** 화면·기획서에는 협회와 동일하게 **「수주화원」** 등 한글 용어를 쓰고, 개발자는 `florist` = 수주화원 검색 한 종류로 이해하면 된다. 컬럼명을 `suju` 등으로 바꾸려면 `kind`, 콜백 URL, `NEWRUN_ORDER_DRAFT_COLUMNS`, 어드민 저장 API까지 **일괄 리네이밍**이 필요하므로 현재는 `florist` 고정을 권장한다.
+
 ---
 
 ## Phase 0 — 기반·스텁 (완료 여부 점검)
@@ -128,7 +141,8 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ## Phase 3 — 선택 UX (수주화원·상품)
 
-**목표:** 문서 2.2·2.3(·2.4) 패턴 — **협회 호스트 UI**를 열고 결과를 주문 발주 데이터에 반영.
+**목표:** 문서 2.2·2.3(·2.4) 패턴 — **협회 호스트 UI**를 열고 결과를 주문 발주 데이터에 반영.  
+**용어:** API·DB의 `florist` = 수주화원 검색(화환 전용 판매 정책과 무관) — 상세는 **0.4절** 참고.
 
 ### 구현 요약 (코드)
 
@@ -142,8 +156,12 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 - [x] **T3.1** 주문 상세 **「수주화원 검색」** → API로 URL 수신 후 `window.open`
 - [x] **T3.2** **「상품 검색」**, **「옵션 상품 검색」** 동일 패턴
-- [ ] **T3.3** 콜백 payload를 **`orders` 확장 컬럼·발주 draft DB 저장** — Phase 4~5에서 연계
-- [ ] **T3.4** 폴백: 거래처·상품별 **기본 수주화원·기본 상품코드**(DB/설정)
+- [x] **T3.3** 콜백 payload를 **`orders` 확장 컬럼·발주 draft DB 저장** — `newrun_*_draft` JSONB, `PATCH /api/partner/orders/[id]/newrun-draft`
+- [x] **T3.4** 폴백: 거래처·상품별 **기본 수주화원·기본 상품코드**(DB/설정)  
+  - DB: `clients.newrun_default_florist_draft`, `products.newrun_default_product_draft` / `newrun_default_option_draft` (`20260331130000_newrun_default_drafts.sql.txt`)  
+  - 저장: `PUT /api/clients/[id]` 본문 `newrunDefaultFloristDraft`, `PUT /api/products/[id]` 본문 `newrunDefaultProductDraft` / `newrunDefaultOptionDraft` (`null` 또는 `{}`로 비움)  
+  - 병합: `lib/newrun/merge-order-drafts.ts` — 주문 상세에 **발주 시 적용(병합)** 표시; 상품·옵션은 **첫 번째 주문 품목** 기준  
+  - UI: 파트너 **상품 수정** 화면에 뉴런 JSON 블록(거래처 기본은 API·콘솔 등으로 설정 가능)
 - [x] **T3.5** 1차는 **어드민 주문 상세**만 (고객 체크아웃 미노출)
 
 ### 테스트·체크리스트
@@ -368,7 +386,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 0 | 스텁 | [x] | [ ] | T0.3·테스트는 배포/로컬 확인 |
 | 1 | rose_session / URL | [x] | [ ] | T1.4·협회 실측은 세팅 후 |
 | 2 | var_ret 콜백 | [x] | [ ] | T2.4·실연동 테스트 남음 |
-| 3 | 선택 UX | [x] | [ ] | T3.3·T3.4·실협회 테스트 남음 |
+| 3 | 선택 UX | [x] | [ ] | 실협회 테스트·팝업 UX 점검 남음 |
 | 4 | 매핑 | [ ] | [ ] | |
 | 5 | 발주 전송 | [ ] | [ ] | Mock→실연동 |
 | 6 | po-return 고도화 | [ ] | [ ] | |
