@@ -9,6 +9,7 @@ import {
   mergeFloristDraftForOrder,
   mergeProductDraftForOrder,
 } from "@/lib/newrun/merge-order-drafts";
+import { isKakaoTalkInAppBrowser } from "@/lib/kakao-in-app-browser";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -188,6 +189,8 @@ export default function OrderDetailPage() {
     string
   > | null>(null);
   const [newrunOpening, setNewrunOpening] = useState<string | null>(null);
+  const [newrunPreviewJson, setNewrunPreviewJson] = useState<string | null>(null);
+  const [newrunPreviewLoading, setNewrunPreviewLoading] = useState(false);
 
   /** T3.4: 거래처·상품 기본 draft + 주문 저장 draft 병합(발주 매핑 Phase 4 입력) */
   const effectiveNewrunFlorist = useMemo(() => {
@@ -256,6 +259,17 @@ export default function OrderDetailPage() {
 
   const openNewrunSearch = async (kind: "florist" | "product" | "option") => {
     if (!orderId) return;
+    if (typeof navigator !== "undefined" && isKakaoTalkInAppBrowser(navigator.userAgent)) {
+      alert(
+        "카카오톡 인앱 브라우저에서는 협회 사이트·팝업이 제한될 수 있습니다. Safari·Chrome 등 시스템 브라우저에서 이 어드민 페이지를 연 뒤 다시 시도해 주세요."
+      );
+    }
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches) {
+      const ok = window.confirm(
+        "모바일에서는 팝업이 차단되기 쉽습니다. 가능하면 PC 브라우저에서 진행하는 것을 권장합니다. 계속하시겠습니까?"
+      );
+      if (!ok) return;
+    }
     setNewrunOpening(kind);
     try {
       const res = await adminFetch(
@@ -270,11 +284,35 @@ export default function OrderDetailPage() {
         alert("검색 URL이 비어 있습니다.");
         return;
       }
-      window.open(data.url, "_blank", "noopener,noreferrer,width=1100,height=800");
+      const popup = window.open(data.url, "_blank", "noopener,noreferrer,width=1100,height=800");
+      if (popup == null) {
+        alert(
+          "팝업이 차단된 것 같습니다. 브라우저 주소창 오른쪽의 팝업 허용 아이콘을 눌러 이 사이트의 팝업을 허용한 뒤, 버튼을 다시 눌러 주세요."
+        );
+      }
     } catch {
       alert("네트워크 오류가 발생했습니다.");
     } finally {
       setNewrunOpening(null);
+    }
+  };
+
+  const loadNewrunPayloadPreview = async () => {
+    if (!orderId) return;
+    setNewrunPreviewLoading(true);
+    setNewrunPreviewJson(null);
+    try {
+      const res = await adminFetch(`/api/partner/orders/${orderId}/newrun-preview`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert((data as { error?: string }).error || "미리보기를 불러오지 못했습니다.");
+        return;
+      }
+      setNewrunPreviewJson(JSON.stringify(data, null, 2));
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setNewrunPreviewLoading(false);
     }
   };
 
@@ -434,6 +472,14 @@ export default function OrderDetailPage() {
             <div className="flex flex-wrap gap-2 mb-4">
               <button
                 type="button"
+                disabled={newrunPreviewLoading}
+                onClick={() => void loadNewrunPayloadPreview()}
+                className="h-9 px-4 rounded-lg text-sm font-medium text-violet-950 bg-violet-200 hover:bg-violet-300 disabled:opacity-50"
+              >
+                {newrunPreviewLoading ? "불러오는 중…" : "intranet_post 필드 미리보기"}
+              </button>
+              <button
+                type="button"
                 disabled={!!newrunOpening}
                 onClick={() => openNewrunSearch("florist")}
                 className="h-9 px-4 rounded-lg text-sm font-medium text-white bg-violet-700 hover:bg-violet-800 disabled:opacity-50"
@@ -457,6 +503,16 @@ export default function OrderDetailPage() {
                 {newrunOpening === "option" ? "열는 중…" : "옵션 상품 검색"}
               </button>
             </div>
+            {newrunPreviewJson ? (
+              <div className="mb-4 rounded-md border border-violet-200 bg-violet-50/80 p-3">
+                <p className="text-xs font-semibold text-violet-900 mb-2">
+                  Phase 4 매핑 결과 (비밀번호 마스킹 · 발주 전 검증은 blockingIssues 참고)
+                </p>
+                <pre className="text-[11px] overflow-x-auto whitespace-pre-wrap break-all text-slate-800 max-h-64 overflow-y-auto">
+                  {newrunPreviewJson}
+                </pre>
+              </div>
+            ) : null}
             <div className="grid gap-3 text-sm">
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs font-semibold text-slate-600 mb-1">

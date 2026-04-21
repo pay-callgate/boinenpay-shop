@@ -41,6 +41,8 @@
 | `NEWRUN_ROSEWEB_ID` / `NEWRUN_ROSEWEB_PW` | 발주(2.1) `rw_rosewebid`, `rw_rosewebpw` (뉴런 통보명과 일치시킬 것) |
 | `NEWRUN_ASSOC_CODE` | `rw_assoc` |
 | `NEWRUN_INTRANET_POST_URL` | 기본값 `http://ext2intra.roseweb.co.kr/intranet_post.html` — **최신 URL 뉴런 확인** |
+| `NEWRUN_RW_RETURNURL` | `rw_returnurl` 절대 URL — 뉴런·쇼핑몰에 등록한 발주 리턴 주소와 동일해야 함 |
+| `NEWRUN_DEFAULT_RW_METHOD` | (선택) `rw_method` 기본값, 미설정 시 매핑에서 `1` |
 
 ### 0.4 용어: 코드의 `florist`와 우리부고 상품 범위(화환 전용)
 
@@ -150,7 +152,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 |------|------|
 | 검색 URL API | `GET /api/partner/integrations/newrun/search-url?kind=florist` (또는 `product` / `option`) `&orderId=` — 파트너 어드민·주문 소속 검증 후 서버에서 `build*SearchUrlForServer(origin)` |
 | origin | `lib/newrun/request-app-origin.ts` — `NEXT_PUBLIC_APP_URL` 우선, 없으면 요청 Host |
-| 어드민 UI | `app/admin/(dashboard)/orders/[id]/page.tsx` — 세 버튼, `postMessage`(`NEWRUN_VAR_RET`)로 화면에 payload 표시 |
+| 어드민 UI | `app/admin/(dashboard)/orders/[id]/page.tsx` — 검색 세 버튼, 병합 표시, `intranet_post` 미리보기, 팝업·모바일·카카오 인앱 안내 |
 
 ### Tasks
 
@@ -166,9 +168,9 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ### 테스트·체크리스트
 
-- [ ] 데스크톱 브라우저: 팝업 차단 시 안내
-- [ ] 모바일: 팝업/인앱브라우저 이슈 — `lib/kakao-in-app-browser.ts` 등 기존 패턴 참고 여부 검토
-- [ ] 기본값만으로 발주 POST가 가능한지(스모크)
+- [x] 데스크톱 브라우저: 팝업 차단 시 안내 — 주문 상세 `openNewrunSearch`에서 `window.open` 실패 시 알림
+- [x] 모바일: 팝업/인앱 — 좁은 화면에서 진행 확인, 카카오 인앱 시 외부 브라우저 안내(`isKakaoTalkInAppBrowser`)
+- [ ] 기본값만으로 발주 POST가 가능한지(스모크) — **Phase 5** 실제 `intranet_post`와 연계 후 최종 확인. 현재는 `GET .../newrun-preview`로 필드·`blockingIssues` 점검 가능
 
 ---
 
@@ -178,17 +180,23 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ### Tasks
 
-- [ ] **T4.1** `lib/newrun/map-order-to-newrun-payload.ts` (예시명): 입력 `order` + `items` + 선택된 `sujuid`/`menucode`/옵션  
-  출력 `Record<string, string | number>` (또는 `URLSearchParams`)
-- [ ] **T4.2** 필수: `rw_sender=100`, `rw_style=0`, `rw_method`, `rw_sno`(쇼핑몰 고유번호), `rw_returnurl`, `rw_rosewebid`, `rw_rosewebpw`, `rw_sendsms`/`rw_sendfax`, `rw_price`, `rw_aname`, `rw_atel`, `rw_arrive_place1`, `rw_bdate` 등 — **문서 표와 1:1 체크**
-- [ ] **T4.3** 숫자 필드: 콤마 제거, int 범위
-- [ ] **T4.4** `rw_sno` 정책: `order_no` 또는 `order_id` — **멱등·중복(결과코드 20)** 정책 문서화
-- [ ] **T4.5** `shipping_detail` 텍스트(비회원 화환 등) → `rw_memo` / `rw_shopreq` 등 분할 규칙
+- [x] **T4.1** `lib/newrun/map-order-to-newrun-payload.ts` — 입력 `order` + `items` + 병합 draft + 인증 → `fields` / `warnings` / (`strict: false` 시) `blockingIssues`. `newrunFieldsToSearchParams` — Phase 5 폼 POST용
+- [x] **T4.2** 기본 필드: `rw_sender=100`, `rw_style=0`, `rw_method`(env 또는 `1`), `rw_sno`, `rw_returnurl`, `rw_rosewebid`, `rw_rosewebpw`, `rw_assoc`, `rw_sendsms`/`rw_sendfax`, `rw_price`, `rw_aname`, `rw_atel`, `rw_arrive_place1`, `rw_bdate` — 협회 실측 시 길이·별칭 조정
+- [x] **T4.3** `rw_price` int(원) 반올림, 전화·문자열 `NEWRUN_RW_STRING_LIMITS` 초과 시 잘림 + `warnings`
+- [x] **T4.4** `rw_sno` 기본: **`order_no`** (`MapOrderToNewrunPayloadOptions.rwSnoSource`로 `order_id` 선택 가능). 동일 `rw_sno` 재전송 시 뉴런 결과코드 20 등은 **Phase 5**에서 처리
+- [x] **T4.5** `splitShippingDetailForRw` — `shipping_detail` → `rw_memo` 우선, 초과·옵션 시 `rw_shopreq`
+
+### 구현·연계
+
+| 구분 | 내용 |
+|------|------|
+| 미리보기 API | `GET /api/partner/orders/[id]/newrun-preview` — 파트너 어드민, `rw_rosewebpw` 마스킹, `envHints`로 필수 env 설정 여부 |
+| 어드민 UI | 주문 상세 — 「intranet_post 필드 미리보기」 및 JSON 표시 |
 
 ### 테스트·체크리스트
 
-- [ ] 샘플 주문 JSON → 매핑 결과 스냅샷 테스트(길이 초과 시 truncate 정책)
-- [ ] 필수 누락 시 발주 전 **검증 에러** 반환
+- [ ] 협회 실주문 샘플으로 필드 스냅샷 대조
+- [x] 필수 누락 시 `strict: true`(기본)에서 `NewrunPayloadValidationError` — 미리보기는 `blockingIssues` 배열
 
 ---
 
@@ -386,8 +394,8 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 0 | 스텁 | [x] | [ ] | T0.3·테스트는 배포/로컬 확인 |
 | 1 | rose_session / URL | [x] | [ ] | T1.4·협회 실측은 세팅 후 |
 | 2 | var_ret 콜백 | [x] | [ ] | T2.4·실연동 테스트 남음 |
-| 3 | 선택 UX | [x] | [ ] | 실협회 테스트·팝업 UX 점검 남음 |
-| 4 | 매핑 | [ ] | [ ] | |
+| 3 | 선택 UX | [x] | [ ] | 실협회 테스트·Phase 5 POST 스모크 남음 |
+| 4 | 매핑 | [x] | [ ] | 실주문 스냅샷 대조·협회 필드 실측 |
 | 5 | 발주 전송 | [ ] | [ ] | Mock→실연동 |
 | 6 | po-return 고도화 | [ ] | [ ] | |
 | 7 | 배송 콜백 | [ ] | [ ] | |
@@ -412,3 +420,4 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 - Phase 1: `lib/newrun/*` — `rose_session`, 협회 검색 URL 빌더, 서버용 `build*UsingAppConfig` — `var_ret`는 Phase 2 콜백 경로를 가리킴(현재 404 가능).
 - Phase 2: `callback/[kind]/route.ts`, `newrun_callback_results` 테이블, `postMessage` + JSON 테스트 모드.
 - Phase 3: `GET /api/partner/integrations/newrun/search-url`, `request-app-origin.ts`, 어드민 주문 상세 뉴런 검색 카드 + `postMessage` 수신.
+- Phase 4: `lib/newrun/map-order-to-newrun-payload.ts`, `GET /api/partner/orders/[id]/newrun-preview`, 주문 상세 미리보기·팝업/모바일 안내.

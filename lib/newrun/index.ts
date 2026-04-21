@@ -14,6 +14,19 @@ export {
   mergeNewrunDraftLayers,
   mergeProductDraftForOrder,
 } from "@/lib/newrun/merge-order-drafts";
+export {
+  mapOrderToNewrunPayload,
+  NewrunPayloadValidationError,
+  newrunFieldsToSearchParams,
+  splitShippingDetailForRw,
+  type MapOrderToNewrunPayloadOptions,
+  type MapOrderToNewrunPayloadResult,
+  type NewrunIntranetCredentials,
+  type NewrunMergedDrafts,
+  type NewrunOrderItemSlice,
+  type NewrunOrderSlice,
+  type NewrunRwSnoSource,
+} from "@/lib/newrun/map-order-to-newrun-payload";
 export { getRequestAppOrigin } from "@/lib/newrun/request-app-origin";
 export { buildRoseSession } from "@/lib/newrun/rose-session";
 export {
