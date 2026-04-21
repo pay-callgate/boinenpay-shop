@@ -76,16 +76,28 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ### Tasks
 
-- [ ] **T1.1** `lib/newrun/rose-session.ts` (또는 동일 역할 모듈):  
-  `base64(time) + "DiV" + md5(time) + "DiV" + base64(인트라넷ID)` (PHP 예제와 동일 결과인지 **샘플로 검증**)
-- [ ] **T1.2** `buildMemberSearchUrl`, `buildProductSearchUrl`, (선택) `buildOptionSearchUrl` — `callroseweb=ext_home`, `rose_session`, `var_ret`(절대 URL) 조립
-- [ ] **T1.3** `var_ret` 베이스는 `getBaseUrl()` 등 **앱 공통 origin** 사용 (문서: `docs/DEPLOYMENT_CHECKLIST.md` 의 `NEXT_PUBLIC_APP_URL` 정합)
-- [ ] **T1.4** 단위 테스트 또는 스크립트: 동일 입력 → 동일 `rose_session` (타임 의존 시 mock time)
+- [x] **T1.1** `lib/newrun/rose-session.ts` — `buildRoseSession(intranetId, { nowSec? })` (PHP 예제와 동일 알고리즘)
+- [x] **T1.2** `lib/newrun/association-search-urls.ts` — `buildMemberSearchUrl`, `buildProductSearchUrl`, `buildOptionSearchUrl`
+- [x] **T1.3** `lib/newrun/server-search-urls.ts` — `var_ret` = `getBaseUrl()` + `NEWRUN_CALLBACK_PATHS` (`lib/app-url.ts`의 서버 분기와 정합). env: `NEWRUN_ASSOC_BASE_URL`, `NEWRUN_ASSOC_INTRANET_ID`
+- [x] **T1.4** 결정적 검증: `nowSec = 1700000000`, `intranetId = "test"` → `buildRoseSession` 결과는 아래 **고정 문자열**과 일치해야 함 (PHP 동일 입력 대조용)
+
+### 구현 파일 (요약)
+
+| 파일 | 역할 |
+|------|------|
+| `lib/newrun/rose-session.ts` | `rose_session` 생성 |
+| `lib/newrun/association-search-urls.ts` | 협회 `member_ext` URL 조립 |
+| `lib/newrun/constants.ts` | `var_ret` 경로 상수 (Phase 2에서 Route 구현) |
+| `lib/newrun/server-search-urls.ts` | env + `getBaseUrl()`로 절대 URL까지 합성 |
+| `lib/newrun/index.ts` | 재export |
 
 ### 테스트·체크리스트
 
-- [ ] 로컬에서 생성된 URL을 브라우저에 붙여 **협회 페이지가 열리는지** (세팅 완료 후)
-- [ ] `var_ret`가 잘못된 도메인이 아닌지(프로덕션/스테이징 구분)
+- [ ] **T1.4 문자열:** `nowSec=1700000000`, id=`test` →  
+  `MTcwMDAwMDAwMA==DiV24920decf83f6960b80f737a28eeafc1DiVdGVzdA==`
+- [ ] 서버에서 `buildFloristSearchUrlUsingAppConfig({ nowSec: 1700000000 })` 호출 시 URL에 `member_search.htm`, `var_ret`에 본인 도메인 포함되는지 (`.env`에 `NEWRUN_*`, `NEXT_PUBLIC_APP_URL` 설정)
+- [ ] 로컬에서 생성된 URL을 브라우저에 붙여 **협회 페이지가 열리는지** (뉴런·협회 세팅 완료 후)
+- [ ] `var_ret`가 프로덕션/스테이징 의도한 도메인인지 확인
 
 ---
 
@@ -344,7 +356,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | Phase | 이름 | 개발 완료 | 테스트 완료 | 비고 |
 |-------|------|-----------|-------------|------|
 | 0 | 스텁 | [x] | [ ] | T0.3·테스트는 배포/로컬 확인 |
-| 1 | rose_session / URL | [ ] | [ ] | |
+| 1 | rose_session / URL | [x] | [ ] | T1.4·협회 실측은 세팅 후 |
 | 2 | var_ret 콜백 | [ ] | [ ] | |
 | 3 | 선택 UX | [ ] | [ ] | |
 | 4 | 매핑 | [ ] | [ ] | |
@@ -369,3 +381,4 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 - 초안: 정상 결제 건 발주 연동, 수주화원·상품은 협회 `member_ext` + `var_ret` 우선, Mock 병행 전제.
 - 추가: **파트너 Admin 주문 관리** (`/admin/orders`, `[id]`, `shipping`, `returns`) 수정·테스트 계획 및 Phase 8 세분화.
 - Phase 0: `delivery-status`에 `HEAD`, `force-dynamic`, GET 쿼리 객체 로그 — T0.1 코드 완료 표기.
+- Phase 1: `lib/newrun/*` — `rose_session`, 협회 검색 URL 빌더, 서버용 `build*UsingAppConfig` — `var_ret`는 Phase 2 콜백 경로를 가리킴(현재 404 가능).
