@@ -27,6 +27,13 @@ export {
   type NewrunOrderSlice,
   type NewrunRwSnoSource,
 } from "@/lib/newrun/map-order-to-newrun-payload";
+export { parseIntranetPostResponse } from "@/lib/newrun/parse-intranet-post-response";
+export {
+  getNewrunCredentialsFromEnv,
+  submitNewrunOrder,
+  type NewrunSubmitSource,
+  type SubmitNewrunOrderResult,
+} from "@/lib/newrun/submit-order";
 export { getRequestAppOrigin } from "@/lib/newrun/request-app-origin";
 export { buildRoseSession } from "@/lib/newrun/rose-session";
 export {

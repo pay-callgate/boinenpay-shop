@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { viewpayPost, clearViewpayTokenCache } from "@/lib/viewpay";
 import { verifyGuestCheckout } from "@/lib/guest-checkout-signature";
+import { submitNewrunOrder } from "@/lib/newrun/submit-order";
 
 /** ViewPay 결제 성공 상태값 (연동규격서: data.paymentStatus) + API/이벤트 결과코드 0000 */
 const PAYMENT_SUCCESS_STATUSES = [
@@ -205,10 +206,40 @@ export async function GET(request: NextRequest) {
       logger.warn(`${LOG} payments INSERT 실패(무시)`, { action: "payment_viewpay_complete_payment_insert_failed", data: { orderId, cgTid, error: String(paymentInsertError.message) } });
     }
 
+    /** Phase 5: 뉴런 자동 발주 — 실패해도 결제 응답은 성공, 프론트에서 알림 */
+    let newrun: { success: boolean; message?: string; skipped?: boolean } | undefined;
+    try {
+      const submitResult = await submitNewrunOrder(supabase, orderId, {
+        source: "viewpay_complete",
+      });
+      if (submitResult.skipped) {
+        newrun = { success: true, skipped: true, message: submitResult.message };
+      } else if (!submitResult.ok) {
+        newrun = { success: false, message: submitResult.message };
+        logger.warn(`${LOG} 뉴런 자동 발주 실패`, {
+          action: "payment_viewpay_complete_newrun_failed",
+          data: { orderId, message: submitResult.message },
+        });
+      } else {
+        newrun = {
+          success: true,
+          message: submitResult.duplicate ? submitResult.message : undefined,
+        };
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "뉴런 발주 처리 오류";
+      logger.error(`${LOG} 뉴런 발주 예외`, {
+        action: "payment_viewpay_complete_newrun_error",
+        data: { orderId, error: msg },
+      });
+      newrun = { success: false, message: "뉴런 자동 발주 중 오류가 발생했습니다. 어드민에서 수동 발주해 주세요." };
+    }
+
     logger.info(`${LOG} 결제 완료 처리 성공`, { action: "payment_viewpay_complete_success", data: { orderId, orderNo: order.order_no, cgTid } });
     return NextResponse.json({
       success: true,
       orderNo: order.order_no,
+      ...(newrun ? { newrun } : {}),
     });
   } catch (err) {
     logger.error(`${LOG} error`, { action: "payment_viewpay_complete_error", data: { error: String((err as Error).message) } });

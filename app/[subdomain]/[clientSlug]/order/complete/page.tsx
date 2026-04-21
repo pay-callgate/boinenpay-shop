@@ -192,6 +192,13 @@ export default function OrderCompletePage() {
       .then((data) => {
         if (cancelled) return;
         if (data?.success && data?.orderNo) {
+          const nr = data.newrun as { success?: boolean; message?: string; skipped?: boolean } | undefined;
+          if (nr && nr.success === false && nr.message) {
+            toast(nr.message, "error");
+            alert(nr.message);
+          } else if (nr?.skipped && nr.message && typeof window !== "undefined") {
+            console.info("[OrderComplete] Newrun:", nr.message);
+          }
           setOrderNo(data.orderNo);
           setState("success");
         } else {

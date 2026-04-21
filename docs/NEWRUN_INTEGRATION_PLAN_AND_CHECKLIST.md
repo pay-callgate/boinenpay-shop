@@ -36,6 +36,7 @@
 |-------------|------|
 | `NEWRUN_ENABLED` | `true`일 때만 실제 외부 호출 (기본 `false` 권장) |
 | `NEWRUN_MOCK` | `true`면 `intranet_post` 등을 호출하지 않고 고정 성공/실패 시나리오로 동작 |
+| `NEWRUN_MOCK_RWR_RESULT` | (선택) Mock 시 `rwr_result`, 기본 `0`. `20`이면 중복 시뮬레이션 |
 | `NEWRUN_ASSOC_BASE_URL` | 협회 인트라넷 베이스 URL (예: `https://www.kot45.com`) |
 | `NEWRUN_ASSOC_INTRANET_ID` | `rose_session`용 base64에 넣는 발주화원 인트라넷 아이디 |
 | `NEWRUN_ROSEWEB_ID` / `NEWRUN_ROSEWEB_PW` | 발주(2.1) `rw_rosewebid`, `rw_rosewebpw` (뉴런 통보명과 일치시킬 것) |
@@ -204,17 +205,32 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 **목표:** 정상 결제 건에 대해 뉴런 게이트웨이로 발주 요청 전송 및 결과 처리.
 
+### 정책 (확정) — 발주 시점 A + B
+
+| 구분 | 내용 |
+|------|------|
+| **기본** | **ViewPay 결제 완료 직후 자동 발주** — `app/api/payment/viewpay/complete` 처리 흐름에서 `intranet_post` 호출(또는 동일 트랜잭션 직후 비동기 단계). `NEWRUN_ENABLED` / `NEWRUN_MOCK` 분기 유지. |
+| **실패 시** | 자동 발주가 **오류·검증 실패·타임아웃** 등으로 끝나면 **사용자에게 `alert`(또는 동등한 명시적 알림)** 으로 안내하고, **파트너 어드민 주문 상세**에서 **「발주 실행」 수동 재시도** 가능하도록 구현한다. |
+| **요약** | 옵션 A(자동)를 기본으로 하되, 옵션 B(수동)를 **보조·복구 경로**로 반드시 둔다. |
+
+구현 시 자동 경로에서 실패한 주문은 DB에 **실패 코드·메시지·재시도 필요 플래그** 등을 남겨 어드민에서 식별 가능해야 한다(T5.4와 연계).
+
+### 추후 확정 (뉴런시스템 피드백 대기)
+
+아래는 **뉴런 측 실측·회신 후** 코드·문서를 맞출 항목이다. 피드백 전까지는 Mock·스테이징 가정으로 개발한다.
+
+- `intranet_post` **최종 URL**, 요청 **`Content-Type`**, 본문 **문자 인코딩(EUC-KR vs UTF-8)**  
+- 응답 형태(순수 폼 파라미터 vs HTML 본문 vs 리다이렉트) 및 **`rwr_result` / `rwr_orderkey`** 파싱 규칙  
+- (필요 시) 필드별 필수·길이·코드표 보정 — Phase 4 `NEWRUN_RW_STRING_LIMITS`·별칭 배열과 정합  
+
 ### Tasks
 
-- [ ] **T5.1** `lib/newrun/submit-order.ts`: `NEWRUN_MOCK`이면 외부 미호출, 고정 `rwr_result` 시뮬레이션
-- [ ] **T5.2** 실연동: `fetch` POST — `Content-Type`, **문자 인코딩(EUC-KR vs UTF-8)** 뉴런·실측에 맞춤
-- [ ] **T5.3** 응답 파싱: `rwr_result`, `rwr_orderkey` 등 — 리다이렉트/HTML 본문인지 **실측**
-- [ ] **T5.4** DB: 발주 성공 시 `neuron_order_key`(예: `rwr_orderkey`), 실패 시 결과코드·메시지 저장
-- [ ] **T5.5** **트리거:**  
-  - 옵션 A: `app/api/payment/viewpay/complete` 처리 후 **비동기 큐**(또는 `after` API)에서 발주  
-  - 옵션 B: 어드민 **「발주 실행」** 수동 + 자동 보조  
-  선택 후 구현
-- [ ] **T5.6** **멱등:** 동일 `rw_sno` 재전송 시 코드 20 처리 — 사용자 메시지·재시도 정책
+- [x] **T5.1** `lib/newrun/submit-order.ts` — `NEWRUN_MOCK`·`NEWRUN_ENABLED` 분기, Mock 시 `NEWRUN_MOCK_RWR_RESULT`
+- [ ] **T5.2** 실연동 인코딩 — 현재 **UTF-8** `application/x-www-form-urlencoded` (뉴런 피드백 후 EUC-KR 등 보정)
+- [x] **T5.3** `lib/newrun/parse-intranet-post-response.ts` — 본문·`Location`에서 `rwr_result` / `rwr_orderkey` 정규식 추출 (**실측 후 패턴 보강**)
+- [x] **T5.4** DB: `20260415120000_orders_newrun_submit.sql.txt` — `newrun_submit_status`, `newrun_rwr_result`, `newrun_rwr_orderkey`, `newrun_last_submit_error`, `newrun_last_submit_at`
+- [x] **T5.5** **트리거:** ViewPay `complete` 직후 `submitNewrunOrder` · `POST /api/partner/orders/[id]/newrun-submit` · 주문 완료 페이지 `newrun` 실패 시 **toast + alert**
+- [x] **T5.6** `rwr_result=20` → `duplicate` 상태·성공 계열 메시지(멱등). 어드민 **강제 재시도**(`forceRetry`)로 재전송 가능
 
 ### 테스트·체크리스트
 
@@ -396,7 +412,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 2 | var_ret 콜백 | [x] | [ ] | T2.4·실연동 테스트 남음 |
 | 3 | 선택 UX | [x] | [ ] | 실협회 테스트·Phase 5 POST 스모크 남음 |
 | 4 | 매핑 | [x] | [ ] | 실주문 스냅샷 대조·협회 필드 실측 |
-| 5 | 발주 전송 | [ ] | [ ] | Mock→실연동 |
+| 5 | 발주 전송 | [x] | [ ] | 인코딩·응답 실측·운영 검증 |
 | 6 | po-return 고도화 | [ ] | [ ] | |
 | 7 | 배송 콜백 | [ ] | [ ] | |
 | 8 | 어드민·고객 | [ ] | [ ] | 목록·상세·배송·returns·고객 |
@@ -421,3 +437,5 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 - Phase 2: `callback/[kind]/route.ts`, `newrun_callback_results` 테이블, `postMessage` + JSON 테스트 모드.
 - Phase 3: `GET /api/partner/integrations/newrun/search-url`, `request-app-origin.ts`, 어드민 주문 상세 뉴런 검색 카드 + `postMessage` 수신.
 - Phase 4: `lib/newrun/map-order-to-newrun-payload.ts`, `GET /api/partner/orders/[id]/newrun-preview`, 주문 상세 미리보기·팝업/모바일 안내.
+- Phase 5 정책: ViewPay 완료 직후 **자동 발주** 기본, 실패 시 **alert** + 어드민 **수동 발주** 병행(A+B). 인코딩·응답 파싱 등은 뉴런 피드백 후 확정.
+- Phase 5 구현: `submit-order.ts`, `parse-intranet-post-response.ts`, `newrun-submit`·ViewPay 연동, 주문 DB 컬럼·어드민 UI.

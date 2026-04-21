@@ -83,6 +83,11 @@ interface Order {
   newrun_florist_draft?: Record<string, unknown> | null;
   newrun_product_draft?: Record<string, unknown> | null;
   newrun_option_draft?: Record<string, unknown> | null;
+  newrun_submit_status?: string | null;
+  newrun_rwr_result?: string | null;
+  newrun_rwr_orderkey?: string | null;
+  newrun_last_submit_error?: string | null;
+  newrun_last_submit_at?: string | null;
   client: Client;
   user: User | null;
 }
@@ -191,6 +196,7 @@ export default function OrderDetailPage() {
   const [newrunOpening, setNewrunOpening] = useState<string | null>(null);
   const [newrunPreviewJson, setNewrunPreviewJson] = useState<string | null>(null);
   const [newrunPreviewLoading, setNewrunPreviewLoading] = useState(false);
+  const [newrunSubmitLoading, setNewrunSubmitLoading] = useState(false);
 
   /** T3.4: 거래처·상품 기본 draft + 주문 저장 draft 병합(발주 매핑 Phase 4 입력) */
   const effectiveNewrunFlorist = useMemo(() => {
@@ -313,6 +319,47 @@ export default function OrderDetailPage() {
       alert("네트워크 오류가 발생했습니다.");
     } finally {
       setNewrunPreviewLoading(false);
+    }
+  };
+
+  const submitNewrunManual = async (forceRetry: boolean) => {
+    if (!orderId || !order) return;
+    if (order.payment_status !== "paid") {
+      alert("결제완료된 주문만 뉴런 발주할 수 있습니다.");
+      return;
+    }
+    if (
+      forceRetry &&
+      !window.confirm(
+        "강제 재시도 시 동일 주문번호(rw_sno)로 다시 전송됩니다. 뉴런 정책에 따라 결과코드 20(중복) 등이 나올 수 있습니다. 계속할까요?"
+      )
+    ) {
+      return;
+    }
+    setNewrunSubmitLoading(true);
+    try {
+      const res = await adminFetch(`/api/partner/orders/${orderId}/newrun-submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ forceRetry }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        message?: string;
+        error?: string;
+        skipped?: boolean;
+        duplicate?: boolean;
+      };
+      if (!res.ok) {
+        alert(data.error || "발주 요청에 실패했습니다.");
+        return;
+      }
+      alert(data.message || (data.ok ? "처리되었습니다." : "발주에 실패했습니다."));
+      window.location.reload();
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setNewrunSubmitLoading(false);
     }
   };
 
@@ -469,6 +516,48 @@ export default function OrderDetailPage() {
               <span className="font-semibold">병합(T3.4):</span> 수주화원은 거래처 기본 → 주문 저장 순으로 합치고, 상품·옵션은{" "}
               <strong>첫 번째 주문 품목</strong>의 상품 기본 → 주문 저장 순입니다. 같은 키는 뒤쪽(주문 저장)이 우선합니다.
             </p>
+            <div className="mb-4 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 space-y-1">
+              <p className="font-semibold text-slate-800">intranet_post 발주 상태 (Phase 5)</p>
+              <p>
+                상태:{" "}
+                <span className="font-medium">
+                  {order.newrun_submit_status ?? "—"}
+                </span>
+                {order.newrun_rwr_result != null && order.newrun_rwr_result !== "" && (
+                  <> · 결과코드: {order.newrun_rwr_result}</>
+                )}
+              </p>
+              {order.newrun_rwr_orderkey ? (
+                <p className="break-all">협회 주문키: {order.newrun_rwr_orderkey}</p>
+              ) : null}
+              {order.newrun_last_submit_error ? (
+                <p className="text-red-700 break-all">마지막 오류: {order.newrun_last_submit_error}</p>
+              ) : null}
+              {order.newrun_last_submit_at ? (
+                <p className="text-slate-500">마지막 시도: {formatDate(order.newrun_last_submit_at)}</p>
+              ) : null}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={newrunSubmitLoading || order.payment_status !== "paid"}
+                  onClick={() => void submitNewrunManual(false)}
+                  className="h-8 px-3 rounded-md text-xs font-semibold text-white bg-violet-800 hover:bg-violet-900 disabled:opacity-50"
+                >
+                  {newrunSubmitLoading ? "처리 중…" : "뉴런 발주 실행 (수동)"}
+                </button>
+                <button
+                  type="button"
+                  disabled={newrunSubmitLoading || order.payment_status !== "paid"}
+                  onClick={() => void submitNewrunManual(true)}
+                  className="h-8 px-3 rounded-md text-xs font-medium text-violet-900 bg-violet-100 hover:bg-violet-200 disabled:opacity-50"
+                >
+                  강제 재시도
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 pt-1">
+                결제 완료 직후 자동 발주가 실패한 경우 여기서 재시도합니다. `NEWRUN_ENABLED` / `NEWRUN_MOCK`·환경변수를 확인하세요.
+              </p>
+            </div>
             <div className="flex flex-wrap gap-2 mb-4">
               <button
                 type="button"
