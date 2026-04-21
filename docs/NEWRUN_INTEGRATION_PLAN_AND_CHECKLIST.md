@@ -87,7 +87,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 |------|------|
 | `lib/newrun/rose-session.ts` | `rose_session` 생성 |
 | `lib/newrun/association-search-urls.ts` | 협회 `member_ext` URL 조립 |
-| `lib/newrun/constants.ts` | `var_ret` 경로 상수 (Phase 2에서 Route 구현) |
+| `lib/newrun/constants.ts` | `var_ret` 경로 상수 ↔ `callback/[kind]` 라우트 |
 | `lib/newrun/server-search-urls.ts` | env + `getBaseUrl()`로 절대 URL까지 합성 |
 | `lib/newrun/index.ts` | 재export |
 
@@ -107,20 +107,22 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ### Tasks
 
-- [ ] **T2.1** 라우트 설계 (예):  
-  - `GET` (또는 POST) `/api/integrations/newrun/callback/florist`  
-  - `.../callback/product`  
-  - (필요 시) `.../callback/option`  
-  실제 파라미터명은 **협회 응답(문서 2.2.3, 2.3.3)** 과 대조하여 확정
-- [ ] **T2.2** 수신 값 파싱: `var_sid`(수주화원 ID) 등 → **짧은 TTL 저장**(DB 임시 테이블 또는 서버 세션 불가 시 **서명된 state 토큰** + Redis/DB)
-- [ ] **T2.3** (선택) 팝업 → 부모 창: `postMessage` 또는 리다이렉트로 어드민/체크아웃에 ID 전달
-- [ ] **T2.4** CSRF·스푸핑 완화: 콜백 URL에 **일회용 토큰** 또는 뉴런과 **공유 시크릿** 협의 시 검증
+- [x] **T2.1** 통합 라우트: `GET` / `POST` / `HEAD` — `app/api/integrations/newrun/callback/[kind]/route.ts`  
+  - `kind` = `florist` | `product` | `option` (`NEWRUN_CALLBACK_PATHS`와 동일)
+- [x] **T2.2** 수신 파싱·저장: `lib/newrun/callback-request.ts` — 쿼리 + JSON·폼 본문 → Supabase `newrun_callback_results` (마이그레이션 `20260331100001_newrun_callback_results.sql.txt`)
+- [x] **T2.3** 팝업 → 부모 창: HTML 응답 내 `postMessage({ type: "NEWRUN_VAR_RET", kind, payload }, location.origin)`  
+  - 테스트용: `Accept: application/json` 또는 `?format=json` → JSON `{ success, id, kind, query, body }`
+- [ ] **T2.4** CSRF·스푸핑 완화: `var_ret`에 **서명된 state**·공유 시크릿(뉴런 협의) — **후속**
+
+**문서 2.2.3 참고 (수주화원):** `var_sid`, `var_corp`, `var_name`, `var_jiyok`, `var_tel`, `var_fax` 등 — 협회 구현에 따라 키가 다를 수 있어 **원문 JSON 그대로 보관**.
 
 ### 테스트·체크리스트
 
-- [ ] 협회 팝업에서 선택 후 **실제로 콜백 URL이 호출되는지**
-- [ ] 수신 로그/DB에 `var_sid` 등 기대 필드가 들어오는지
-- [ ] 잘못된 토큰/만료 토큰 거부 동작
+- [ ] Supabase에 마이그레이션 적용 후 INSERT 성공 확인
+- [ ] `curl.exe "http://localhost:3000/api/integrations/newrun/callback/florist?format=json&var_sid=test&var_corp=가맹"` → `success: true`, DB에 행 생성
+- [ ] 브라우저에서 동일 URL(쿼리만) → HTML + 부모 창 `message` 이벤트(로컬에서 `window.open`으로 검증)
+- [ ] 협회 팝업 실연동 시 실제 파라미터 키 확인
+- [ ] (후속) T2.4 토큰 검증
 
 ---
 
@@ -357,7 +359,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 |-------|------|-----------|-------------|------|
 | 0 | 스텁 | [x] | [ ] | T0.3·테스트는 배포/로컬 확인 |
 | 1 | rose_session / URL | [x] | [ ] | T1.4·협회 실측은 세팅 후 |
-| 2 | var_ret 콜백 | [ ] | [ ] | |
+| 2 | var_ret 콜백 | [x] | [ ] | T2.4·실연동 테스트 남음 |
 | 3 | 선택 UX | [ ] | [ ] | |
 | 4 | 매핑 | [ ] | [ ] | |
 | 5 | 발주 전송 | [ ] | [ ] | Mock→실연동 |
@@ -382,3 +384,4 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 - 추가: **파트너 Admin 주문 관리** (`/admin/orders`, `[id]`, `shipping`, `returns`) 수정·테스트 계획 및 Phase 8 세분화.
 - Phase 0: `delivery-status`에 `HEAD`, `force-dynamic`, GET 쿼리 객체 로그 — T0.1 코드 완료 표기.
 - Phase 1: `lib/newrun/*` — `rose_session`, 협회 검색 URL 빌더, 서버용 `build*UsingAppConfig` — `var_ret`는 Phase 2 콜백 경로를 가리킴(현재 404 가능).
+- Phase 2: `callback/[kind]/route.ts`, `newrun_callback_results` 테이블, `postMessage` + JSON 테스트 모드.

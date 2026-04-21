@@ -1,0 +1,19 @@
+-- 뉴런(Newrun) 협회 member_ext var_ret 콜백 수신 로그 (Phase 2)
+-- Service Role API에서만 INSERT (RLS 없음 — 서버 전용 테이블)
+
+CREATE TABLE newrun_callback_results (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  kind TEXT NOT NULL CHECK (kind IN ('florist', 'product', 'option')),
+  method TEXT NOT NULL DEFAULT 'GET',
+  raw_query JSONB NOT NULL DEFAULT '{}'::jsonb,
+  raw_body JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_newrun_callback_results_created_at ON newrun_callback_results (created_at DESC);
+CREATE INDEX idx_newrun_callback_results_kind ON newrun_callback_results (kind);
+
+COMMENT ON TABLE newrun_callback_results IS '뉴런 연동: 수주화원/상품/옵션 검색 var_ret 콜백 페이로드 (원문 보관)';
+
+-- anon/authenticated 는 정책 없음 → 접근 불가. INSERT 는 Service Role(API 서버)만 사용.
+ALTER TABLE newrun_callback_results ENABLE ROW LEVEL SECURITY;
