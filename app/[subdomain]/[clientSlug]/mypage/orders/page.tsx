@@ -43,6 +43,7 @@ interface Order {
   total_amount: number;
   shipping_name: string;
   created_at: string;
+  delivery_photo_url?: string | null;
   client?: Client | null;
   order_items: OrderItem[];
 }
@@ -268,6 +269,19 @@ export default function MyOrdersPage() {
                   <div>
                     <p style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "4px" }}>
                       {order.order_no}
+                      {order.delivery_photo_url ? (
+                        <span
+                          style={{
+                            marginLeft: "8px",
+                            fontSize: "0.65rem",
+                            fontWeight: 600,
+                            color: "#059669",
+                            verticalAlign: "middle",
+                          }}
+                        >
+                          배송사진
+                        </span>
+                      ) : null}
                     </p>
                     <p style={{ fontSize: "0.75rem", color: "#666" }}>
                       {formatDate(order.created_at)}

@@ -397,7 +397,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
   - `GET /api/orders/[id]`, `GET /api/mypage/orders` 응답에서 **뉴런·draft·이력** 제거 (`lib/orders/sanitize-customer-order.ts`, 고객용 이력 미포함)
   - 마이페이지 목록·상세: 공통 라벨, **주문확정** 탭, 송장 없을 때 배달 안내 문구, 결제 상태 행
   - 비회원 주문서 상단: 한글 안내·코드 비노출 문구
-- [ ] **T8.5.2** 알림(선택): 발주 실패 시 운영 알림(슬랙/메일/카카오 등) — 고객 노출은 정책에 따름
+- [x] **T8.5.2** 알림: `NEWRUN_ERROR_WEBHOOK_URL` 설정 시 `submit-order`·`apply-po-return` 실패 구간에서 JSON POST (`order_no`, `error_code`, `error_message`, `timestamp`) — `lib/newrun/error-webhook.ts`
 
 #### 테스트·체크리스트
 
@@ -411,21 +411,55 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ### Tasks
 
-- [ ] **T9.1** 내부 연동 명세: `rw_*` ↔ DB 컬럼 매핑표 (버전 관리)
-- [ ] **T9.2** `.env.example`에 `NEWRUN_*` **플레이스홀더만** 추가 (비밀 미기재)
-- [ ] **T9.3** 장애 대응: 뉴런 장애 시 발주 보류·수동 처리 절차
-- [ ] **T9.4** 프로덕션 `NEWRUN_ENABLED` 켜기 전 최종 체크
+- [x] **T9.1** 내부 연동 명세: `rw_*` ↔ DB 컬럼 매핑표 — 본 문서 **부록 A-1** (버전은 저장소 커밋·변경 이력으로 관리)
+- [x] **T9.2** `.env.example`에 `NEWRUN_*` 플레이스홀더 정리 (비밀 미기재)
+- [x] **T9.3** 장애 대응(요약): 뉴런·협회 장애·`rwr_result` 비정상 시
+  - **자동**: `newrun_submit_status=failed`·`order_status_history`·선택적 `NEWRUN_ERROR_WEBHOOK_URL` 알림
+  - **운영**: 어드민 주문 상세에서 발주 재시도·협회 측 수동 확인; `NEWRUN_MOCK`/`NEWRUN_ENABLED`로 스테이징만 Mock 가능
+  - **배송 콜백(2.6)**: 게이트웨이는 HTTP 200 유지 정책 — 로그·DB 미반영 건은 별도 모니터링
+- [x] **T9.4** 프로덕션 `NEWRUN_ENABLED` 전 체크(체크리스트)
+  - [ ] 스테이징에서 `NEWRUN_MOCK=false`·실계정으로 intranet_post·po-return·배송 콜백 1회 이상
+  - [ ] `NEWRUN_*`·`NEWRUN_ERROR_WEBHOOK_URL`·ViewPay·DB 백업 확인
+  - [ ] `.env`에 시크릿 미커밋, `.env.example`만 공유
+  - [ ] 실패 시 고객 화면은 한글 라벨·`delivery_photo_url`만 노출(전체 JSONB 비노출) 확인
 
 ### 테스트·체크리스트
 
 - [ ] 스테이징 전 구간 E2E 1건 이상
 - [ ] 프로덕션 소액 테스트(협의된 테스트 계정) 후 일반 오픈
+- [x] 단위: `sanitize-customer-order.test.ts`, `error-webhook.test.ts`
 
 ---
 
 ## 부록 A — 결과코드 2.1.5 (발주) 빠른 참고
 
 개발·어드민 메시지 매핑 시 문서 원문을 따른다. (예: `0` 발주성공, `20` 중복, `99` 서버접속 불가 등)
+
+### 부록 A-1 — `rw_*` 폼·응답 ↔ DB 매핑 요약 (T9.1)
+
+**intranet_post 요청 필드 → 데이터 출처** (`lib/newrun/map-order-to-newrun-payload.ts` 등)
+
+| 뉴런(폼) 키 | 쇼핑몰 출처 |
+|-------------|-------------|
+| `rw_sno` | `orders.order_no`(기본) 또는 `orders.id` 변형 (`rwSnoSource`) |
+| `rw_rosewebid`, `rw_rosewebpw`, `rw_assoc`, `rw_returnurl` | 환경변수 `NEWRUN_*` + `rw_returnurl`에 po-return 토큰 부착 |
+| `rw_price` | `orders.total_amount` |
+| `rw_aname`, `rw_atel` | `orders.shipping_name`, `shipping_phone` |
+| `rw_arrive_place1` | `shipping_postcode` + `shipping_address` |
+| `rw_memo`, `rw_shopreq` | `shipping_detail` + 옵션 draft 한 줄(분할) |
+| `rw_bdate` | `orders.created_at` 기준 YYYYMMDD(기본) |
+| `rw_sujuid` | `clients.newrun_default_florist_draft` ⊕ `orders.newrun_florist_draft` 병합 |
+| `rw_menucode` | `products.newrun_default_product_draft` ⊕ `orders.newrun_product_draft` 병합 |
+| 기타 `rw_*` | draft JSONB에서 동일 키 통과·`NEWRUN_DEFAULT_RW_METHOD`→`rw_method` 등 |
+
+**뉴런 응답·콜백 → DB 컬럼**
+
+| 항목 | DB 컬럼 / 비고 |
+|------|----------------|
+| `rwr_result`, `rwr_orderkey` (intranet 응답·po-return) | `orders.newrun_rwr_result`, `newrun_rwr_orderkey` |
+| 발주 처리 상태 요약 | `orders.newrun_submit_status`, `newrun_last_submit_error`, `newrun_last_submit_at` |
+| 배송 콜백(2.6) 본문 | `orders.newrun_delivery_info` (JSONB, `state`, `ordercode`, `dica`, …) |
+| 고객 API | `newrun_*`·전체 JSONB 제거 후 **`delivery_photo_url`** 만 (`dica`가 http(s)일 때) |
 
 ---
 
@@ -441,8 +475,8 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 5 | 발주 전송 | [x] | [~] | Mock·파싱 단위 테스트 완료; 스테이징 실연동·인코딩(T5.2) 잔여 |
 | 6 | po-return 고도화 | [x] | [~] | 스테이징·nrpt 보존·실쿼리 검증 남음 |
 | 7 | 배송 콜백 | [x] | [ ] | T7.5·실통보 테스트 남음 |
-| 8 | 어드민·고객 | [x] | [ ] | 8.5.1 고객 라벨·API 정리 완료; 8.5.2·통합 테스트 남음 |
-| 9 | 운영 | [ ] | [ ] | |
+| 8 | 어드민·고객 | [x] | [ ] | 8.5 완료; 통합·E2E 남음 |
+| 9 | 운영 | [x] | [ ] | T9.1~T9.4 문서·`.env.example`·웹훅·매핑표 반영; 현장 검증은 체크리스트 수동 |
 
 ### 부록 C — Admin 주문 관리 세부 체크 (Phase 8 한 장 요약)
 
@@ -466,3 +500,4 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 - Phase 4: `lib/newrun/map-order-to-newrun-payload.ts`, `GET /api/partner/orders/[id]/newrun-preview`, 주문 상세 미리보기·팝업/모바일 안내.
 - Phase 5 정책: ViewPay 완료 직후 **자동 발주** 기본, 실패 시 **alert** + 어드민 **수동 발주** 병행(A+B). 인코딩·응답 파싱 등은 뉴런 피드백 후 확정.
 - Phase 5 구현: `submit-order.ts`, `parse-intranet-post-response.ts`, `newrun-submit`·ViewPay 연동, 주문 DB 컬럼·어드민 UI.
+- Phase 8.5~9: 고객 주문 sanitize·`delivery_photo_url`, `NEWRUN_ERROR_WEBHOOK_URL`, `.env.example`, 부록 A-1 매핑표.

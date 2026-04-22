@@ -5,6 +5,7 @@ import {
   newrunPoReturnDetail,
   newrunPoReturnHeadline,
 } from "@/lib/newrun/rwr-result-user-message";
+import { fireNewrunErrorWebhook } from "@/lib/newrun/error-webhook";
 
 const LOG = "[Newrun:PoReturn]";
 
@@ -155,11 +156,26 @@ export async function applyNewrunPoReturnFromSearchParams(
       action: "newrun_po_return_db_error",
       data: { orderId: order.id, message: updErr.message },
     });
+    fireNewrunErrorWebhook({
+      order_no: order.order_no,
+      error_code: "DB_ERROR",
+      error_message: `po-return 저장 실패: ${updErr.message}`,
+      timestamp: new Date().toISOString(),
+    });
     return {
       kind: "skipped",
       reason: "db_error",
       message: "결과를 저장하는 중 오류가 발생했습니다. 가맹점 관리자에게 문의해 주세요.",
     };
+  }
+
+  if (!ok) {
+    fireNewrunErrorWebhook({
+      order_no: order.order_no,
+      error_code: rwr,
+      error_message: lastErr ?? `rwr_result=${rwr} (po-return)`,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   const memoParts = [

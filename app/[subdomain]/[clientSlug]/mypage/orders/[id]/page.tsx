@@ -64,6 +64,8 @@ interface Order {
   tracking_number: string | null;
   courier_company: string | null;
   created_at: string;
+  /** 고객 API 전용: `newrun_delivery_info.dica`만 추출 */
+  delivery_photo_url?: string | null;
   client: Client;
   user?: OrderUser | null;
 }
@@ -390,6 +392,30 @@ export default function MyOrderDetailPage() {
               올라올 수 있습니다.
             </p>
           )}
+          {order.delivery_photo_url ? (
+            <div style={{ marginTop: "16px", textAlign: "center" }}>
+              <a
+                href={order.delivery_photo_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-block",
+                  padding: "12px 20px",
+                  backgroundColor: "#D6A8E0",
+                  color: "#fff",
+                  borderRadius: "12px",
+                  fontSize: "0.9375rem",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                }}
+              >
+                배송 완료 사진 보기
+              </a>
+              <p style={{ fontSize: "0.7rem", color: "#9CA3AF", marginTop: "8px" }}>
+                새 창에서 배송 확인 이미지가 열립니다.
+              </p>
+            </div>
+          ) : null}
         </div>
 
         {/* 주문 항목 */}

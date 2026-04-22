@@ -12,8 +12,18 @@ import {
 } from "@/lib/newrun/merge-order-drafts";
 import { parseIntranetPostResponse } from "@/lib/newrun/parse-intranet-post-response";
 import { appendNewrunPoReturnTokenToReturnUrl } from "@/lib/newrun/po-return-signing";
+import { fireNewrunErrorWebhook } from "@/lib/newrun/error-webhook";
 
 const LOG = "[Newrun:Submit]";
+
+function hookSubmitFailure(orderNo: string, orderId: string, errorCode: string, errorMessage: string) {
+  fireNewrunErrorWebhook({
+    order_no: orderNo.trim() || orderId,
+    error_code: errorCode.slice(0, 64),
+    error_message: errorMessage,
+    timestamp: new Date().toISOString(),
+  });
+}
 
 const DEFAULT_INTRANET_POST_URL = "http://ext2intra.roseweb.co.kr/intranet_post.html";
 
@@ -216,6 +226,7 @@ export async function submitNewrunOrder(
 ): Promise<SubmitNewrunOrderResult> {
   const ctx = await loadSubmitContext(supabase, orderId);
   if (ctx.error || !ctx.order) {
+    hookSubmitFailure("", orderId, "ORDER_LOAD", ctx.error ?? "주문 없음");
     return { ok: false, skipped: false, duplicate: false, message: ctx.error ?? "주문 없음" };
   }
 
@@ -228,6 +239,7 @@ export async function submitNewrunOrder(
   };
 
   const historyStatus = String(order.status ?? "received");
+  const orderNoHook = String(order.order_no ?? "").trim();
 
   if (order.payment_status !== "paid") {
     const msg = "결제완료된 주문만 뉴런 발주할 수 있습니다.";
@@ -242,6 +254,7 @@ export async function submitNewrunOrder(
       source: options.source,
       forceRetry: options.forceRetry,
     });
+    hookSubmitFailure(orderNoHook, orderId, "NOT_PAID", msg);
     return { ok: false, skipped: false, duplicate: false, message: msg };
   }
 
@@ -279,6 +292,7 @@ export async function submitNewrunOrder(
         forceRetry: options.forceRetry,
       }
     );
+    hookSubmitFailure(orderNoHook, orderId, "NO_CREDENTIALS", msg);
     return { ok: false, skipped: false, duplicate: false, message: msg };
   }
 
@@ -331,6 +345,7 @@ export async function submitNewrunOrder(
         forceRetry: options.forceRetry,
       }
     );
+    hookSubmitFailure(orderNoHook, orderId, "VALIDATION", msg);
     return { ok: false, skipped: false, duplicate: false, message: msg };
   }
 
@@ -386,6 +401,14 @@ export async function submitNewrunOrder(
         forceRetry: options.forceRetry,
       }
     );
+    if (!ok) {
+      hookSubmitFailure(
+        orderNoHook,
+        orderId,
+        rwr,
+        `Mock 실패 rwr_result=${rwr}`
+      );
+    }
     return {
       ok,
       skipped: false,
@@ -431,6 +454,7 @@ export async function submitNewrunOrder(
         forceRetry: options.forceRetry,
       }
     );
+    hookSubmitFailure(orderNoHook, orderId, "NETWORK", msg);
     return { ok: false, skipped: false, duplicate: false, message: msg, warnings: mapResult.warnings };
   }
 
@@ -462,6 +486,7 @@ export async function submitNewrunOrder(
         forceRetry: options.forceRetry,
       }
     );
+    hookSubmitFailure(orderNoHook, orderId, "PARSE_MISS", msg);
     return {
       ok: false,
       skipped: false,
@@ -490,6 +515,15 @@ export async function submitNewrunOrder(
       forceRetry: options.forceRetry,
     }
   );
+
+  if (!ok) {
+    hookSubmitFailure(
+      orderNoHook,
+      orderId,
+      rwr,
+      `intranet_post rwr_result=${rwr}`
+    );
+  }
 
   return {
     ok,
