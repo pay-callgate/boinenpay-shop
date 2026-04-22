@@ -4,6 +4,12 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { adminFetch } from "@/lib/admin-fetch";
+import {
+  adminNewrunSubmitBadgeClass,
+  formatAdminNewrunSubmitLabel,
+  truncateNewrunOrderKey,
+  type NewrunSubmitListFilter,
+} from "@/lib/newrun/admin-order-newrun-summary";
 
 /**
  * T5-1: 주문 목록 페이지 (파트너 어드민) — 중앙 집중형 /admin/orders
@@ -31,7 +37,19 @@ interface Order {
   created_at: string;
   client: Client;
   user: User | null;
+  newrun_submit_status?: string | null;
+  newrun_rwr_result?: string | null;
+  newrun_rwr_orderkey?: string | null;
+  newrun_last_submit_at?: string | null;
 }
+
+const NEWRUN_SUBMIT_FILTER_OPTIONS: { value: NewrunSubmitListFilter; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "not_sent", label: "뉴런·미전송(결제완료)" },
+  { value: "ok", label: "뉴런·전송완료" },
+  { value: "failed", label: "뉴런·실패" },
+  { value: "needs_attention", label: "뉴런·확인필요" },
+];
 
 const STATUS_LABELS: Record<string, string> = {
   received: "접수",
@@ -63,6 +81,9 @@ export default function OrdersPage() {
 
   const [selectedClient, setSelectedClient] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>("");
+  const [selectedNewrunSubmit, setSelectedNewrunSubmit] =
+    useState<NewrunSubmitListFilter>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [offset, setOffset] = useState(0);
@@ -99,6 +120,10 @@ export default function OrdersPage() {
       let url = `/api/orders?partnerId=${partnerId}&limit=${limit}&offset=${offset}`;
       if (selectedClient) url += `&clientId=${selectedClient}`;
       if (selectedStatus) url += `&status=${selectedStatus}`;
+      if (selectedPaymentStatus) url += `&paymentStatus=${selectedPaymentStatus}`;
+      if (selectedNewrunSubmit && selectedNewrunSubmit !== "all") {
+        url += `&newrunSubmit=${selectedNewrunSubmit}`;
+      }
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
 
@@ -112,7 +137,16 @@ export default function OrdersPage() {
     }
 
     fetchOrders();
-  }, [partnerId, selectedClient, selectedStatus, startDate, endDate, offset]);
+  }, [
+    partnerId,
+    selectedClient,
+    selectedStatus,
+    selectedPaymentStatus,
+    selectedNewrunSubmit,
+    startDate,
+    endDate,
+    offset,
+  ]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("ko-KR").format(price);
@@ -135,6 +169,10 @@ export default function OrdersPage() {
     let url = `/api/orders/export?partnerId=${partnerId}`;
     if (selectedClient) url += `&clientId=${selectedClient}`;
     if (selectedStatus) url += `&status=${selectedStatus}`;
+    if (selectedPaymentStatus) url += `&paymentStatus=${selectedPaymentStatus}`;
+    if (selectedNewrunSubmit && selectedNewrunSubmit !== "all") {
+      url += `&newrunSubmit=${selectedNewrunSubmit}`;
+    }
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
 
@@ -162,6 +200,7 @@ export default function OrdersPage() {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       received: "#64748B",
+      confirmed: "#0284C7",
       pending_payment: "#F59E0B",
       paid: "#10B981",
       preparing: "#3B82F6",
@@ -251,6 +290,41 @@ export default function OrdersPage() {
               </select>
             </div>
             <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">결제 상태</label>
+              <select
+                value={selectedPaymentStatus}
+                onChange={(e) => {
+                  setSelectedPaymentStatus(e.target.value);
+                  setOffset(0);
+                }}
+                className="h-10 min-w-[120px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              >
+                <option value="">전체</option>
+                {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">뉴런 발주</label>
+              <select
+                value={selectedNewrunSubmit}
+                onChange={(e) => {
+                  setSelectedNewrunSubmit(e.target.value as NewrunSubmitListFilter);
+                  setOffset(0);
+                }}
+                className="h-10 min-w-[180px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              >
+                {NEWRUN_SUBMIT_FILTER_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">시작일</label>
               <input
                 type="date"
@@ -294,17 +368,19 @@ export default function OrdersPage() {
                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">금액</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">상태</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">결제</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">뉴런 발주</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">협회 주문번호</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
                     주문 내역이 없습니다.
                   </td>
                 </tr>
@@ -355,6 +431,40 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-4 py-3 text-center text-sm text-slate-600">
                       {PAYMENT_STATUS_LABELS[order.payment_status] ?? order.payment_status ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${adminNewrunSubmitBadgeClass(
+                          {
+                            payment_status: order.payment_status,
+                            newrun_submit_status: order.newrun_submit_status,
+                            newrun_rwr_result: order.newrun_rwr_result,
+                          }
+                        )}`}
+                      >
+                        {formatAdminNewrunSubmitLabel({
+                          payment_status: order.payment_status,
+                          newrun_submit_status: order.newrun_submit_status,
+                          newrun_rwr_result: order.newrun_rwr_result,
+                        })}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      {order.newrun_rwr_orderkey ? (
+                        <button
+                          type="button"
+                          title={order.newrun_rwr_orderkey}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/admin/orders/${order.id}`);
+                          }}
+                          className="max-w-[8rem] truncate text-left font-mono text-xs text-blue-600 underline hover:no-underline"
+                        >
+                          {truncateNewrunOrderKey(order.newrun_rwr_orderkey, 14)}
+                        </button>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                   </tr>
                 ))

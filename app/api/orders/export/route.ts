@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import * as XLSX from "xlsx";
+import { formatAdminNewrunSubmitLabel } from "@/lib/newrun/admin-order-newrun-summary";
 
 /**
  * 개선-3: 주문 목록 엑셀 다운로드 API
@@ -20,6 +21,8 @@ export async function GET(request: NextRequest) {
     const partnerId = searchParams.get("partnerId");
     const clientId = searchParams.get("clientId");
     const status = searchParams.get("status");
+    const paymentStatus = searchParams.get("paymentStatus");
+    const newrunSubmit = searchParams.get("newrunSubmit");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
@@ -57,6 +60,10 @@ export async function GET(request: NextRequest) {
         shipping_postcode,
         tracking_number,
         created_at,
+        newrun_submit_status,
+        newrun_rwr_result,
+        newrun_rwr_orderkey,
+        newrun_last_submit_at,
         client:clients (
           name
         ),
@@ -75,9 +82,28 @@ export async function GET(request: NextRequest) {
       )
       .eq("partner_id", partnerId);
 
-    // 필터 적용
+    // 필터 적용 (목록 API와 동일 AND)
     if (clientId) query = query.eq("client_id", clientId);
     if (status) query = query.eq("status", status);
+    if (paymentStatus) query = query.eq("payment_status", paymentStatus);
+    if (newrunSubmit && newrunSubmit !== "all") {
+      switch (newrunSubmit) {
+        case "not_sent":
+          query = query.eq("payment_status", "paid").is("newrun_submit_status", null);
+          break;
+        case "ok":
+          query = query.in("newrun_submit_status", ["success", "duplicate"]);
+          break;
+        case "failed":
+          query = query.eq("newrun_submit_status", "failed");
+          break;
+        case "needs_attention":
+          query = query.eq("newrun_submit_status", "skipped");
+          break;
+        default:
+          break;
+      }
+    }
     if (startDate) query = query.gte("created_at", startDate);
     if (endDate) query = query.lte("created_at", endDate);
 
@@ -109,6 +135,12 @@ export async function GET(request: NextRequest) {
         결제수단: getPaymentMethodLabel(order.payment_method),
         결제상태: getPaymentStatusLabel(order.payment_status),
         주문상태: getOrderStatusLabel(order.status),
+        뉴런발주: formatAdminNewrunSubmitLabel({
+          payment_status: order.payment_status,
+          newrun_submit_status: order.newrun_submit_status,
+          newrun_rwr_result: order.newrun_rwr_result,
+        }),
+        협회주문번호: order.newrun_rwr_orderkey || "",
         수령인: order.shipping_name,
         수령인전화번호: order.shipping_phone,
         우편번호: order.shipping_postcode || "",
@@ -135,6 +167,8 @@ export async function GET(request: NextRequest) {
       { wch: 12 }, // 결제수단
       { wch: 12 }, // 결제상태
       { wch: 12 }, // 주문상태
+      { wch: 14 }, // 뉴런발주
+      { wch: 18 }, // 협회주문번호
       { wch: 10 }, // 수령인
       { wch: 15 }, // 수령인전화번호
       { wch: 10 }, // 우편번호
@@ -178,8 +212,10 @@ function getPaymentMethodLabel(method: string): string {
 function getPaymentStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     pending: "결제대기",
+    paid: "결제완료",
     completed: "결제완료",
     failed: "결제실패",
+    refunded: "환불됨",
     cancelled: "결제취소",
   };
   return labels[status] || status;
@@ -187,6 +223,8 @@ function getPaymentStatusLabel(status: string): string {
 
 function getOrderStatusLabel(status: string): string {
   const labels: Record<string, string> = {
+    received: "접수",
+    confirmed: "주문확정",
     pending_payment: "입금전",
     paid: "결제완료",
     preparing: "배송준비중",

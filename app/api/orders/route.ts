@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
     const partnerId = searchParams.get("partnerId");
     const clientId = searchParams.get("clientId");
     const status = searchParams.get("status");
+    const paymentStatus = searchParams.get("paymentStatus");
+    /** Phase 8.1: not_sent | ok | failed | needs_attention */
+    const newrunSubmit = searchParams.get("newrunSubmit");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const limit = parseInt(searchParams.get("limit") || "20");
@@ -77,6 +80,29 @@ export async function GET(request: NextRequest) {
 
     if (status) {
       query = query.eq("status", status);
+    }
+
+    if (paymentStatus) {
+      query = query.eq("payment_status", paymentStatus);
+    }
+
+    if (newrunSubmit && newrunSubmit !== "all") {
+      switch (newrunSubmit) {
+        case "not_sent":
+          query = query.eq("payment_status", "paid").is("newrun_submit_status", null);
+          break;
+        case "ok":
+          query = query.in("newrun_submit_status", ["success", "duplicate"]);
+          break;
+        case "failed":
+          query = query.eq("newrun_submit_status", "failed");
+          break;
+        case "needs_attention":
+          query = query.eq("newrun_submit_status", "skipped");
+          break;
+        default:
+          break;
+      }
     }
 
     if (startDate) {

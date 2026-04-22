@@ -319,10 +319,10 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 #### Tasks
 
-- [ ] **T8.1.1** 테이블 컬럼(또는 서브 배지): **발주 연동 상태** 예) `미전송` / `전송완료` / `실패(코드)` / `확인필요` — DB·API 필드와 매핑
-- [ ] **T8.1.2** (선택) **협회 주문번호**(`rwr_orderkey`) 축약 표시 + 상세 링크
-- [ ] **T8.1.3** 필터: `payment_status=paid` + 발주 상태, 거래처·기간 필터와 **AND** 동작 확인
-- [ ] **T8.1.4** `STATUS_LABELS` / DB `received` 등 **기존 상태 표기**와 뉴런 연동 후 상태 enum **정합성** (`docs/ORDER_UPDATE_FAILURE_ANALYSIS.md` 참고)
+- [x] **T8.1.1** 테이블 **뉴런 발주** 배지 — `lib/newrun/admin-order-newrun-summary.ts` (`미전송` / `전송완료`·중복 / `실패(코드)` / `확인필요`, 결제 전 `—`)
+- [x] **T8.1.2** **협회 주문번호** `newrun_rwr_orderkey` 축약 표시 + 클릭 시 주문 상세 (`/admin/orders/[id]`)
+- [x] **T8.1.3** `GET /api/orders`·`/api/orders/export` — `paymentStatus`, `newrunSubmit`(not_sent|ok|failed|needs_attention) 쿼리, 기존 거래처·주문상태·기간과 **AND**
+- [x] **T8.1.4** 목록 **주문 상태** `STATUS_LABELS`에 `confirmed` 등 반영 (배송 콜백 Phase 7과 정합)
 
 #### 테스트·체크리스트
 
@@ -432,7 +432,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 5 | 발주 전송 | [x] | [~] | Mock·파싱 단위 테스트 완료; 스테이징 실연동·인코딩(T5.2) 잔여 |
 | 6 | po-return 고도화 | [x] | [~] | 스테이징·nrpt 보존·실쿼리 검증 남음 |
 | 7 | 배송 콜백 | [x] | [ ] | T7.5·실통보 테스트 남음 |
-| 8 | 어드민·고객 | [ ] | [ ] | 목록·상세·배송·returns·고객 |
+| 8 | 어드민·고객 | [~] | [ ] | 8.1 목록·필터·엑셀 완료; 8.2~8.5·테스트 남음 |
 | 9 | 운영 | [ ] | [ ] | |
 
 ### 부록 C — Admin 주문 관리 세부 체크 (Phase 8 한 장 요약)
