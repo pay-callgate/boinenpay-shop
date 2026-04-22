@@ -130,6 +130,75 @@ async function persistSubmitResult(
     .eq("id", orderId);
 }
 
+/** T8.2.6: intranet_post / Mock 발주 시도마다 이력 (po-return 콜백과 별개) */
+async function appendNewrunIntranetSubmitHistory(
+  supabase: SupabaseClient,
+  orderId: string,
+  orderStatusForRow: string,
+  source: NewrunSubmitSource,
+  forceRetry: boolean | undefined,
+  patch: {
+    newrun_submit_status: string;
+    newrun_rwr_result?: string | null;
+    newrun_rwr_orderkey?: string | null;
+    newrun_last_submit_error?: string | null;
+  }
+) {
+  const memoParts = [
+    "뉴런 intranet_post",
+    `source=${source}`,
+    forceRetry ? "forceRetry=1" : null,
+    `submit=${patch.newrun_submit_status}`,
+    patch.newrun_rwr_result != null && String(patch.newrun_rwr_result).trim() !== ""
+      ? `rwr_result=${patch.newrun_rwr_result}`
+      : null,
+    patch.newrun_rwr_orderkey != null && String(patch.newrun_rwr_orderkey).trim() !== ""
+      ? `rwr_orderkey=${String(patch.newrun_rwr_orderkey)}`
+      : null,
+    patch.newrun_last_submit_error != null && String(patch.newrun_last_submit_error).trim() !== ""
+      ? `err=${String(patch.newrun_last_submit_error).slice(0, 400)}`
+      : null,
+  ].filter(Boolean) as string[];
+
+  const { error } = await supabase.from("order_status_history").insert({
+    order_id: orderId,
+    status: orderStatusForRow,
+    memo: memoParts.join(" · "),
+  });
+  if (error) {
+    logger.warn(`${LOG} history insert failed`, {
+      action: "newrun_submit_history_failed",
+      data: { orderId, message: error.message },
+    });
+  }
+}
+
+async function persistSubmitResultAndHistory(
+  supabase: SupabaseClient,
+  orderId: string,
+  patch: {
+    newrun_submit_status: string;
+    newrun_rwr_result?: string | null;
+    newrun_rwr_orderkey?: string | null;
+    newrun_last_submit_error?: string | null;
+  },
+  meta: {
+    orderStatus: string;
+    source: NewrunSubmitSource;
+    forceRetry?: boolean;
+  }
+) {
+  await persistSubmitResult(supabase, orderId, patch);
+  await appendNewrunIntranetSubmitHistory(
+    supabase,
+    orderId,
+    meta.orderStatus,
+    meta.source,
+    meta.forceRetry,
+    patch
+  );
+}
+
 /**
  * 뉴런 intranet_post 발주 1회 시도 (자동·수동 공통).
  * - `NEWRUN_MOCK=true`: 외부 미호출, `NEWRUN_MOCK_RWR_RESULT`(기본 0) 시뮬레이션
@@ -153,17 +222,25 @@ export async function submitNewrunOrder(
   const order = ctx.order as Record<string, unknown> & {
     id: string;
     payment_status: string;
+    status?: string | null;
     newrun_submit_status?: string | null;
     newrun_rwr_result?: string | null;
   };
 
+  const historyStatus = String(order.status ?? "received");
+
   if (order.payment_status !== "paid") {
     const msg = "결제완료된 주문만 뉴런 발주할 수 있습니다.";
-    await persistSubmitResult(supabase, orderId, {
+    const patch = {
       newrun_submit_status: "failed",
-      newrun_rwr_result: null,
-      newrun_rwr_orderkey: null,
+      newrun_rwr_result: null as string | null,
+      newrun_rwr_orderkey: null as string | null,
       newrun_last_submit_error: msg,
+    };
+    await persistSubmitResultAndHistory(supabase, orderId, patch, {
+      orderStatus: historyStatus,
+      source: options.source,
+      forceRetry: options.forceRetry,
     });
     return { ok: false, skipped: false, duplicate: false, message: msg };
   }
@@ -187,10 +264,21 @@ export async function submitNewrunOrder(
   if (!creds) {
     const msg = "뉴런 발주 환경변수가 설정되지 않았습니다. (NEWRUN_ROSEWEB_ID/PW, NEWRUN_ASSOC_CODE, NEWRUN_RW_RETURNURL)";
     logger.warn(`${LOG} creds missing`, { action: "newrun_submit_no_env", data: { orderId } });
-    await persistSubmitResult(supabase, orderId, {
-      newrun_submit_status: "failed",
-      newrun_last_submit_error: msg,
-    });
+    await persistSubmitResultAndHistory(
+      supabase,
+      orderId,
+      {
+        newrun_submit_status: "failed",
+        newrun_rwr_result: null,
+        newrun_rwr_orderkey: null,
+        newrun_last_submit_error: msg,
+      },
+      {
+        orderStatus: historyStatus,
+        source: options.source,
+        forceRetry: options.forceRetry,
+      }
+    );
     return { ok: false, skipped: false, duplicate: false, message: msg };
   }
 
@@ -230,10 +318,19 @@ export async function submitNewrunOrder(
       action: "newrun_submit_map_error",
       data: { orderId, message: msg },
     });
-    await persistSubmitResult(supabase, orderId, {
-      newrun_submit_status: "failed",
-      newrun_last_submit_error: msg,
-    });
+    await persistSubmitResultAndHistory(
+      supabase,
+      orderId,
+      {
+        newrun_submit_status: "failed",
+        newrun_last_submit_error: msg,
+      },
+      {
+        orderStatus: historyStatus,
+        source: options.source,
+        forceRetry: options.forceRetry,
+      }
+    );
     return { ok: false, skipped: false, duplicate: false, message: msg };
   }
 
@@ -248,12 +345,21 @@ export async function submitNewrunOrder(
   if (!mock && !enabled) {
     const msg = "NEWRUN_ENABLED 또는 NEWRUN_MOCK이 켜져 있지 않아 발주를 건너뜁니다.";
     logger.info(`${LOG} skipped disabled`, { action: "newrun_submit_skipped", data: { orderId } });
-    await persistSubmitResult(supabase, orderId, {
-      newrun_submit_status: "skipped",
-      newrun_rwr_result: null,
-      newrun_rwr_orderkey: null,
-      newrun_last_submit_error: msg,
-    });
+    await persistSubmitResultAndHistory(
+      supabase,
+      orderId,
+      {
+        newrun_submit_status: "skipped",
+        newrun_rwr_result: null,
+        newrun_rwr_orderkey: null,
+        newrun_last_submit_error: msg,
+      },
+      {
+        orderStatus: historyStatus,
+        source: options.source,
+        forceRetry: options.forceRetry,
+      }
+    );
     return { ok: true, skipped: true, duplicate: false, message: msg, warnings: mapResult.warnings };
   }
 
@@ -265,12 +371,21 @@ export async function submitNewrunOrder(
         : undefined;
     const duplicate = rwr === "20";
     const ok = rwr === "0" || duplicate;
-    await persistSubmitResult(supabase, orderId, {
-      newrun_submit_status: ok ? (duplicate ? "duplicate" : "success") : "failed",
-      newrun_rwr_result: rwr,
-      newrun_rwr_orderkey: key ?? null,
-      newrun_last_submit_error: ok ? null : `Mock 실패 코드 ${rwr}`,
-    });
+    await persistSubmitResultAndHistory(
+      supabase,
+      orderId,
+      {
+        newrun_submit_status: ok ? (duplicate ? "duplicate" : "success") : "failed",
+        newrun_rwr_result: rwr,
+        newrun_rwr_orderkey: key ?? null,
+        newrun_last_submit_error: ok ? null : `Mock 실패 코드 ${rwr}`,
+      },
+      {
+        orderStatus: historyStatus,
+        source: options.source,
+        forceRetry: options.forceRetry,
+      }
+    );
     return {
       ok,
       skipped: false,
@@ -303,10 +418,19 @@ export async function submitNewrunOrder(
   } catch (e) {
     const msg = e instanceof Error ? e.message : "intranet_post 네트워크 오류";
     logger.error(`${LOG} fetch error`, { action: "newrun_submit_fetch_error", data: { orderId, msg } });
-    await persistSubmitResult(supabase, orderId, {
-      newrun_submit_status: "failed",
-      newrun_last_submit_error: msg,
-    });
+    await persistSubmitResultAndHistory(
+      supabase,
+      orderId,
+      {
+        newrun_submit_status: "failed",
+        newrun_last_submit_error: msg,
+      },
+      {
+        orderStatus: historyStatus,
+        source: options.source,
+        forceRetry: options.forceRetry,
+      }
+    );
     return { ok: false, skipped: false, duplicate: false, message: msg, warnings: mapResult.warnings };
   }
 
@@ -325,10 +449,19 @@ export async function submitNewrunOrder(
       action: "newrun_submit_parse_miss",
       data: { orderId, status: res.status, snippet: bodyText.slice(0, 200) },
     });
-    await persistSubmitResult(supabase, orderId, {
-      newrun_submit_status: "failed",
-      newrun_last_submit_error: msg,
-    });
+    await persistSubmitResultAndHistory(
+      supabase,
+      orderId,
+      {
+        newrun_submit_status: "failed",
+        newrun_last_submit_error: msg,
+      },
+      {
+        orderStatus: historyStatus,
+        source: options.source,
+        forceRetry: options.forceRetry,
+      }
+    );
     return {
       ok: false,
       skipped: false,
@@ -342,12 +475,21 @@ export async function submitNewrunOrder(
   const duplicate = rwr === "20";
   const ok = rwr === "0" || duplicate;
 
-  await persistSubmitResult(supabase, orderId, {
-    newrun_submit_status: ok ? (duplicate ? "duplicate" : "success") : "failed",
-    newrun_rwr_result: rwr,
-    newrun_rwr_orderkey: parsed.rwr_orderkey ?? null,
-    newrun_last_submit_error: ok ? null : `rwr_result=${rwr}`,
-  });
+  await persistSubmitResultAndHistory(
+    supabase,
+    orderId,
+    {
+      newrun_submit_status: ok ? (duplicate ? "duplicate" : "success") : "failed",
+      newrun_rwr_result: rwr,
+      newrun_rwr_orderkey: parsed.rwr_orderkey ?? null,
+      newrun_last_submit_error: ok ? null : `rwr_result=${rwr}`,
+    },
+    {
+      orderStatus: historyStatus,
+      source: options.source,
+      forceRetry: options.forceRetry,
+    }
+  );
 
   return {
     ok,

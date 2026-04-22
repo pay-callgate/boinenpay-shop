@@ -6,6 +6,7 @@ function mockSupabase(args: {
   order: Record<string, unknown>;
   items: unknown[];
   onOrdersUpdate?: (patch: Record<string, unknown>) => void;
+  historyRows?: { order_id: string; status: string; memo: string | null }[];
 }): SupabaseClient {
   return {
     from(table: string) {
@@ -33,6 +34,14 @@ function mockSupabase(args: {
           }),
         };
       }
+      if (table === "order_status_history") {
+        return {
+          insert: (row: { order_id: string; status: string; memo: string | null }) => {
+            args.historyRows?.push(row);
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
       throw new Error(`unexpected table: ${table}`);
     },
   } as unknown as SupabaseClient;
@@ -58,6 +67,7 @@ const paidOrderBase = {
   newrun_option_draft: null,
   newrun_submit_status: null,
   newrun_rwr_result: null,
+  status: "received",
 };
 
 const orderItems = [
@@ -109,12 +119,14 @@ describe("submitNewrunOrder", () => {
     process.env.NEWRUN_MOCK_RWR_RESULT = "0";
 
     let updated: Record<string, unknown> | undefined;
+    const historyRows: { order_id: string; status: string; memo: string | null }[] = [];
     const supabase = mockSupabase({
       order: { ...paidOrderBase },
       items: orderItems,
       onOrdersUpdate: (p) => {
         updated = p;
       },
+      historyRows,
     });
 
     const res = await submitNewrunOrder(supabase, paidOrderBase.id as string, {
@@ -130,6 +142,13 @@ describe("submitNewrunOrder", () => {
       newrun_rwr_result: "0",
       newrun_last_submit_error: null,
     });
+    expect(historyRows).toHaveLength(1);
+    expect(historyRows[0].order_id).toBe(paidOrderBase.id);
+    expect(historyRows[0].status).toBe("received");
+    expect(historyRows[0].memo).toContain("뉴런 intranet_post");
+    expect(historyRows[0].memo).toContain("source=viewpay_complete");
+    expect(historyRows[0].memo).toContain("submit=success");
+    expect(historyRows[0].memo).toContain("rwr_result=0");
   });
 
   it("NEWRUN_MOCK=true + 결과 20 → duplicate 상태", async () => {
@@ -137,12 +156,14 @@ describe("submitNewrunOrder", () => {
     process.env.NEWRUN_MOCK_RWR_RESULT = "20";
 
     let updated: Record<string, unknown> | undefined;
+    const historyRows: { order_id: string; status: string; memo: string | null }[] = [];
     const supabase = mockSupabase({
       order: { ...paidOrderBase },
       items: orderItems,
       onOrdersUpdate: (p) => {
         updated = p;
       },
+      historyRows,
     });
 
     const res = await submitNewrunOrder(supabase, paidOrderBase.id as string, {
@@ -152,6 +173,8 @@ describe("submitNewrunOrder", () => {
     expect(res.ok).toBe(true);
     expect(res.duplicate).toBe(true);
     expect(updated?.newrun_submit_status).toBe("duplicate");
+    expect(historyRows).toHaveLength(1);
+    expect(historyRows[0].memo).toContain("submit=duplicate");
   });
 
   it("NEWRUN_MOCK=false + ENABLED=true 이면 fetch 후 HTML 파싱", async () => {
@@ -169,12 +192,14 @@ describe("submitNewrunOrder", () => {
     );
 
     let updated: Record<string, unknown> | undefined;
+    const historyRows: { order_id: string; status: string; memo: string | null }[] = [];
     const supabase = mockSupabase({
       order: { ...paidOrderBase },
       items: orderItems,
       onOrdersUpdate: (p) => {
         updated = p;
       },
+      historyRows,
     });
 
     const res = await submitNewrunOrder(supabase, paidOrderBase.id as string, {
@@ -190,18 +215,22 @@ describe("submitNewrunOrder", () => {
       newrun_rwr_orderkey: "GW-999",
     });
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(historyRows).toHaveLength(1);
+    expect(historyRows[0].memo).toContain("rwr_orderkey=GW-999");
   });
 
   it("미결제 주문은 발주 실패·failed 기록", async () => {
     process.env.NEWRUN_MOCK = "true";
 
     let updated: Record<string, unknown> | undefined;
+    const historyRows: { order_id: string; status: string; memo: string | null }[] = [];
     const supabase = mockSupabase({
       order: { ...paidOrderBase, payment_status: "pending" },
       items: orderItems,
       onOrdersUpdate: (p) => {
         updated = p;
       },
+      historyRows,
     });
 
     const res = await submitNewrunOrder(supabase, paidOrderBase.id as string, {
@@ -210,5 +239,7 @@ describe("submitNewrunOrder", () => {
 
     expect(res.ok).toBe(false);
     expect(updated?.newrun_submit_status).toBe("failed");
+    expect(historyRows).toHaveLength(1);
+    expect(historyRows[0].memo).toContain("submit=failed");
   });
 });

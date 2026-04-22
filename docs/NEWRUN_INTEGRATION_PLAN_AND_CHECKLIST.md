@@ -289,7 +289,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ### 구현 참고
 
-- 상태 변경 시에만 `order_status_history`에 `뉴런 배송상태 업데이트 (상태코드: X)` 메모 삽입
+- 배송 콜백 처리 성공 시마다 `order_status_history` 1건: 상태가 바뀌면 `뉴런 배송상태 업데이트 (상태코드: X)`, 같으면 `뉴런 배송 콜백 (… 주문 상태 변경 없음 · newrun_delivery_info 반영)`
 
 ---
 
@@ -337,18 +337,22 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 #### Tasks
 
-- [ ] **T8.2.1** 섹션 **「뉴런(Newrun) 발주」**: 마지막 발주 시각, `rwr_result`, `rwr_orderkey`, 원문 에러(있을 때), **재발주** 버튼
-- [ ] **T8.2.2** Phase 3과 연계: **수주화원 검색 / 상품 검색 / (옵션)** 버튼 및 선택값 표시(`rw_sujuid`, `rw_menucode` 등)
-- [ ] **T8.2.3** **「발주 실행」**: `payment_status === paid` 및 필수 `rw_*` 검증 후 API 호출 — Mock/실연동 분기
-- [ ] **T8.2.4** 기존 **택배사·송장** 블록: 화훼 주문은 **뉴런 배송 콜백(2.6) 위주**일 수 있음 → `NEWRUN` 주문일 때 **읽기 전용 안내** 또는 필드 숨김(정책에 따라)
-- [ ] **T8.2.5** 상태 변경 드롭다운: 수동 변경과 **콜백 반영** 충돌 시 우선순위 문서화(권장: 콜백 우선 또는 어드민만 덮어쓰기 허용 범위)
-- [ ] **T8.2.6** 상태 이력: 발주 시도·뉴런 응답·배송 콜백이 `order_status_history`에 남는지
+- [x] **T8.2.1** 섹션 **「뉴런(Newrun) 발주」**: 마지막 발주 시각, `rwr_result`, `rwr_orderkey`, 원문 에러(있을 때), **재발주** 버튼
+- [x] **T8.2.2** Phase 3과 연계: **수주화원 검색 / 상품 검색 / (옵션)** 버튼 및 선택값 표시(`rw_sujuid`, `rw_menucode` 등) — 발주 상태 블록에 **한 줄 요약** 추가
+- [x] **T8.2.3** **「발주 실행」**: `payment_status === paid` 및 필수 `rw_*` 검증 후 API 호출 — Mock/실연동 분기
+- [x] **T8.2.4** 기존 **택배사·송장** 블록: `newrun_submit_status` success/duplicate·`newrun_rwr_orderkey`·`newrun_delivery_info` 유의미 시 **읽기 전용** + 안내 문구; **2.6 콜백** 요약 UI(`state`, `ordercode`, `dica`, 인수자·시각 등)
+- [x] **T8.2.5** 상태 변경 드롭다운: UI에 **콜백(2.6) 자동 갱신 가능**·이력 메모 확인 안내. 우선순위는 운영 정책(콜백 vs 수동)으로 확정 시 문서 보강
+- [x] **T8.2.6** 상태 이력: 발주 시도·뉴런 응답·배송 콜백이 `order_status_history`에 남는지
+  - **intranet_post / Mock** (`lib/newrun/submit-order.ts`): `persistSubmitResult` 직후 `order_status_history` 1건 (`뉴런 intranet_post · source=… · submit=… · rwr_result/키/오류`)
+  - **po-return** (`lib/newrun/apply-po-return.ts`): 기존과 동일 (`뉴런 발주 리턴(po-return) · …`)
+  - **배송 2.6** (`lib/newrun/delivery-status-callback.ts`): 주문 `status` 변경 여부와 관계없이 콜백 처리 성공 시 1건 (변경 시「배송상태 업데이트」, 유지 시「주문 상태 변경 없음 · JSONB 반영」)
 
 #### 테스트·체크리스트
 
 - [ ] 비결제 건에서 발주 버튼 비활성·토스트
 - [ ] 재발주 시 멱등(결과코드 20) UX
 - [ ] 권한: 타 파트너 `id` 접근 403
+- [x] 단위: `submit-order.test.ts`·`delivery-status-callback.test.ts`에서 이력 삽입 검증
 
 ---
 
@@ -432,7 +436,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 5 | 발주 전송 | [x] | [~] | Mock·파싱 단위 테스트 완료; 스테이징 실연동·인코딩(T5.2) 잔여 |
 | 6 | po-return 고도화 | [x] | [~] | 스테이징·nrpt 보존·실쿼리 검증 남음 |
 | 7 | 배송 콜백 | [x] | [ ] | T7.5·실통보 테스트 남음 |
-| 8 | 어드민·고객 | [~] | [ ] | 8.1 목록·필터·엑셀 완료; 8.2~8.5·테스트 남음 |
+| 8 | 어드민·고객 | [~] | [ ] | 8.1·8.2 주문 상세 보강 완료; 8.3~8.5·T8.2.6·테스트 남음 |
 | 9 | 운영 | [ ] | [ ] | |
 
 ### 부록 C — Admin 주문 관리 세부 체크 (Phase 8 한 장 요약)

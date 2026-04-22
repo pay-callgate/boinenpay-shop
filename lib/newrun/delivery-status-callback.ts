@@ -168,18 +168,24 @@ export async function processNewrunDeliveryCallback(
     return { ok: false, reason: "db_error", detail: updErr.message };
   }
 
-  if (statusChanged && mappedStatus) {
-    const { error: histErr } = await supabase.from("order_status_history").insert({
-      order_id: order.id,
-      status: mappedStatus,
-      memo: `뉴런 배송상태 업데이트 (상태코드: ${stateRaw.trim() || "-"})`,
+  /** T8.2.6: 콜백마다 이력 (상태 변경 없이 JSONB만 갱신된 경우 포함) */
+  const afterStatus = (mappedStatus ?? prevStatus) as OrderStatusDb;
+  const stateDisplay = stateRaw.trim() || "-";
+  const memo =
+    statusChanged && mappedStatus
+      ? `뉴런 배송상태 업데이트 (상태코드: ${stateDisplay})`
+      : `뉴런 배송 콜백 (상태코드: ${stateDisplay} · 주문 상태 변경 없음 · newrun_delivery_info 반영)`;
+
+  const { error: histErr } = await supabase.from("order_status_history").insert({
+    order_id: order.id,
+    status: afterStatus,
+    memo,
+  });
+  if (histErr) {
+    logger.warn(`${LOG} history insert`, {
+      action: "newrun_delivery_history_failed",
+      data: { orderId: order.id, message: histErr.message },
     });
-    if (histErr) {
-      logger.warn(`${LOG} history insert`, {
-        action: "newrun_delivery_history_failed",
-        data: { orderId: order.id, message: histErr.message },
-      });
-    }
   }
 
   logger.info(`${LOG} ok`, {

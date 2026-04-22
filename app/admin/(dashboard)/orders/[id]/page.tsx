@@ -10,6 +10,7 @@ import {
   mergeProductDraftForOrder,
 } from "@/lib/newrun/merge-order-drafts";
 import { isKakaoTalkInAppBrowser } from "@/lib/kakao-in-app-browser";
+import { formatAdminNewrunSubmitLabel } from "@/lib/newrun/admin-order-newrun-summary";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -88,9 +89,32 @@ interface Order {
   newrun_rwr_orderkey?: string | null;
   newrun_last_submit_error?: string | null;
   newrun_last_submit_at?: string | null;
+  /** Phase 7 뉴런 배송 콜백(2.6) 누적 */
+  newrun_delivery_info?: Record<string, unknown> | null;
   client: Client;
   user: User | null;
 }
+
+function hasNewrunDeliveryCallbackInfo(info: unknown): boolean {
+  if (info == null || typeof info !== "object" || Array.isArray(info)) return false;
+  const o = info as Record<string, unknown>;
+  return Boolean(o.state || o.ordercode || o.dica || o.insuname || o.lastCallbackAt);
+}
+
+/** 화훼·협회 배송 흐름: 택배 송장 입력 비활성화 */
+function isNewrunCourierReadOnly(o: Order): boolean {
+  const st = o.newrun_submit_status?.trim();
+  if (st === "success" || st === "duplicate") return true;
+  if (o.newrun_rwr_orderkey?.trim()) return true;
+  if (hasNewrunDeliveryCallbackInfo(o.newrun_delivery_info)) return true;
+  return false;
+}
+
+const NEWRUN_DELIVERY_STATE_HINT: Record<string, string> = {
+  "2": "협회 단계 2 (주문확정·제작 진행)",
+  "3": "협회 단계 3 (배송중)",
+  "4": "협회 단계 4 (배송완료)",
+};
 
 function coerceStringMapFromJson(v: unknown): Record<string, string> | null {
   if (v == null || typeof v !== "object" || Array.isArray(v)) return null;
@@ -229,6 +253,23 @@ export default function OrderDetailPage() {
       newrunOptionPayload ?? coerceStringMapFromJson(order.newrun_option_draft) ?? undefined
     );
   }, [order, items, newrunOptionPayload]);
+
+  const newrunDispatchSummary = useMemo(() => {
+    const f = effectiveNewrunFlorist;
+    const p = effectiveNewrunProduct;
+    const sujuid =
+      f?.rw_sujuid?.trim() ||
+      f?.var_sid?.trim() ||
+      f?.sujuid?.trim() ||
+      "";
+    const menucode =
+      p?.rw_menucode?.trim() ||
+      p?.var_menucode?.trim() ||
+      p?.goodcode?.trim() ||
+      p?.var_goodcode?.trim() ||
+      "";
+    return { sujuid: sujuid || "—", menucode: menucode || "—" };
+  }, [effectiveNewrunFlorist, effectiveNewrunProduct]);
 
   const persistNewrunDraft = React.useCallback(
     async (kind: "florist" | "product" | "option", payload: Record<string, string>) => {
@@ -467,6 +508,8 @@ export default function OrderDetailPage() {
     );
   }
 
+  const newrunCourierLocked = isNewrunCourierReadOnly(order);
+
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-slate-50 p-6">
       {/* 헤더: 표준 타이틀 + 서브타이틀 구조 */}
@@ -524,13 +567,23 @@ export default function OrderDetailPage() {
             <div className="mb-4 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 space-y-1">
               <p className="font-semibold text-slate-800">intranet_post 발주 상태 (Phase 5)</p>
               <p>
-                상태:{" "}
                 <span className="font-medium">
-                  {order.newrun_submit_status ?? "—"}
+                  {formatAdminNewrunSubmitLabel({
+                    payment_status: order.payment_status,
+                    newrun_submit_status: order.newrun_submit_status,
+                    newrun_rwr_result: order.newrun_rwr_result,
+                  })}
                 </span>
+                {order.newrun_submit_status?.trim() ? (
+                  <span className="text-slate-500"> (DB: {order.newrun_submit_status})</span>
+                ) : null}
                 {order.newrun_rwr_result != null && order.newrun_rwr_result !== "" && (
                   <> · 결과코드: {order.newrun_rwr_result}</>
                 )}
+              </p>
+              <p className="text-[11px] text-slate-600 border-t border-slate-100 pt-1">
+                발주 필드 요약: <span className="font-mono">rw_sujuid</span>={newrunDispatchSummary.sujuid} ·{" "}
+                <span className="font-mono">rw_menucode</span>={newrunDispatchSummary.menucode}
               </p>
               {order.newrun_rwr_orderkey ? (
                 <p className="break-all">협회 주문키: {order.newrun_rwr_orderkey}</p>
@@ -563,6 +616,55 @@ export default function OrderDetailPage() {
                 결제 완료 직후 자동 발주가 실패한 경우 여기서 재시도합니다. `NEWRUN_ENABLED` / `NEWRUN_MOCK`·환경변수를 확인하세요.
               </p>
             </div>
+            {hasNewrunDeliveryCallbackInfo(order.newrun_delivery_info) ? (
+              <div className="mb-4 rounded-md border border-teal-200 bg-teal-50/70 px-3 py-2 text-xs text-slate-800 space-y-1">
+                <p className="font-semibold text-teal-900">협회 배송 통보 (뉴런 2.6 · Phase 7)</p>
+                {(() => {
+                  const di = order.newrun_delivery_info!;
+                  const st = di.state != null ? String(di.state) : "";
+                  const stHint = st ? NEWRUN_DELIVERY_STATE_HINT[st] ?? `코드 ${st}` : "—";
+                  return (
+                    <>
+                      <p>
+                        통보 상태: <span className="font-medium">{st || "—"}</span>
+                        {st ? <span className="text-slate-600"> ({stHint})</span> : null}
+                      </p>
+                      {di.ordercode != null && String(di.ordercode).trim() !== "" ? (
+                        <p className="break-all">협회 주문코드: {String(di.ordercode)}</p>
+                      ) : null}
+                      {di.dica != null && String(di.dica).trim() !== "" ? (
+                        <p>
+                          배송 이미지:{" "}
+                          <a
+                            href={String(di.dica)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-800 underline font-medium break-all"
+                          >
+                            열기
+                          </a>
+                        </p>
+                      ) : null}
+                      {di.insuname != null && String(di.insuname).trim() !== "" ? (
+                        <p>
+                          인수자: {String(di.insuname)}
+                          {di.insurel != null && String(di.insurel).trim() !== ""
+                            ? ` (${String(di.insurel)})`
+                            : null}
+                          {(di.insudate1 != null && String(di.insudate1) !== "") ||
+                          (di.insudate2 != null && String(di.insudate2) !== "")
+                            ? ` · ${[di.insudate1, di.insudate2].filter(Boolean).join(":")}`
+                            : null}
+                        </p>
+                      ) : null}
+                      {di.lastCallbackAt != null && String(di.lastCallbackAt).trim() !== "" ? (
+                        <p className="text-slate-500">마지막 통보 시각: {formatDate(String(di.lastCallbackAt))}</p>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2 mb-4">
               <button
                 type="button"
@@ -749,14 +851,26 @@ export default function OrderDetailPage() {
                     </option>
                   ))}
                 </select>
+                <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+                  뉴런 배송 콜백(2.6)이 상태를 자동 갱신할 수 있습니다. 수동 변경과 겹치면 아래 이력 메모를
+                  확인하세요.
+                </p>
               </div>
+
+              {newrunCourierLocked ? (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-[11px] leading-snug text-amber-950">
+                  뉴런 발주·협회 배송 연동 주문입니다. 택배사·송장은 일반 택배가 아닌 협회 배송 흐름을
+                  사용하므로 여기서는 수정할 수 없습니다.
+                </p>
+              ) : null}
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">택배사 선택</label>
                 <select
                   value={courierCompany}
                   onChange={(e) => setCourierCompany(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-slate-300 text-sm focus:ring-1 focus:ring-slate-600 focus:border-slate-600"
+                  disabled={newrunCourierLocked}
+                  className="w-full h-10 px-3 rounded-md border border-slate-300 text-sm focus:ring-1 focus:ring-slate-600 focus:border-slate-600 disabled:bg-slate-100 disabled:text-slate-500"
                 >
                   {COURIER_OPTIONS.map((opt) => (
                     <option key={opt.value || "none"} value={opt.value}>
@@ -772,7 +886,8 @@ export default function OrderDetailPage() {
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
                   placeholder="송장번호 입력"
-                  className="w-full h-10 px-3 rounded-md border border-slate-300 text-sm focus:ring-1 focus:ring-slate-600 focus:border-slate-600"
+                  disabled={newrunCourierLocked}
+                  className="w-full h-10 px-3 rounded-md border border-slate-300 text-sm focus:ring-1 focus:ring-slate-600 focus:border-slate-600 disabled:bg-slate-100 disabled:text-slate-500"
                 />
               </div>
 
