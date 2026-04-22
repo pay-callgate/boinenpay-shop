@@ -392,12 +392,17 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 #### Tasks
 
-- [ ] **T8.5.1** 마이페이지·비회원 조회: 내부 상태 기준 **한글 라벨** (뉴런 원코드 비노출 또는 툴팁만)
+- [x] **T8.5.1** 마이페이지·비회원 조회: 내부 상태 기준 **한글 라벨** (뉴런 원코드 비노출 또는 툴팁만)
+  - `lib/shop/order-status-labels.ts` — 고객용 주문·결제 상태 라벨·색상
+  - `GET /api/orders/[id]`, `GET /api/mypage/orders` 응답에서 **뉴런·draft·이력** 제거 (`lib/orders/sanitize-customer-order.ts`, 고객용 이력 미포함)
+  - 마이페이지 목록·상세: 공통 라벨, **주문확정** 탭, 송장 없을 때 배달 안내 문구, 결제 상태 행
+  - 비회원 주문서 상단: 한글 안내·코드 비노출 문구
 - [ ] **T8.5.2** 알림(선택): 발주 실패 시 운영 알림(슬랙/메일/카카오 등) — 고객 노출은 정책에 따름
 
 #### 테스트·체크리스트
 
 - [ ] 역할별 권한: 타 거래처 주문 노출 없음
+- [x] 단위: `order-status-labels.test.ts`
 - [ ] 고객 화면 문구 UX 리뷰
 
 ---
@@ -436,7 +441,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 5 | 발주 전송 | [x] | [~] | Mock·파싱 단위 테스트 완료; 스테이징 실연동·인코딩(T5.2) 잔여 |
 | 6 | po-return 고도화 | [x] | [~] | 스테이징·nrpt 보존·실쿼리 검증 남음 |
 | 7 | 배송 콜백 | [x] | [ ] | T7.5·실통보 테스트 남음 |
-| 8 | 어드민·고객 | [~] | [ ] | 8.1~8.4 완료; 8.5·통합 테스트 남음 |
+| 8 | 어드민·고객 | [x] | [ ] | 8.5.1 고객 라벨·API 정리 완료; 8.5.2·통합 테스트 남음 |
 | 9 | 운영 | [ ] | [ ] | |
 
 ### 부록 C — Admin 주문 관리 세부 체크 (Phase 8 한 장 요약)
@@ -445,6 +450,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 - [ ] **상세** `orders/[id]/page.tsx`: Newrun 섹션, 검색 버튼, 발주/재발주, 택배 UI 분기
 - [x] **배송** `orders/shipping/page.tsx`: 뉴런 주문 배지·송장 편집 정책 (`lib/newrun/admin-newrun-courier-lock.ts` 공통)
 - [x] **반품** `orders/returns/page.tsx`: 뉴런 취소 API 없음 안내 + 취소/반품 필터 (`statusIn`)
+- [x] **고객** `mypage/orders*`, `guest-order`: 한글 상태 라벨, `GET /api/orders/[id]`·`/api/mypage/orders` 뉴런 필드 제거
 - [ ] **API** `api/partner/orders*`: 확장 필드·재발주 엔드포인트
 
 ---

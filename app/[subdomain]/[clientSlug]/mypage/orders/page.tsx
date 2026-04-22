@@ -5,6 +5,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
+import {
+  shopOrderStatusColor,
+  shopOrderStatusLabel,
+  SHOP_ORDER_STATUS_LABELS,
+} from "@/lib/shop/order-status-labels";
 
 /**
  * T6-2: 마이페이지 주문 목록
@@ -42,17 +47,6 @@ interface Order {
   order_items: OrderItem[];
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  received: "접수",
-  confirmed: "주문확정",
-  pending_payment: "입금대기",
-  paid: "결제완료",
-  preparing: "배송준비중",
-  shipping: "배송중",
-  delivered: "배송완료",
-  cancelled: "취소됨",
-};
-
 export default function MyOrdersPage() {
   const params = useParams();
   const router = useRouter();
@@ -68,6 +62,7 @@ export default function MyOrdersPage() {
   const ORDER_TABS = [
     { key: "all", label: "전체" },
     { key: "pending_payment", label: "입금대기" },
+    { key: "confirmed", label: "주문확정" },
     { key: "preparing", label: "배송준비중" },
     { key: "shipping", label: "배송중" },
     { key: "delivered", label: "배송완료" },
@@ -127,20 +122,6 @@ export default function MyOrdersPage() {
       month: "2-digit",
       day: "2-digit",
     });
-  };
-
-  // 상태 배지 색상
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      received: "#64748B",
-      pending_payment: "#F59E0B",
-      paid: "#10B981",
-      preparing: "#3B82F6",
-      shipping: "#D6A8E0",
-      delivered: "#059669",
-      cancelled: "#EF4444",
-    };
-    return colors[status] || "#6B7280";
   };
 
   if (template == null || !partner || !client) {
@@ -237,7 +218,7 @@ export default function MyOrdersPage() {
             </svg>
             <p style={{ fontSize: "1rem", color: "#666", marginBottom: "24px" }}>
               {activeTabKey !== "all"
-                ? `${STATUS_LABELS[activeTabKey] || activeTabKey} 상태의 주문이 없습니다`
+                ? `${SHOP_ORDER_STATUS_LABELS[activeTabKey] ?? shopOrderStatusLabel(activeTabKey)} 상태의 주문이 없습니다`
                 : "주문 내역이 없습니다"}
             </p>
             <button
@@ -298,11 +279,11 @@ export default function MyOrdersPage() {
                       borderRadius: "12px",
                       fontSize: "0.75rem",
                       fontWeight: 600,
-                      backgroundColor: `${getStatusColor(order.status)}20`,
-                      color: getStatusColor(order.status),
+                      backgroundColor: `${shopOrderStatusColor(order.status)}20`,
+                      color: shopOrderStatusColor(order.status),
                     }}
                   >
-                    {STATUS_LABELS[order.status] || order.status}
+                    {shopOrderStatusLabel(order.status)}
                   </span>
                 </div>
 

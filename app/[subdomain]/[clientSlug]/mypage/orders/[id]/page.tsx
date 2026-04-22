@@ -7,6 +7,11 @@ import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { formatTrackingDisplay } from "@/lib/courier";
+import {
+  shopOrderStatusColor,
+  shopOrderStatusLabel,
+  shopPaymentStatusLabel,
+} from "@/lib/shop/order-status-labels";
 
 /**
  * T6-2: 마이페이지 주문 상세
@@ -62,17 +67,6 @@ interface Order {
   client: Client;
   user?: OrderUser | null;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  received: "접수",
-  confirmed: "주문확정",
-  pending_payment: "입금대기",
-  paid: "결제완료",
-  preparing: "배송준비중",
-  shipping: "배송중",
-  delivered: "배송완료",
-  cancelled: "취소됨",
-};
 
 export default function MyOrderDetailPage() {
   const params = useParams();
@@ -188,20 +182,6 @@ export default function MyOrderDetailPage() {
     } finally {
       setPaymentSubmitting(false);
     }
-  };
-
-  // 상태 배지 색상
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      received: "#64748B",
-      pending_payment: "#F59E0B",
-      paid: "#10B981",
-      preparing: "#3B82F6",
-      shipping: "#D6A8E0",
-      delivered: "#059669",
-      cancelled: "#EF4444",
-    };
-    return colors[status] || "#6B7280";
   };
 
   if (template == null || !partner || !client) {
@@ -343,12 +323,12 @@ export default function MyOrderDetailPage() {
               borderRadius: "20px",
               fontSize: "1rem",
               fontWeight: 700,
-              backgroundColor: `${getStatusColor(order.status)}20`,
-              color: getStatusColor(order.status),
+              backgroundColor: `${shopOrderStatusColor(order.status)}20`,
+              color: shopOrderStatusColor(order.status),
               marginBottom: "12px",
             }}
           >
-            {STATUS_LABELS[order.status] || order.status}
+            {shopOrderStatusLabel(order.status)}
           </span>
           <p style={{ fontSize: "0.875rem", color: "#666" }}>
             주문번호: {order.order_no}
@@ -356,39 +336,61 @@ export default function MyOrderDetailPage() {
           <p style={{ fontSize: "0.75rem", color: "#999", marginTop: "4px" }}>
             {formatDate(order.created_at)}
           </p>
+          <p
+            style={{
+              fontSize: "0.75rem",
+              color: "#6B7280",
+              marginTop: "12px",
+              lineHeight: 1.5,
+              textAlign: "left",
+              maxWidth: "320px",
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          >
+            화환·꽃 배달 등은 택배가 아닌 경우 송장 번호 없이 진행될 수 있습니다. 상태는 주문 처리
+            단계에 맞게 갱신됩니다.
+          </p>
         </div>
 
         {/* 배송 추적 */}
-        {order.tracking_number && (
-          <div
-            style={{
-              backgroundColor: "#fff",
-              padding: "16px",
-              marginBottom: "12px",
-            }}
-          >
-            <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "12px" }}>
-              배송 추적
-            </h2>
-            <div
-              style={{
-                padding: "12px",
-                backgroundColor: "#fff",
-                borderRadius: "8px",
-              }}
-            >
-              <p style={{ fontSize: "0.875rem", color: "#666", marginBottom: "4px" }}>
-                송장번호
+        <div
+          style={{
+            backgroundColor: "#fff",
+            padding: "16px",
+            marginBottom: "12px",
+          }}
+        >
+          <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "12px" }}>
+            배송 추적
+          </h2>
+          {order.tracking_number ? (
+            <>
+              <div
+                style={{
+                  padding: "12px",
+                  backgroundColor: "#fff",
+                  borderRadius: "8px",
+                }}
+              >
+                <p style={{ fontSize: "0.875rem", color: "#666", marginBottom: "4px" }}>
+                  송장번호
+                </p>
+                <p style={{ fontSize: "1rem", fontWeight: 600 }}>
+                  {formatTrackingDisplay(order.courier_company, order.tracking_number)}
+                </p>
+              </div>
+              <p style={{ fontSize: "0.75rem", color: "#999", marginTop: "8px", textAlign: "center" }}>
+                택배사 배송 추적 API 연동은 향후 구현 예정입니다.
               </p>
-              <p style={{ fontSize: "1rem", fontWeight: 600 }}>
-                {formatTrackingDisplay(order.courier_company, order.tracking_number)}
-              </p>
-            </div>
-            <p style={{ fontSize: "0.75rem", color: "#999", marginTop: "8px", textAlign: "center" }}>
-              택배사 배송 추적 API 연동은 향후 구현 예정입니다.
+            </>
+          ) : (
+            <p style={{ fontSize: "0.875rem", color: "#666", lineHeight: 1.6 }}>
+              등록된 택배 송장이 없습니다. 배달 상품은 업체 직배송으로 진행되거나, 준비 후 송장이
+              올라올 수 있습니다.
             </p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* 주문 항목 */}
         <div
@@ -491,6 +493,17 @@ export default function MyOrderDetailPage() {
           <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "12px" }}>
             결제 정보
           </h2>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: "0.875rem",
+              marginBottom: "8px",
+            }}
+          >
+            <span style={{ color: "#666" }}>결제 상태</span>
+            <span>{shopPaymentStatusLabel(order.payment_status)}</span>
+          </div>
           <div
             style={{
               display: "flex",

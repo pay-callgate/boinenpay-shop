@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { verifyGuestCheckout } from "@/lib/guest-checkout-signature";
+import { sanitizeOrderRowForCustomer } from "@/lib/orders/sanitize-customer-order";
 
 /**
  * T5-2: 주문 상세 조회 API
@@ -119,17 +120,12 @@ export async function GET(
       .eq("order_id", id)
       .order("created_at", { ascending: true });
 
-    // 상태 이력 조회
-    const { data: history } = await supabase
-      .from("order_status_history")
-      .select("*")
-      .eq("order_id", id)
-      .order("created_at", { ascending: false });
+    /** 고객 화면: 내부 이력·뉴런 필드 미포함 (파트너는 `/api/partner/orders/[id]` 사용) */
+    const safeOrder = sanitizeOrderRowForCustomer(order as Record<string, unknown>);
 
     return NextResponse.json({
-      order,
+      order: safeOrder,
       items: items || [],
-      history: history || [],
     });
   } catch (err) {
     console.error("Order detail GET API error:", err);

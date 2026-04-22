@@ -459,6 +459,10 @@ export default function GuestOrderPage() {
             <p className="mt-2 text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
               화환·꽃 배달(우리부고) 주문을 위해 정보를 입력해 주세요.
             </p>
+            <p className="mt-2 text-xs leading-relaxed" style={{ color: TEXT_MUTED }}>
+              결제 후 주문·배송 단계는 쇼핑몰에서 <strong>한글 안내</strong>로만 표시됩니다. (외부
+              배송 시스템 코드는 노출되지 않습니다.)
+            </p>
           </header>
 
           {/* 1. 주문자 정보 */}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { sanitizeOrderRowForCustomer } from "@/lib/orders/sanitize-customer-order";
 
 /**
  * T6-2: 사용자 주문 목록 조회 API
@@ -73,8 +74,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "주문 조회 실패" }, { status: 500 });
     }
 
+    const safeOrders = (orders || []).map((row) =>
+      sanitizeOrderRowForCustomer(row as unknown as Record<string, unknown>)
+    );
+
     return NextResponse.json({
-      orders: orders || [],
+      orders: safeOrders,
       total: count || 0,
       limit,
       offset,
