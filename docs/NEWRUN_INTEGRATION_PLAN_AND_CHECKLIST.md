@@ -276,16 +276,20 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ### Tasks
 
-- [ ] **T7.1** `delivery-status` 라우트에서 파라미터 매핑 (GET/POST 모두 — 뉴런 통보 방식에 맞춤)
-- [ ] **T7.2** `oid` ↔ `orders` 조회 (`order_no` 또는 저장한 `rw_sno`)
-- [ ] **T7.3** `state` → 내부 `orders.status` / fulfillment 매핑표 적용 (문서: 2=주문접수, 3=배송중, 4=배송완료)
-- [ ] **T7.4** 인수 정보·이미지 URL 등 확장 필드 저장
+- [x] **T7.1** `app/api/integrations/newrun/delivery-status/route.ts` — GET·POST, 쿼리 + JSON·`x-www-form-urlencoded`·`multipart`(문자 필드)·기타 본문 파싱. `lib/newrun/delivery-status-callback.ts`의 `mergeNewrunDeliveryParams`
+- [x] **T7.2** `oid`(및 별칭 `order_id`) → `orders.order_no` 매칭
+- [x] **T7.3** `state` → `orders.status`: `2`→`confirmed`(주문확정·제작진행), `3`→`shipping`, `4`→`delivered`. 알 수 없는 `state`는 상태 컬럼 미변경·`newrun_delivery_info`만 갱신 가능
+- [x] **T7.4** `orders.newrun_delivery_info` JSONB — `ordercode`, `dica`, `insuname`, `insurel`, `insudate1`, `insudate2`, `state`, `lastCallbackAt` 등 (마이그레이션 `20260420120000_orders_newrun_delivery_info.sql.txt`)
 - [ ] **T7.5** 출처 검증(IP 허용목록 등) 뉴런 협의 시 적용
 
 ### 테스트·체크리스트
 
 - [ ] Postman 등으로 샘플 payload 전송 → 상태·이력 갱신
-- [ ] 존재하지 않는 `oid` 시 200 vs 404 정책 (뉴런 재시도 고려)
+- [x] 존재하지 않는 `oid` 등 실패 시에도 **HTTP 200** + `{ success: true }` (재시도 완화) — 로그·DB 미반영
+
+### 구현 참고
+
+- 상태 변경 시에만 `order_status_history`에 `뉴런 배송상태 업데이트 (상태코드: X)` 메모 삽입
 
 ---
 
@@ -427,7 +431,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 4 | 매핑 | [x] | [ ] | 실주문 스냅샷 대조·협회 필드 실측 |
 | 5 | 발주 전송 | [x] | [~] | Mock·파싱 단위 테스트 완료; 스테이징 실연동·인코딩(T5.2) 잔여 |
 | 6 | po-return 고도화 | [x] | [~] | 스테이징·nrpt 보존·실쿼리 검증 남음 |
-| 7 | 배송 콜백 | [ ] | [ ] | |
+| 7 | 배송 콜백 | [x] | [ ] | T7.5·실통보 테스트 남음 |
 | 8 | 어드민·고객 | [ ] | [ ] | 목록·상세·배송·returns·고객 |
 | 9 | 운영 | [ ] | [ ] | |
 

@@ -1,0 +1,5 @@
+-- Phase 7: 뉴런 배송상태 콜백(2.6) — 인수·이미지 등 구조화 저장
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS newrun_delivery_info JSONB DEFAULT NULL;
+
+COMMENT ON COLUMN orders.newrun_delivery_info IS '뉴런 배송 콜백: dica(이미지), insuname, insurel, 수령시각, ordercode, state 등';

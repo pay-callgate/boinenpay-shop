@@ -106,6 +106,7 @@ function coerceStringMapFromJson(v: unknown): Record<string, string> | null {
 
 const STATUS_LABELS: Record<string, string> = {
   received: "접수",
+  confirmed: "주문확정",
   pending_payment: "입금대기",
   paid: "결제완료",
   preparing: "배송준비중",
@@ -116,6 +117,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_OPTIONS = [
   { value: "received", label: "접수" },
+  { value: "confirmed", label: "주문확정" },
   { value: "paid", label: "결제완료" },
   { value: "preparing", label: "배송준비중" },
   { value: "shipping", label: "배송중" },
@@ -126,6 +128,7 @@ const STATUS_OPTIONS = [
 function getStatusBadgeClass(status: string): string {
   const map: Record<string, string> = {
     received: "bg-slate-100 text-slate-800",
+    confirmed: "bg-sky-100 text-sky-900",
     pending_payment: "bg-amber-100 text-amber-800",
     paid: "bg-emerald-100 text-emerald-800",
     preparing: "bg-blue-100 text-blue-800",
@@ -139,6 +142,7 @@ function getStatusBadgeClass(status: string): string {
 function getStatusBorderClass(status: string): string {
   const map: Record<string, string> = {
     received: "border-l-slate-500",
+    confirmed: "border-l-sky-500",
     pending_payment: "border-l-amber-500",
     paid: "border-l-emerald-500",
     preparing: "border-l-blue-500",
@@ -152,6 +156,7 @@ function getStatusBorderClass(status: string): string {
 function getStatusTextClass(status: string): string {
   const map: Record<string, string> = {
     received: "text-slate-800",
+    confirmed: "text-sky-900",
     pending_payment: "text-amber-800",
     paid: "text-emerald-800",
     preparing: "text-blue-800",
