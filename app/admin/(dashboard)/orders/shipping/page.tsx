@@ -4,6 +4,11 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
 import { COURIER_OPTIONS, formatTrackingDisplay } from "@/lib/courier";
+import {
+  formatNewrunAssociationStateShort,
+  isNewrunCourierReadOnly,
+  shouldShowAdminNewrunShippingBadge,
+} from "@/lib/newrun/admin-newrun-courier-lock";
 
 /**
  * 배송 관리 페이지 (파트너 어드민)
@@ -38,6 +43,9 @@ interface Order {
   tracking_number: string | null;
   courier_company: string | null;
   created_at: string;
+  newrun_submit_status?: string | null;
+  newrun_rwr_orderkey?: string | null;
+  newrun_delivery_info?: Record<string, unknown> | null;
   client: Client;
   user: User | null;
 }
@@ -50,13 +58,22 @@ const STATUS_LABELS: Record<string, string> = {
   preparing: "배송준비중",
   shipping: "배송중",
   delivered: "배송완료",
+  confirmed_purchase: "구매확정",
   cancelled: "취소됨",
+  returned: "반품",
 };
 
-const SHIPPING_STATUS_OPTIONS = [
+/** 모달·주문 상세와 동일 계열 (뉴런 콜백이 confirmed 등으로 올 수 있음) */
+const SHIPPING_MODAL_STATUS_OPTIONS = [
+  { value: "received", label: "접수" },
+  { value: "confirmed", label: "주문확정" },
+  { value: "paid", label: "결제완료" },
   { value: "preparing", label: "배송준비중" },
   { value: "shipping", label: "배송중" },
   { value: "delivered", label: "배송완료" },
+  { value: "confirmed_purchase", label: "구매확정" },
+  { value: "cancelled", label: "취소됨" },
+  { value: "returned", label: "반품" },
 ];
 
 export default function OrdersShippingPage() {
@@ -189,18 +206,23 @@ export default function OrdersShippingPage() {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       received: "#64748B",
+      confirmed: "#0EA5E9",
       pending_payment: "#F59E0B",
       paid: "#10B981",
       preparing: "#3B82F6",
       shipping: "#8B5CF6",
       delivered: "#059669",
+      confirmed_purchase: "#047857",
       cancelled: "#EF4444",
+      returned: "#B45309",
     };
     return colors[status] || "#6B7280";
   };
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const currentPage = total === 0 ? 1 : Math.min(totalPages, Math.floor(offset / limit) + 1);
+
+  const editNewrunCourierLocked = editOrder ? isNewrunCourierReadOnly(editOrder) : false;
 
   if (!partnerId) {
     return (
@@ -220,7 +242,11 @@ export default function OrdersShippingPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-800">배송 관리</h1>
           <p className="mt-1 text-sm text-slate-600">
-            주문별 배송 상태를 관리하고 송장을 등록하는 기능입니다.
+            주문별 배송 상태를 관리하고 송장을 등록합니다.{" "}
+            <span className="text-slate-700">
+              뉴런·협회(화훼) 연동 주문은 <strong>협회 배송 추적</strong> 배지가 붙으며, 택배 송장은 협회
+              콜백(2.6)을 사용하므로 이 화면에서 수정할 수 없습니다.
+            </span>
           </p>
         </div>
 
@@ -255,10 +281,12 @@ export default function OrdersShippingPage() {
                 className="h-10 min-w-[120px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
               >
                 <option value="">전체</option>
+                <option value="received">접수</option>
+                <option value="confirmed">주문확정</option>
+                <option value="paid">결제완료</option>
                 <option value="preparing">배송준비중</option>
                 <option value="shipping">배송중</option>
                 <option value="delivered">배송완료</option>
-                <option value="paid">결제완료</option>
               </select>
             </div>
             <div>
@@ -300,6 +328,9 @@ export default function OrdersShippingPage() {
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-slate-600 min-w-[140px]">
                   주문일시
                 </th>
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-slate-600 min-w-[100px]">
+                  협회
+                </th>
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-slate-600">
                   주문번호
                 </th>
@@ -329,12 +360,12 @@ export default function OrdersShippingPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
                     조건에 맞는 주문이 없습니다.
                   </td>
                 </tr>
@@ -346,6 +377,23 @@ export default function OrdersShippingPage() {
                   >
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">
                       {formatDate(order.created_at)}
+                    </td>
+                    <td className="px-4 py-3 align-top text-xs text-slate-700">
+                      {shouldShowAdminNewrunShippingBadge(order) ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span
+                            className="inline-flex w-fit rounded-full bg-teal-100 px-2 py-0.5 font-semibold text-teal-900"
+                            title="뉴런·협회 배송 연동 주문"
+                          >
+                            협회 배송 추적
+                          </span>
+                          <span className="text-[11px] text-slate-500" title="뉴런 2.6 콜백 state 요약">
+                            {formatNewrunAssociationStateShort(order.newrun_delivery_info)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       <button
@@ -385,7 +433,13 @@ export default function OrdersShippingPage() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-sm text-slate-600">
-                      {formatTrackingDisplay(order.courier_company, order.tracking_number)}
+                      {isNewrunCourierReadOnly(order) ? (
+                        <span className="font-sans text-xs text-slate-500" title="협회 배송 — 송장 미사용">
+                          협회 배송
+                        </span>
+                      ) : (
+                        formatTrackingDisplay(order.courier_company, order.tracking_number)
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-center">
                       <button
@@ -487,6 +541,12 @@ export default function OrdersShippingPage() {
               송장·배송 상태 수정 — {editOrder.order_no}
             </h2>
             <form onSubmit={handleSaveShipping} className="mt-4 space-y-4">
+              {editNewrunCourierLocked ? (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-[11px] leading-snug text-amber-950">
+                  뉴런·협회 배송 연동 주문입니다. 택배사·송장은 협회 배송(콜백 2.6)을 사용하므로 여기서는
+                  수정할 수 없습니다. 배송 단계는 아래 주문 상태와 주문 상세의 협회 통보를 참고하세요.
+                </p>
+              ) : null}
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
                   택배사 선택
@@ -494,7 +554,8 @@ export default function OrdersShippingPage() {
                 <select
                   value={editCourierCompany}
                   onChange={(e) => setEditCourierCompany(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  disabled={editNewrunCourierLocked}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
                 >
                   {COURIER_OPTIONS.map((opt) => (
                     <option key={opt.value || "none"} value={opt.value}>
@@ -512,24 +573,29 @@ export default function OrdersShippingPage() {
                   value={editTracking}
                   onChange={(e) => setEditTracking(e.target.value)}
                   placeholder="택배사 송장번호 입력"
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  disabled={editNewrunCourierLocked}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  배송 상태
+                  주문·배송 상태
                 </label>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
                 >
-                  {SHIPPING_STATUS_OPTIONS.map((opt) => (
+                  {SHIPPING_MODAL_STATUS_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
                 </select>
+                <p className="mt-1 text-[11px] leading-snug text-slate-500">
+                  뉴런 배송 콜백(2.6)이 상태를 자동 갱신할 수 있습니다. 수동 변경과 겹치면 주문 상세의 이력
+                  메모를 확인하세요.
+                </p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button

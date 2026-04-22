@@ -11,6 +11,11 @@ import {
 } from "@/lib/newrun/merge-order-drafts";
 import { isKakaoTalkInAppBrowser } from "@/lib/kakao-in-app-browser";
 import { formatAdminNewrunSubmitLabel } from "@/lib/newrun/admin-order-newrun-summary";
+import {
+  ADMIN_NEWRUN_DELIVERY_STATE_HINT_LONG,
+  hasNewrunDeliveryCallbackInfo,
+  isNewrunCourierReadOnly,
+} from "@/lib/newrun/admin-newrun-courier-lock";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -94,27 +99,6 @@ interface Order {
   client: Client;
   user: User | null;
 }
-
-function hasNewrunDeliveryCallbackInfo(info: unknown): boolean {
-  if (info == null || typeof info !== "object" || Array.isArray(info)) return false;
-  const o = info as Record<string, unknown>;
-  return Boolean(o.state || o.ordercode || o.dica || o.insuname || o.lastCallbackAt);
-}
-
-/** 화훼·협회 배송 흐름: 택배 송장 입력 비활성화 */
-function isNewrunCourierReadOnly(o: Order): boolean {
-  const st = o.newrun_submit_status?.trim();
-  if (st === "success" || st === "duplicate") return true;
-  if (o.newrun_rwr_orderkey?.trim()) return true;
-  if (hasNewrunDeliveryCallbackInfo(o.newrun_delivery_info)) return true;
-  return false;
-}
-
-const NEWRUN_DELIVERY_STATE_HINT: Record<string, string> = {
-  "2": "협회 단계 2 (주문확정·제작 진행)",
-  "3": "협회 단계 3 (배송중)",
-  "4": "협회 단계 4 (배송완료)",
-};
 
 function coerceStringMapFromJson(v: unknown): Record<string, string> | null {
   if (v == null || typeof v !== "object" || Array.isArray(v)) return null;
@@ -622,7 +606,7 @@ export default function OrderDetailPage() {
                 {(() => {
                   const di = order.newrun_delivery_info!;
                   const st = di.state != null ? String(di.state) : "";
-                  const stHint = st ? NEWRUN_DELIVERY_STATE_HINT[st] ?? `코드 ${st}` : "—";
+                  const stHint = st ? ADMIN_NEWRUN_DELIVERY_STATE_HINT_LONG[st] ?? `코드 ${st}` : "—";
                   return (
                     <>
                       <p>
