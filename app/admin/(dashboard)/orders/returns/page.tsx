@@ -37,6 +37,7 @@ interface Order {
 const STATUS_LABELS: Record<string, string> = {
   received: "접수",
   cancelled: "취소됨",
+  returned: "반품",
 };
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -56,6 +57,8 @@ export default function OrdersReturnsPage() {
   const [loading, setLoading] = useState(true);
 
   const [selectedClient, setSelectedClient] = useState<string>("");
+  /** 취소만 / 반품만 / 둘 다 (API `statusIn`) */
+  const [returnsFilter, setReturnsFilter] = useState<"cancelled" | "returned" | "both">("both");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [offset, setOffset] = useState(0);
@@ -88,7 +91,12 @@ export default function OrdersReturnsPage() {
     async function fetchOrders() {
       if (!partnerId) return;
       setLoading(true);
-      let url = `/api/orders?partnerId=${partnerId}&status=cancelled&limit=${limit}&offset=${offset}`;
+      let url = `/api/orders?partnerId=${partnerId}&limit=${limit}&offset=${offset}`;
+      if (returnsFilter === "both") {
+        url += `&statusIn=cancelled,returned`;
+      } else {
+        url += `&status=${returnsFilter}`;
+      }
       if (selectedClient) url += `&clientId=${selectedClient}`;
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
@@ -102,7 +110,7 @@ export default function OrdersReturnsPage() {
       setLoading(false);
     }
     fetchOrders();
-  }, [partnerId, selectedClient, startDate, endDate, offset]);
+  }, [partnerId, selectedClient, returnsFilter, startDate, endDate, offset]);
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("ko-KR").format(price);
@@ -138,12 +146,41 @@ export default function OrdersReturnsPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-800">취소/반품</h1>
           <p className="mt-1 text-sm text-slate-600">
-            취소된 주문 목록을 조회합니다. 반품 요청 처리 기능은 추후 제공 예정입니다.
+            취소·반품 처리된 주문을 조회합니다. 목록에서 주문 상세로 이동해 이력·환불 상태를 확인할 수
+            있습니다.
+          </p>
+        </div>
+
+        <div
+          className="mb-4 rounded-lg border border-violet-200 bg-violet-50/90 px-4 py-3 text-sm text-slate-800 shadow-sm"
+          role="note"
+        >
+          <p className="font-semibold text-violet-950">뉴런·협회(화훼) 발주 연동 — 취소 안내</p>
+          <p className="mt-2 leading-relaxed text-slate-800">
+            뉴런 연동 명세에는 <strong>취소 API가 없습니다</strong>. 쇼핑몰에서 주문을 취소하거나 여기서
+            상태를 바꾼 뒤에도, 협회 측에서 이미 접수·제작이 진행 중이면{" "}
+            <strong>협회·뉴런에 별도 연락해 수동 조정</strong>이 필요할 수 있습니다. 실제 취소·환불·재고
+            반영은 <strong>주문 상세</strong>와 결제(PG)·내부 규정을 따릅니다.
           </p>
         </div>
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">유형</label>
+              <select
+                value={returnsFilter}
+                onChange={(e) => {
+                  setReturnsFilter(e.target.value as "cancelled" | "returned" | "both");
+                  setOffset(0);
+                }}
+                className="h-10 min-w-[140px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              >
+                <option value="both">취소 + 반품</option>
+                <option value="cancelled">취소만</option>
+                <option value="returned">반품만</option>
+              </select>
+            </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">거래처</label>
               <select
@@ -200,6 +237,7 @@ export default function OrdersReturnsPage() {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문일시</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문번호</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">유형</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">거래처</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문자</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">수령인</th>
@@ -211,13 +249,13 @@ export default function OrdersReturnsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
-                    취소된 주문이 없습니다.
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
+                    조건에 맞는 주문이 없습니다.
                   </td>
                 </tr>
               ) : (
@@ -237,6 +275,14 @@ export default function OrdersReturnsPage() {
                       >
                         {order.order_no}
                       </button>
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-slate-700">
+                      <span
+                        className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800"
+                        title="주문 상태"
+                      >
+                        {STATUS_LABELS[order.status] ?? order.status}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-700">{order.client?.name ?? "-"}</td>
                     <td className="px-4 py-3 text-sm text-slate-600">{order.user?.name ?? "-"}</td>

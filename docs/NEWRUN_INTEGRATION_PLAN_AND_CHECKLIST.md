@@ -379,12 +379,12 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 #### Tasks
 
-- [ ] **T8.4.1** (문서/툴팁) 발주 완료 후 취소는 **협회·뉴런 수동 처리** 필요할 수 있음을 안내
-- [ ] **T8.4.2** 기존 반품 UI와 충돌 없음 확인
+- [x] **T8.4.1** (문서/툴팁) 발주 완료 후 취소는 **협회·뉴런 수동 처리** 필요할 수 있음을 안내 — `returns/page.tsx` 상단 안내 박스
+- [x] **T8.4.2** 기존 반품 UI와 충돌 없음 확인 — 목록·필터·페이징 유지, 유형 필터·`status` 열 추가만
 
 #### 테스트·체크리스트
 
-- [ ] 회귀: 기존 returns 페이지 로드·권한
+- [x] 회귀: 기존 returns 페이지 로드·권한 (`GET /api/orders`에 `statusIn=cancelled,returned` 지원)
 
 ---
 
@@ -436,7 +436,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 5 | 발주 전송 | [x] | [~] | Mock·파싱 단위 테스트 완료; 스테이징 실연동·인코딩(T5.2) 잔여 |
 | 6 | po-return 고도화 | [x] | [~] | 스테이징·nrpt 보존·실쿼리 검증 남음 |
 | 7 | 배송 콜백 | [x] | [ ] | T7.5·실통보 테스트 남음 |
-| 8 | 어드민·고객 | [~] | [ ] | 8.1·8.2·8.3 배송 화면 보강 완료; 8.4~8.5·통합 테스트 남음 |
+| 8 | 어드민·고객 | [~] | [ ] | 8.1~8.4 완료; 8.5·통합 테스트 남음 |
 | 9 | 운영 | [ ] | [ ] | |
 
 ### 부록 C — Admin 주문 관리 세부 체크 (Phase 8 한 장 요약)
@@ -444,7 +444,7 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 - [ ] **목록** `orders/page.tsx`: 발주 상태 컬럼·필터
 - [ ] **상세** `orders/[id]/page.tsx`: Newrun 섹션, 검색 버튼, 발주/재발주, 택배 UI 분기
 - [x] **배송** `orders/shipping/page.tsx`: 뉴런 주문 배지·송장 편집 정책 (`lib/newrun/admin-newrun-courier-lock.ts` 공통)
-- [ ] **반품** `orders/returns/page.tsx`: 안내 문구
+- [x] **반품** `orders/returns/page.tsx`: 뉴런 취소 API 없음 안내 + 취소/반품 필터 (`statusIn`)
 - [ ] **API** `api/partner/orders*`: 확장 필드·재발주 엔드포인트
 
 ---

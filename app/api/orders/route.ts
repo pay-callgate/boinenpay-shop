@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     const partnerId = searchParams.get("partnerId");
     const clientId = searchParams.get("clientId");
     const status = searchParams.get("status");
+    /** 쉼표 구분 — 취소/반품 목록 등 복수 상태 (Phase 8.4). `status`와 동시 지정 시 이쪽 우선 */
+    const statusIn = searchParams.get("statusIn");
     const paymentStatus = searchParams.get("paymentStatus");
     /** Phase 8.1: not_sent | ok | failed | needs_attention */
     const newrunSubmit = searchParams.get("newrunSubmit");
@@ -78,7 +80,15 @@ export async function GET(request: NextRequest) {
       query = query.eq("client_id", clientId);
     }
 
-    if (status) {
+    if (statusIn) {
+      const parts = statusIn
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (parts.length > 0) {
+        query = query.in("status", parts);
+      }
+    } else if (status) {
       query = query.eq("status", status);
     }
 
