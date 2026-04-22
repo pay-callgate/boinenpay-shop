@@ -11,6 +11,7 @@ import {
   mergeProductDraftForOrder,
 } from "@/lib/newrun/merge-order-drafts";
 import { parseIntranetPostResponse } from "@/lib/newrun/parse-intranet-post-response";
+import { appendNewrunPoReturnTokenToReturnUrl } from "@/lib/newrun/po-return-signing";
 
 const LOG = "[Newrun:Submit]";
 
@@ -235,6 +236,11 @@ export async function submitNewrunOrder(
     });
     return { ok: false, skipped: false, duplicate: false, message: msg };
   }
+
+  mapResult.fields.rw_returnurl = appendNewrunPoReturnTokenToReturnUrl(
+    mapResult.fields.rw_returnurl,
+    String(order.order_no).trim()
+  );
 
   const mock = isTruthyEnv(process.env.NEWRUN_MOCK);
   const enabled = isTruthyEnv(process.env.NEWRUN_ENABLED);

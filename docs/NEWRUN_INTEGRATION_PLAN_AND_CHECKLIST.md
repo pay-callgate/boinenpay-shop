@@ -9,6 +9,11 @@
 
 ## 0. 전제·범위
 
+### 0.0 체크박스 표기
+
+- 각 Phase의 **Tasks**에서 **`[x]`** 는 **구현 완료**(해당 코드·동작이 저장소에 반영됨)를 뜻한다.
+- **검증 완료**(실측·스테이징·회귀 테스트 등)는 같은 Phase의 **「테스트·체크리스트」** `[x]`와 **부록 B** 진행 표의 테스트 열을 따른다. Task만 `[x]`인 것은 **검증까지 끝난 것으로 보지 않는다.**
+
 ### 0.1 전제 (사전조건)
 
 다음은 **뉴런·협회 측 세팅이 완료된다**는 전제하에 개발을 진행한다. 세팅 지연 시 **목(Mock) 모드**로 선행 개발한다.
@@ -42,7 +47,9 @@
 | `NEWRUN_ROSEWEB_ID` / `NEWRUN_ROSEWEB_PW` | 발주(2.1) `rw_rosewebid`, `rw_rosewebpw` (뉴런 통보명과 일치시킬 것) |
 | `NEWRUN_ASSOC_CODE` | `rw_assoc` |
 | `NEWRUN_INTRANET_POST_URL` | 기본값 `http://ext2intra.roseweb.co.kr/intranet_post.html` — **최신 URL 뉴런 확인** |
-| `NEWRUN_RW_RETURNURL` | `rw_returnurl` 절대 URL — 뉴런·쇼핑몰에 등록한 발주 리턴 주소와 동일해야 함 |
+| `NEWRUN_RW_RETURNURL` | `rw_returnurl` 절대 URL — **권장:** `https://<앱도메인>/admin/newrun/po-return` (파트너·운영자용, 쇼핑몰 고객 화면 아님). 구형 `/{subdomain}/{clientSlug}/newrun/po-return` 은 동일 쿼리로 `/admin/...` 으로 리다이렉트만 함 |
+| `NEWRUN_PO_RETURN_SECRET` | (권장) 설정 시 발주 POST의 `rw_returnurl`에 `nrpt`(주문번호 HMAC)를 붙이고, po-return에서 위변조·오매칭 완화. 미설정 시 `rwr_sno`만으로 매칭 |
+| `NEXT_PUBLIC_WOORIBUGO_CS_TEL` | (권장) po-return **실패·오류** 시 안내에 노출할 우리부고 고객센터 전화(예: `02-1234-5678`). 미설정 시 문구만 표시 |
 | `NEWRUN_DEFAULT_RW_METHOD` | (선택) `rw_method` 기본값, 미설정 시 매핑에서 `1` |
 
 ### 0.4 용어: 코드의 `florist`와 우리부고 상품 범위(화환 전용)
@@ -226,15 +233,15 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 ### Tasks
 
 - [x] **T5.1** `lib/newrun/submit-order.ts` — `NEWRUN_MOCK`·`NEWRUN_ENABLED` 분기, Mock 시 `NEWRUN_MOCK_RWR_RESULT`
-- [ ] **T5.2** 실연동 인코딩 — 현재 **UTF-8** `application/x-www-form-urlencoded` (뉴런 피드백 후 EUC-KR 등 보정)
-- [x] **T5.3** `lib/newrun/parse-intranet-post-response.ts` — 본문·`Location`에서 `rwr_result` / `rwr_orderkey` 정규식 추출 (**실측 후 패턴 보강**)
+- [ ] **T5.2** 실연동 인코딩 — 요청은 **UTF-8** `application/x-www-form-urlencoded; charset=UTF-8` 고정 (`newrunFieldsToSearchParams`). **EUC-KR 등은 뉴런 피드백 후** 별도 인코딩 단계 추가. UTF-8 경로는 `npm run test`(Vitest)로 회귀 검증.
+- [x] **T5.3** `lib/newrun/parse-intranet-post-response.ts` — 본문·`Location`·HTML hidden input·JSON 조각에서 `rwr_result` / `rwr_orderkey` 추출 (**실측 패턴 보강 + 단위 테스트**)
 - [x] **T5.4** DB: `20260415120000_orders_newrun_submit.sql.txt` — `newrun_submit_status`, `newrun_rwr_result`, `newrun_rwr_orderkey`, `newrun_last_submit_error`, `newrun_last_submit_at`
 - [x] **T5.5** **트리거:** ViewPay `complete` 직후 `submitNewrunOrder` · `POST /api/partner/orders/[id]/newrun-submit` · 주문 완료 페이지 `newrun` 실패 시 **toast + alert**
 - [x] **T5.6** `rwr_result=20` → `duplicate` 상태·성공 계열 메시지(멱등). 어드민 **강제 재시도**(`forceRetry`)로 재전송 가능
 
 ### 테스트·체크리스트
 
-- [ ] `NEWRUN_MOCK=true`로 E2E: 결제 완료 → 발주 레코드 갱신
+- [x] **`NEWRUN_MOCK` 발주 경로 자동 검증:** `npm run test` — Mock 성공(0)·중복(20)·실 HTTP 응답 HTML 파싱·미결제 거절 (`lib/newrun/submit-order.test.ts`, `parse-intranet-post-response.test.ts`). ViewPay `complete` → DB까지의 **브라우저 E2E**는 PG·시드 주문이 필요하면 수동/스테이징에서 추가.
 - [ ] 스테이징 + `NEWRUN_ENABLED=true`: 실제 **결과코드 0** 확인
 - [ ] 실패 코드 2,3,11… 등 **어드민 표시·재시도** 확인
 
@@ -246,14 +253,20 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 
 ### Tasks
 
-- [ ] **T6.1** 서버 액션 또는 `GET`에서 토큰과 함께 주문 ID 매칭 후 `orders` 업데이트
-- [ ] **T6.2** 성공/실패 UI 분기 (`rwr_result` 문서 2.1.5)
-- [ ] **T6.3** `order_status_history` 또는 발주 전용 이력 테이블 기록
+- [x] **T6.1** 서버에서 쿼리 수신 후 주문 매칭·`orders` 갱신 — `rwr_sno`/`rw_sno` 등 → `orders.order_no`. (선택) `NEWRUN_PO_RETURN_SECRET` + 발주 시 URL에 붙인 `nrpt`로 검증 (`lib/newrun/po-return-signing.ts`, `apply-po-return.ts`). **착지:** `app/admin/newrun/po-return/page.tsx` + 미들웨어에서 해당 경로만 비로그인 허용(쿼리 보존). `submit-order`에서 `rw_returnurl`에 `nrpt` 병합. 레거시 매장 경로는 `/admin/...` 로 리다이렉트
+- [x] **T6.2** 성공/실패 UI — 운영자용 문구(마이페이지 미사용), 실패·시스템 오류 시 **우리부고 고객센터** 안내 (`NEXT_PUBLIC_WOORIBUGO_CS_TEL`), `components/admin/NewrunPoReturnView.tsx`
+- [x] **T6.3** `order_status_history`에 메모 기록(발주 리턴 요약). 주문 컬럼은 `newrun_submit_status` / `newrun_rwr_*` 와 `submit-order`와 동일 규칙
 
 ### 테스트·체크리스트
 
-- [ ] 시뮬레이션 쿼리로 성공·실패 화면 확인
+- [ ] 시뮬레이션 쿼리로 성공·실패 화면 확인 (예: `http://localhost:3000/admin/newrun/po-return?rwr_result=0&rwr_sno=<order_no>` — `NEWRUN_PO_RETURN_SECRET` 사용 시 `nrpt` 포함 URL로 발주한 뒤 동일 주문번호로 검증)
 - [ ] DB 반영 후 어드민 주문 상세와 일치
+- [x] `nrpt` HMAC 단위 테스트: `npm run test` (`lib/newrun/po-return-signing.test.ts`)
+
+### 운영 참고
+
+- 뉴런 리다이렉트가 **`rw_returnurl`에 붙인 쿼리(`nrpt` 등)를 유지하지 않으면** `NEWRUN_PO_RETURN_SECRET` 검증이 실패할 수 있다. 실패 시 시크릿을 끄거나 뉴런·협회에 쿼리 보존 여부를 확인한다.
+- **`/admin/newrun/po-return`은 로그인 없이 열 수 있도록** 미들웨어에서 예외 처리한다. 민감 정보는 URL에 넣지 말 것. DB 반영은 Service Role 서버 코드만 수행한다.
 
 ---
 
@@ -412,8 +425,8 @@ curl -sS -X POST "http://localhost:3000/api/integrations/newrun/delivery-status"
 | 2 | var_ret 콜백 | [x] | [ ] | T2.4·실연동 테스트 남음 |
 | 3 | 선택 UX | [x] | [ ] | 실협회 테스트·Phase 5 POST 스모크 남음 |
 | 4 | 매핑 | [x] | [ ] | 실주문 스냅샷 대조·협회 필드 실측 |
-| 5 | 발주 전송 | [x] | [ ] | 인코딩·응답 실측·운영 검증 |
-| 6 | po-return 고도화 | [ ] | [ ] | |
+| 5 | 발주 전송 | [x] | [~] | Mock·파싱 단위 테스트 완료; 스테이징 실연동·인코딩(T5.2) 잔여 |
+| 6 | po-return 고도화 | [x] | [~] | 스테이징·nrpt 보존·실쿼리 검증 남음 |
 | 7 | 배송 콜백 | [ ] | [ ] | |
 | 8 | 어드민·고객 | [ ] | [ ] | 목록·상세·배송·returns·고객 |
 | 9 | 운영 | [ ] | [ ] | |

@@ -3,16 +3,34 @@
  * 뉴런·게이트웨이 실측 후 패턴 보강.
  */
 
+function decodeOrderKey(raw: string): string {
+  try {
+    return decodeURIComponent(raw.replace(/\+/g, " "));
+  } catch {
+    return raw;
+  }
+}
+
 function extractFromText(text: string): { rwr_result?: string; rwr_orderkey?: string } {
   const rResult =
+    text.match(/"rwr_result"\s*:\s*"(\d+)"/)?.[1] ??
+    text.match(/'rwr_result'\s*:\s*'(\d+)'/)?.[1] ??
     text.match(/rwr_result["']?\s*[=:]\s*["']?(\d+)/i)?.[1] ??
-    text.match(/[&?]rwr_result=(\d+)/i)?.[1];
-  const rKey =
+    text.match(/[&?]rwr_result=(\d+)/i)?.[1] ??
+    text.match(/name\s*=\s*["']rwr_result["'][^>]*value\s*=\s*["'](\d+)["']/i)?.[1] ??
+    text.match(/value\s*=\s*["'](\d+)["'][^>]*name\s*=\s*["']rwr_result["']/i)?.[1];
+
+  const rKeyRaw =
+    text.match(/"rwr_orderkey"\s*:\s*"([^"]*)"/)?.[1] ??
+    text.match(/'rwr_orderkey'\s*:\s*'([^']*)'/)?.[1] ??
     text.match(/rwr_orderkey["']?\s*[=:]\s*["']?([^&"'<>\s]+)/i)?.[1] ??
-    text.match(/[&?]rwr_orderkey=([^&\s]+)/i)?.[1];
+    text.match(/[&?]rwr_orderkey=([^&\s#]+)/i)?.[1] ??
+    text.match(/name\s*=\s*["']rwr_orderkey["'][^>]*value\s*=\s*["']([^"']*)["']/i)?.[1] ??
+    text.match(/value\s*=\s*["']([^"']*)["'][^>]*name\s*=\s*["']rwr_orderkey["']/i)?.[1];
+
   return {
     rwr_result: rResult,
-    rwr_orderkey: rKey ? decodeURIComponent(rKey.replace(/\+/g, " ")) : undefined,
+    rwr_orderkey: rKeyRaw ? decodeOrderKey(rKeyRaw) : undefined,
   };
 }
 

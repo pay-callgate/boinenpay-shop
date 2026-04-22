@@ -56,7 +56,9 @@ export async function middleware(request: NextRequest) {
   // 어드민: 로그인 페이지 제외, 토큰 없으면 즉시 리다이렉트 (Layout보다 먼저 실행)
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
   const isAdminLogin = pathname === "/admin/login";
-  if (isAdminRoute && !isAdminLogin) {
+  /** 뉴런 브라우저 리턴 — 쿼리(rwr_*) 보존을 위해 비로그인 허용 (서버에서 Service Role로 반영) */
+  const isAdminNewrunPoReturn = pathname === "/admin/newrun/po-return";
+  if (isAdminRoute && !isAdminLogin && !isAdminNewrunPoReturn) {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
