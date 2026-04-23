@@ -193,7 +193,7 @@ export default function AdminAlimtalkMessagesPage() {
         <div className="mb-6 shrink-0 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
-              알림톡 발송 내역
+              알림톡 발송 관리
             </h1>
             <p className="mt-1 text-sm text-slate-600">
               콜게이트·우리부고 알림톡 발송 건별 내역과 건당 {summary.unitWon}원

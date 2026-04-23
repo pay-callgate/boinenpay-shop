@@ -61,7 +61,7 @@ export function AdminSidebar({
       icon: <Building2 className="h-5 w-5 shrink-0" />,
       items: [
         { href: `${base}/clients/links`, label: "거래처/링크 관리" },
-        { href: `${base}/clients/messages`, label: "알림톡 발송 내역" },
+        { href: `${base}/clients/messages`, label: "알림톡 발송 관리" },
       ],
     },
     {
@@ -128,6 +128,19 @@ export function AdminSidebar({
             >
               <LayoutDashboard className="h-5 w-5 shrink-0" />
               <span>대시보드</span>
+            </Link>
+          </li>
+          <li>
+            <Link
+              href={`${base}/dashboard-real`}
+              className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-[15px] font-semibold transition-colors ${
+                pathname === `${base}/dashboard-real`
+                  ? "text-blue-400 bg-slate-800/60"
+                  : "text-slate-300 hover:bg-blue-500/15 hover:text-blue-300"
+              }`}
+            >
+              <LayoutDashboard className="h-5 w-5 shrink-0 opacity-80" />
+              <span className="truncate">대시보드(실운영)</span>
             </Link>
           </li>
 

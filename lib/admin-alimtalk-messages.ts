@@ -1,5 +1,5 @@
 /**
- * 파트너 어드민 — 카카오 알림톡 발송 내역 (link_kakao_notifications 매핑 + 필터 유틸).
+ * 파트너 어드민 — 카카오 알림톡 발송 관리 (link_kakao_notifications 매핑 + 필터 유틸).
  */
 
 export type AdminAlimtalkHistoryStatus =
