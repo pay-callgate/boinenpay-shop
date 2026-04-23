@@ -375,9 +375,15 @@ export default function CheckoutPage() {
       deliveryFee,
       paymentMethod,
     };
+    if (ordererName.trim()) {
+      orderPayload.ordererName = ordererName.trim();
+    }
     if (isGuestOrder) {
       orderPayload.isGuest = true;
       orderPayload.guestPassword = guestPassword.trim();
+      if (guestEmail.trim()) {
+        orderPayload.guestOrdererEmail = guestEmail.trim();
+      }
     }
     console.debug("[Order:Checkout] 주문 생성 요청", {
       partnerId,

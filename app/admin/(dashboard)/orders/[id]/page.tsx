@@ -16,6 +16,7 @@ import {
   hasNewrunDeliveryCallbackInfo,
   isNewrunCourierReadOnly,
 } from "@/lib/newrun/admin-newrun-courier-lock";
+import { formatAdminOrdererDetailLine } from "@/lib/admin-orderer-display";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -98,6 +99,9 @@ interface Order {
   newrun_delivery_info?: Record<string, unknown> | null;
   client: Client;
   user: User | null;
+  is_guest?: boolean | null;
+  orderer_name?: string | null;
+  guest_orderer_email?: string | null;
 }
 
 function coerceStringMapFromJson(v: unknown): Record<string, string> | null {
@@ -522,9 +526,7 @@ export default function OrderDetailPage() {
               <span className="text-slate-900">{order.client?.name ?? "-"}</span>
 
               <span className="text-slate-600">주문자</span>
-              <span className="text-slate-900">
-                {order.user?.name || "-"} ({order.user?.email || "-"})
-              </span>
+              <span className="text-slate-900">{formatAdminOrdererDetailLine(order)}</span>
 
               <span className="text-slate-600">결제 수단</span>
               <span className="text-slate-900">{order.payment_method ?? "-"}</span>

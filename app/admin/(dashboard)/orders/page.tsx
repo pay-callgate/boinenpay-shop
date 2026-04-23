@@ -10,6 +10,7 @@ import {
   truncateNewrunOrderKey,
   type NewrunSubmitListFilter,
 } from "@/lib/newrun/admin-order-newrun-summary";
+import { formatAdminOrdererListLabel } from "@/lib/admin-orderer-display";
 
 /**
  * T5-1: 주문 목록 페이지 (파트너 어드민) — 중앙 집중형 /admin/orders
@@ -37,6 +38,8 @@ interface Order {
   created_at: string;
   client: Client;
   user: User | null;
+  is_guest?: boolean | null;
+  orderer_name?: string | null;
   newrun_submit_status?: string | null;
   newrun_rwr_result?: string | null;
   newrun_rwr_orderkey?: string | null;
@@ -410,7 +413,7 @@ export default function OrdersPage() {
                       {order.client?.name ?? "-"}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-700">
-                      {order.user?.name ?? "-"}
+                      {formatAdminOrdererListLabel(order)}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-700">
                       {order.shipping_name ?? "-"}

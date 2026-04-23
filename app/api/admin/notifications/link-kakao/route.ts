@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { logger, extractIpFromRequest } from "@/lib/logger";
+import { prepareAlimtalkLinkMessage } from "@/lib/alimtalk-public-url";
 import { sendKakaoAlimtalkAt } from "@/lib/msgagent-kakao";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -68,6 +69,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const prepared = prepareAlimtalkLinkMessage(msg);
+    if (!prepared.ok) {
+      return NextResponse.json({ ok: false, message: prepared.error }, { status: 422 });
+    }
+    const msgToSend = prepared.msg;
+    if (prepared.rewritten) {
+      logger.info("link_kakao_localhost_url_rewritten", {
+        userId: session.user.id,
+        action: "link_kakao",
+        data: { partnerId, clientId },
+      });
+    }
+
     const supabase = createServerSupabase();
 
     const { data: adminRow } = await supabase
@@ -112,15 +126,15 @@ export async function POST(request: NextRequest) {
       phone_masked: maskKoreanPhone(phone),
       callback_masked: callback ? maskKoreanPhone(callback) : null,
       template_code: templateCode || null,
-      msg_byte_length: utf8ByteLength(msg.slice(0, 1000)),
-      resolved_msg_preview: msg.slice(0, 220),
+      msg_byte_length: utf8ByteLength(msgToSend.slice(0, 1000)),
+      resolved_msg_preview: msgToSend.slice(0, 220),
     };
 
     try {
       const result = await sendKakaoAlimtalkAt({
         phone,
         callback: callback || undefined,
-        msg,
+        msg: msgToSend,
         tranId,
       });
 

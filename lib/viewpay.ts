@@ -207,13 +207,23 @@ export interface ViewpayStartpayParams {
   buyerEmail: string;
   /** sendTel (선택, 기본 빈 문자열) */
   sendTel?: string;
+  /** ViewPay products.orderNo 전체(원주문번호_8자리). prepare에서 생성·DB 저장 후 전달 */
+  merchantOrderNo?: string;
+  /** ViewPay metaData (짧은 JSON 권장). 웹훅·추적용 */
+  metaData?: string;
+}
+
+/** startpay용 가맹점 주문번호: 원 주문번호 + 8자리 접미사 (prepare에서 한 번만 생성) */
+export function buildMerchantViewpayOrderNo(baseOrderNo: string): string {
+  const suffix = Date.now().toString().slice(-8);
+  return `${String(baseOrderNo).trim()}_${suffix}`;
 }
 
 /**
  * startpay 요청 Body 생성 (연동가이드 필수값 + 샘플 검증 형식)
  * - pgId: "", items: null, language: "", metaData: ""
  * - messageChannel: "VIEWPAY" (웹 결제창 이동)
- * - orderNo에 타임스탬프 붙임 (중복 방지)
+ * - orderNo에 타임스탬프 접미사 (merchantOrderNo 미전달 시 즉석 생성)
  * - customer: 로그인 유저 기준 buyrName, buyrTel, buyrMail 사용
  */
 export function buildStartpayBody(params: ViewpayStartpayParams): Record<string, unknown> {
@@ -229,11 +239,13 @@ export function buildStartpayBody(params: ViewpayStartpayParams): Record<string,
     buyerPhone,
     buyerEmail,
     sendTel = "",
+    merchantOrderNo,
+    metaData,
   } = params;
 
-  // orderNo 중복 방지: 타임스탬프 접미사 (샘플과 동일)
-  const orderNoSuffix = Date.now().toString().slice(-8);
-  const orderNoWithTs = `${orderNo}_${orderNoSuffix}`;
+  const orderNoWithTs =
+    merchantOrderNo?.trim() ||
+    `${String(orderNo).trim()}_${Date.now().toString().slice(-8)}`;
 
   return {
     products: {
@@ -256,7 +268,7 @@ export function buildStartpayBody(params: ViewpayStartpayParams): Record<string,
     cardQuota: "2:3:4:5:6:7:8:9:10:11:12",
     currency: "KRW",
     language: "",
-    metaData: "",
+    metaData: metaData?.trim() ?? "",
     redirectUrl: returnUrl,
     webhookUrl: (process.env.VIEWPAY_WEBHOOK_URL ?? "").trim() || "",
     items: null,

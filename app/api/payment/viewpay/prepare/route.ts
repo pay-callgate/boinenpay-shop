@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
   buildStartpayBody,
+  buildMerchantViewpayOrderNo,
   viewpayPost,
   isStartpaySuccess,
   getRedirectUrlFromStartpayResponse,
@@ -118,6 +119,24 @@ export async function POST(request: NextRequest) {
     }
 
     const orderNoVal = orderNo ?? order.order_no ?? orderId;
+    const merchantOrderNo = buildMerchantViewpayOrderNo(String(orderNoVal));
+    const metaData = JSON.stringify({ o: orderId });
+
+    const { error: merchantNoErr } = await supabase
+      .from("orders")
+      .update({
+        viewpay_merchant_order_no: merchantOrderNo,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    if (merchantNoErr) {
+      logger.warn(`${LOG} viewpay_merchant_order_no 저장 실패(계속)`, {
+        action: "payment_viewpay_prepare_merchant_no_warn",
+        data: { orderId, error: String(merchantNoErr.message) },
+      });
+    }
+
     const startpayBody = buildStartpayBody({
       orderId,
       orderNo: String(orderNoVal),
@@ -130,6 +149,8 @@ export async function POST(request: NextRequest) {
       buyerName: String(buyerName).trim(),
       buyerPhone: String(buyerPhone).trim(),
       buyerEmail: String(buyerEmail).trim(),
+      merchantOrderNo,
+      metaData,
     });
 
     logger.info(`${LOG} startpay 호출`, {

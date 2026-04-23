@@ -172,6 +172,8 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       guestPassword,
       isGuest: rawIsGuest,
+      ordererName: rawOrdererName,
+      guestOrdererEmail: rawGuestOrdererEmail,
     } = body;
 
     const isGuestFlow = rawIsGuest === true && !session?.user?.id;
@@ -345,6 +347,13 @@ export async function POST(request: NextRequest) {
       ? hashGuestPassword(String(guestPassword).trim())
       : null;
 
+    const ordererNameTrim =
+      typeof rawOrdererName === "string" ? rawOrdererName.trim() : "";
+    const guestEmailTrim =
+      isGuestFlow && typeof rawGuestOrdererEmail === "string"
+        ? rawGuestOrdererEmail.trim()
+        : "";
+
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -365,6 +374,8 @@ export async function POST(request: NextRequest) {
         is_guest: isGuestFlow,
         guest_checkout_token: guestCheckoutToken,
         guest_password_hash: guestPasswordHash,
+        orderer_name: ordererNameTrim || null,
+        guest_orderer_email: guestEmailTrim || null,
       })
       .select()
       .single();

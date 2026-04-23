@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
@@ -131,6 +131,8 @@ export default function OrderCompletePage() {
   } | null>(null);
   const [orderDetailLoading, setOrderDetailLoading] = useState(false);
 
+  const guestSyncStarted = useRef(false);
+
   // 결제 완료 성공 시 주문 상세 조회 (실제 데이터)
   useEffect(() => {
     if (state !== "success" || !orderId) return;
@@ -174,14 +176,25 @@ export default function OrderCompletePage() {
     if (!hashChecked && !cgTidFromQuery) setHashChecked(true);
   }, [hashChecked, cgTidFromQuery]);
 
+  const applyCompletePayload = (data: Record<string, unknown>) => {
+    if (data?.success && data?.orderNo) {
+      const nr = data.newrun as { success?: boolean; message?: string; skipped?: boolean } | undefined;
+      if (nr && nr.success === false && nr.message) {
+        toast(nr.message, "error");
+        alert(nr.message);
+      } else if (nr?.skipped && nr.message && typeof window !== "undefined") {
+        console.info("[OrderComplete] Newrun:", nr.message);
+      }
+      setOrderNo(data.orderNo as string);
+      setState("success");
+    } else {
+      setState("error");
+      setErrorMessage((data?.message as string) ?? "결제 완료 처리에 실패했습니다.");
+    }
+  };
+
   useEffect(() => {
     if (!orderId || !cgTid || !partner?.id || !client?.id) {
-      if (orderId && hashChecked && !cgTid) {
-        setState("no_payment_id");
-        setErrorMessage(
-          "결제가 완료되었을 수 있습니다. 주문 내역에서 결제 상태를 확인해 주세요."
-        );
-      }
       return;
     }
     let cancelled = false;
@@ -191,20 +204,7 @@ export default function OrderCompletePage() {
       .then((res) => res.json().catch(() => ({})))
       .then((data) => {
         if (cancelled) return;
-        if (data?.success && data?.orderNo) {
-          const nr = data.newrun as { success?: boolean; message?: string; skipped?: boolean } | undefined;
-          if (nr && nr.success === false && nr.message) {
-            toast(nr.message, "error");
-            alert(nr.message);
-          } else if (nr?.skipped && nr.message && typeof window !== "undefined") {
-            console.info("[OrderComplete] Newrun:", nr.message);
-          }
-          setOrderNo(data.orderNo);
-          setState("success");
-        } else {
-          setState("error");
-          setErrorMessage(data?.message ?? "결제 완료 처리에 실패했습니다.");
-        }
+        applyCompletePayload(data as Record<string, unknown>);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -216,7 +216,57 @@ export default function OrderCompletePage() {
     return () => {
       cancelled = true;
     };
-  }, [orderId, cgTid, partner?.id, client?.id, hashChecked, guestOrderQs]);
+  }, [orderId, cgTid, partner?.id, client?.id, guestOrderQs]);
+
+  /** ViewPay가 returnUrl에 cgTid를 안 붙인 비회원 건: 서버에서 가맹점 주문번호로 조회·반영 */
+  useEffect(() => {
+    if (!hashChecked || !orderId || !partner?.id || !client?.id) return;
+    if (cgTid) return;
+    if (guestToken && guestSig) {
+      if (guestSyncStarted.current) return;
+      guestSyncStarted.current = true;
+      let cancelled = false;
+      setState("loading");
+      shopFetch("/api/payment/viewpay/guest-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          guestToken,
+          paymentSignature: guestSig,
+        }),
+        handleSessionExpiry: false,
+      })
+        .then((res) => res.json().catch(() => ({})))
+        .then((data) => {
+          if (cancelled) return;
+          if (data?.success && data?.orderNo) {
+            applyCompletePayload(data as Record<string, unknown>);
+          } else {
+            setState("no_payment_id");
+            setErrorMessage(
+              (data?.message as string) ||
+                "결제가 완료되었을 수 있습니다. 주문 내역에서 결제 상태를 확인해 주세요."
+            );
+          }
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setState("no_payment_id");
+          setErrorMessage(
+            err?.message ||
+              "결제가 완료되었을 수 있습니다. 주문 내역에서 결제 상태를 확인해 주세요."
+          );
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    setState("no_payment_id");
+    setErrorMessage(
+      "결제가 완료되었을 수 있습니다. 주문 내역에서 결제 상태를 확인해 주세요."
+    );
+  }, [hashChecked, orderId, cgTid, guestToken, guestSig, partner?.id, client?.id]);
 
   const handleContinueShopping = () => {
     router.push(`/${subdomain}/${clientSlug}`);

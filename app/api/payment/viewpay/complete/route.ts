@@ -5,29 +5,12 @@ import { logger } from "@/lib/logger";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { viewpayPost, clearViewpayTokenCache } from "@/lib/viewpay";
 import { verifyGuestCheckout } from "@/lib/guest-checkout-signature";
-import { submitNewrunOrder } from "@/lib/newrun/submit-order";
-
-/** ViewPay 결제 성공 상태값 (연동규격서: data.paymentStatus) + API/이벤트 결과코드 0000 */
-const PAYMENT_SUCCESS_STATUSES = [
-  "0000", // API/이벤트 성공 코드 (규격서 status.code, event.resultCode)
-  "PG_APPROVAL_SUCCESS",
-  "PG_MODULE_SUCCESS",
-  "PG_MODULE_VIRACC_ISSUE_SUCCESS",
-];
+import {
+  finalizeViewpayOrderPaid,
+  isViewpayPaymentSucceeded,
+} from "@/lib/viewpay-order-completion";
 
 const LOG = "[Order:Complete]";
-
-/** get-payment-info 응답의 결제 상태가 객체인 경우 문자열 코드로 정규화 */
-function normalizePaymentStatus(raw: unknown): string | undefined {
-  if (raw == null) return undefined;
-  if (typeof raw === "string") return raw.trim() || undefined;
-  if (typeof raw === "object" && raw !== null) {
-    const obj = raw as Record<string, unknown>;
-    const s = (obj.code ?? obj.status ?? obj.value ?? obj.paymentStatus) as string | undefined;
-    return typeof s === "string" ? s.trim() : undefined;
-  }
-  return undefined;
-}
 
 /**
  * Phase B2: 결제 완료 콜백 (ViewPay returnUrl → get-payment-info → set-payment-info → DB 반영)
@@ -48,7 +31,10 @@ export async function GET(request: NextRequest) {
     logger.info(`${LOG} 요청`, { action: "payment_viewpay_complete_request", data: { orderId, cgTid } });
 
     if (!orderId || !cgTid) {
-      logger.warn(`${LOG} 파라미터 누락`, { action: "payment_viewpay_complete_bad_request", data: { orderId, cgTid } });
+      logger.warn(`${LOG} 파라미터 누락`, {
+        action: "payment_viewpay_complete_bad_request",
+        data: { orderId, cgTid },
+      });
       return NextResponse.json(
         { success: false, message: "orderId, cgTid 쿼리 필수입니다." },
         { status: 400 }
@@ -74,7 +60,10 @@ export async function GET(request: NextRequest) {
 
     if (session?.user?.id) {
       if (order.user_id !== session.user.id) {
-        logger.warn(`${LOG} 권한 없음`, { action: "payment_viewpay_complete_forbidden", data: { orderId, userId: session.user.id } });
+        logger.warn(`${LOG} 권한 없음`, {
+          action: "payment_viewpay_complete_forbidden",
+          data: { orderId, userId: session.user.id },
+        });
         return NextResponse.json(
           { success: false, message: "해당 주문에 대한 권한이 없습니다." },
           { status: 403 }
@@ -89,7 +78,10 @@ export async function GET(request: NextRequest) {
         order.guest_checkout_token === guestToken &&
         verifyGuestCheckout(orderId, guestToken, paymentSignature);
       if (!okGuest) {
-        logger.warn(`${LOG} 비회원 인증 실패`, { action: "payment_viewpay_complete_guest_auth_failed", data: { orderId } });
+        logger.warn(`${LOG} 비회원 인증 실패`, {
+          action: "payment_viewpay_complete_guest_auth_failed",
+          data: { orderId },
+        });
         return NextResponse.json(
           { success: false, message: "로그인이 필요하거나 비회원 결제 인증이 올바르지 않습니다." },
           { status: 401 }
@@ -98,7 +90,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (order.payment_status === "paid") {
-      logger.info(`${LOG} 이미 결제완료(idempotent)`, { action: "payment_viewpay_complete_idempotent", data: { orderId, orderNo: order.order_no } });
+      logger.info(`${LOG} 이미 결제완료(idempotent)`, {
+        action: "payment_viewpay_complete_idempotent",
+        data: { orderId, orderNo: order.order_no },
+      });
       return NextResponse.json({
         success: true,
         orderNo: order.order_no,
@@ -108,7 +103,10 @@ export async function GET(request: NextRequest) {
 
     let paymentInfo: Record<string, unknown>;
     try {
-      logger.info(`${LOG} get-payment-info 호출`, { action: "payment_viewpay_complete_get_info", data: { orderId, cgTid } });
+      logger.info(`${LOG} get-payment-info 호출`, {
+        action: "payment_viewpay_complete_get_info",
+        data: { orderId, cgTid },
+      });
       paymentInfo = await viewpayPost("/v1/gw/get-payment-info", {
         cgTid,
         orderId,
@@ -117,130 +115,49 @@ export async function GET(request: NextRequest) {
       if ((err as Error & { response?: { status: number } }).response?.status === 401) {
         clearViewpayTokenCache();
       }
-      logger.error(`${LOG} get-payment-info 실패`, { action: "payment_viewpay_complete_get_info_failed", data: { orderId, cgTid, error: String((err as Error).message) } });
+      logger.error(`${LOG} get-payment-info 실패`, {
+        action: "payment_viewpay_complete_get_info_failed",
+        data: { orderId, cgTid, error: String((err as Error).message) },
+      });
       return NextResponse.json(
         { success: false, message: (err as Error).message || "결제 정보 조회에 실패했습니다." },
         { status: 400 }
       );
     }
 
-    const response = paymentInfo?.response as Record<string, unknown> | undefined;
-    const raw = response ?? paymentInfo;
-    const data = raw?.data as Record<string, unknown> | undefined;
-    // 규격서: 결제상태는 data.paymentStatus. status.code "0000"은 API 조회 성공 코드(결제상태 아님)
-    const rawStatus =
-      data?.paymentStatus ??
-      raw?.paymentStatus ??
-      raw?.payment_status ??
-      raw?.status ??
-      raw?.payStatus;
-    const paymentStatus = normalizePaymentStatus(rawStatus);
-    logger.info(`${LOG} get-payment-info 결제상태`, { action: "payment_viewpay_complete_status", data: { orderId, cgTid, rawStatus, paymentStatus } });
-    if (!paymentStatus || !PAYMENT_SUCCESS_STATUSES.includes(paymentStatus)) {
-      const statusLabel = paymentStatus ?? (typeof rawStatus === "string" ? rawStatus : JSON.stringify(rawStatus ?? "unknown"));
-      logger.warn(`${LOG} 결제상태 미성공`, { action: "payment_viewpay_complete_status_not_success", data: { orderId, cgTid, statusLabel } });
-      return NextResponse.json(
-        {
-          success: false,
-          message: `결제가 완료되지 않았습니다. (상태: ${statusLabel})`,
-        },
-        { status: 400 }
-      );
+    const payOk = isViewpayPaymentSucceeded(paymentInfo);
+    if (!payOk.ok) {
+      logger.warn(`${LOG} 결제상태 미성공`, {
+        action: "payment_viewpay_complete_status_not_success",
+        data: { orderId, cgTid, message: payOk.message },
+      });
+      return NextResponse.json({ success: false, message: payOk.message }, { status: 400 });
     }
 
-    const amount = Number(order.total_amount) || 0;
     try {
-      logger.info(`${LOG} set-payment-info(STORE_SUCCESS) 호출`, { action: "payment_viewpay_complete_set_info", data: { orderId, cgTid, orderNo: order.order_no, amount } });
-      await viewpayPost("/v1/gw/set-payment-info", {
-        cgTid,
+      const { newrun } = await finalizeViewpayOrderPaid(supabase, {
         orderId,
         orderNo: order.order_no,
-        amount,
-        orderStatus: "STORE_SUCCESS",
+        totalAmount: Number(order.total_amount) || 0,
+        cgTid,
       });
-      logger.info(`${LOG} set-payment-info 성공`, { action: "payment_viewpay_complete_set_info_ok", data: { orderId, cgTid } });
+      logger.info(`${LOG} 결제 완료 처리 성공`, {
+        action: "payment_viewpay_complete_success",
+        data: { orderId, orderNo: order.order_no, cgTid },
+      });
+      return NextResponse.json({
+        success: true,
+        orderNo: order.order_no,
+        ...(newrun ? { newrun } : {}),
+      });
     } catch (err) {
-      if ((err as Error & { response?: { status: number } }).response?.status === 401) {
-        clearViewpayTokenCache();
-      }
-      logger.error(`${LOG} set-payment-info 실패`, { action: "payment_viewpay_complete_set_info_failed", data: { orderId, cgTid, error: String((err as Error).message) } });
-      return NextResponse.json(
-        { success: false, message: (err as Error).message || "주문 상태 업데이트에 실패했습니다." },
-        { status: 400 }
-      );
-    }
-
-    const { error: updateOrderError } = await supabase
-      .from("orders")
-      .update({
-        payment_status: "paid",
-        cg_tid: cgTid,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
-
-    if (updateOrderError) {
-      logger.error(`${LOG} orders 업데이트 실패`, { action: "payment_viewpay_complete_order_update_failed", data: { orderId, cgTid, error: String(updateOrderError.message) } });
-      return NextResponse.json(
-        { success: false, message: "주문 상태 반영에 실패했습니다." },
-        { status: 500 }
-      );
-    }
-
-    await supabase.from("order_status_history").insert({
-      order_id: orderId,
-      status: "received",
-      memo: "결제 완료 (ViewPay)",
-    });
-
-    const { error: paymentInsertError } = await supabase.from("payments").insert({
-      order_id: orderId,
-      pg_provider: "viewpay",
-      pg_txn_id: cgTid,
-      amount,
-      status: "completed",
-      paid_at: new Date().toISOString(),
-    });
-
-    if (paymentInsertError) {
-      logger.warn(`${LOG} payments INSERT 실패(무시)`, { action: "payment_viewpay_complete_payment_insert_failed", data: { orderId, cgTid, error: String(paymentInsertError.message) } });
-    }
-
-    /** Phase 5: 뉴런 자동 발주 — 실패해도 결제 응답은 성공, 프론트에서 알림 */
-    let newrun: { success: boolean; message?: string; skipped?: boolean } | undefined;
-    try {
-      const submitResult = await submitNewrunOrder(supabase, orderId, {
-        source: "viewpay_complete",
+      const msg = (err as Error).message || "주문 반영에 실패했습니다.";
+      logger.error(`${LOG} finalize 실패`, {
+        action: "payment_viewpay_complete_finalize_failed",
+        data: { orderId, cgTid, error: msg },
       });
-      if (submitResult.skipped) {
-        newrun = { success: true, skipped: true, message: submitResult.message };
-      } else if (!submitResult.ok) {
-        newrun = { success: false, message: submitResult.message };
-        logger.warn(`${LOG} 뉴런 자동 발주 실패`, {
-          action: "payment_viewpay_complete_newrun_failed",
-          data: { orderId, message: submitResult.message },
-        });
-      } else {
-        newrun = {
-          success: true,
-          message: submitResult.duplicate ? submitResult.message : undefined,
-        };
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "뉴런 발주 처리 오류";
-      logger.error(`${LOG} 뉴런 발주 예외`, {
-        action: "payment_viewpay_complete_newrun_error",
-        data: { orderId, error: msg },
-      });
-      newrun = { success: false, message: "뉴런 자동 발주 중 오류가 발생했습니다. 어드민에서 수동 발주해 주세요." };
+      return NextResponse.json({ success: false, message: msg }, { status: 500 });
     }
-
-    logger.info(`${LOG} 결제 완료 처리 성공`, { action: "payment_viewpay_complete_success", data: { orderId, orderNo: order.order_no, cgTid } });
-    return NextResponse.json({
-      success: true,
-      orderNo: order.order_no,
-      ...(newrun ? { newrun } : {}),
-    });
   } catch (err) {
     logger.error(`${LOG} error`, { action: "payment_viewpay_complete_error", data: { error: String((err as Error).message) } });
     return NextResponse.json(

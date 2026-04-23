@@ -139,6 +139,7 @@ export function LinkNotificationModal({
   const bulkProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(
     null
   );
+  const [showLocalAlimtalkHint, setShowLocalAlimtalkHint] = useState(false);
 
   const partnerDisplayName =
     partnerName?.trim() || partnerSubdomain?.trim() || "파트너";
@@ -164,6 +165,14 @@ export function LinkNotificationModal({
     setBulkFileLabel(null);
     setBulkProgress(0);
     setBulkDragging(false);
+    if (typeof window !== "undefined") {
+      const h = window.location.hostname;
+      setShowLocalAlimtalkHint(
+        h === "localhost" || h === "127.0.0.1" || h === "[::1]"
+      );
+    } else {
+      setShowLocalAlimtalkHint(false);
+    }
   }, [
     isOpen,
     partnerDisplayName,
@@ -383,6 +392,20 @@ export function LinkNotificationModal({
         </div>
 
         <DialogBody className="min-h-0 flex-1 overflow-y-auto bg-gray-50 px-6 py-6">
+          {showLocalAlimtalkHint ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-950">
+              <strong className="font-semibold">로컬 주소 알림톡:</strong> 카카오톡은
+              본문의 <span className="rounded bg-amber-100/80 px-1 font-mono">localhost</span> URL을
+              눌러서 열 수 있는 링크로 표시하지 않습니다. 발송 시 서버가{" "}
+              <span className="rounded bg-amber-100/80 px-1 font-mono">
+                ALIMTALK_PUBLIC_ORIGIN
+              </span>
+              (ngrok·Cloudflare Tunnel 등 <strong>공개 HTTPS</strong> 주소)로 자동 치환합니다.
+              <code className="mt-1 block text-[11px] text-amber-900/90">
+                .env.local 예: ALIMTALK_PUBLIC_ORIGIN=https://xxxx.ngrok-free.app
+              </code>
+            </div>
+          ) : null}
           <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:min-h-[520px]">
             {/* 좌측: 알림톡 미리보기(상) → 메시지 내용 수정(하) */}
             <div className="flex flex-col gap-6 lg:col-span-5">

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
+import { formatAdminOrdererListLabel } from "@/lib/admin-orderer-display";
 
 /**
  * 취소/반품 페이지 (파트너 어드민)
@@ -32,6 +33,8 @@ interface Order {
   created_at: string;
   client: Client;
   user: User | null;
+  is_guest?: boolean | null;
+  orderer_name?: string | null;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -285,7 +288,9 @@ export default function OrdersReturnsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-700">{order.client?.name ?? "-"}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{order.user?.name ?? "-"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      {formatAdminOrdererListLabel(order)}
+                    </td>
                     <td className="px-4 py-3 text-sm text-slate-600">{order.shipping_name ?? "-"}</td>
                     <td className="px-4 py-3 text-right text-sm font-semibold text-slate-800">
                       {formatPrice(Number(order.total_amount))}원
