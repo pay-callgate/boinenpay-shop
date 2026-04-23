@@ -58,6 +58,12 @@ export async function GET(request: NextRequest) {
         shipping_address,
         shipping_detail,
         shipping_postcode,
+        desired_delivery_date,
+        delivery_time_slot,
+        delivery_method,
+        delivery_request_memo,
+        ribbon_sender,
+        ribbon_message,
         tracking_number,
         created_at,
         newrun_submit_status,
@@ -124,6 +130,11 @@ export async function GET(request: NextRequest) {
         ? `${firstItem.product_name}${itemCount > 1 ? ` 외 ${itemCount - 1}개` : ""}`
         : "";
 
+      const desiredDate =
+        order.desired_delivery_date != null && String(order.desired_delivery_date).trim() !== ""
+          ? String(order.desired_delivery_date)
+          : "";
+
       return {
         주문번호: order.order_no,
         주문일시: new Date(order.created_at).toLocaleString("ko-KR"),
@@ -141,6 +152,12 @@ export async function GET(request: NextRequest) {
           newrun_rwr_result: order.newrun_rwr_result,
         }),
         협회주문번호: order.newrun_rwr_orderkey || "",
+        희망배송일: desiredDate,
+        배송시간대: order.delivery_time_slot || "",
+        배송방식: order.delivery_method || "",
+        배송요청메모: order.delivery_request_memo || "",
+        리본보내는분: order.ribbon_sender || "",
+        리본문구: order.ribbon_message || "",
         수령인: order.shipping_name,
         수령인전화번호: order.shipping_phone,
         우편번호: order.shipping_postcode || "",
@@ -169,6 +186,12 @@ export async function GET(request: NextRequest) {
       { wch: 12 }, // 주문상태
       { wch: 14 }, // 뉴런발주
       { wch: 18 }, // 협회주문번호
+      { wch: 12 }, // 희망배송일
+      { wch: 14 }, // 배송시간대
+      { wch: 10 }, // 배송방식
+      { wch: 28 }, // 배송요청메모
+      { wch: 12 }, // 리본보내는분
+      { wch: 28 }, // 리본문구
       { wch: 10 }, // 수령인
       { wch: 15 }, // 수령인전화번호
       { wch: 10 }, // 우편번호

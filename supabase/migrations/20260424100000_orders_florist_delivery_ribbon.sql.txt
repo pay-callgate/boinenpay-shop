@@ -1,0 +1,20 @@
+-- 화훼·배달 특화: 희망 배송일시, 배송 메모, 리본 문구 영속화 (Phase 1)
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS desired_delivery_date DATE,
+  ADD COLUMN IF NOT EXISTS delivery_time_slot VARCHAR(80),
+  ADD COLUMN IF NOT EXISTS delivery_method VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS delivery_request_memo TEXT,
+  ADD COLUMN IF NOT EXISTS ribbon_sender VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS ribbon_message TEXT;
+
+COMMENT ON COLUMN orders.desired_delivery_date IS '희망 배송(배달)일';
+COMMENT ON COLUMN orders.delivery_time_slot IS '희망 배송 시간대';
+COMMENT ON COLUMN orders.delivery_method IS '배송 방식 (예: parcel, quick)';
+COMMENT ON COLUMN orders.delivery_request_memo IS '배송 요청 메모 (문 앞 등)';
+COMMENT ON COLUMN orders.ribbon_sender IS '리본 보내는 분';
+COMMENT ON COLUMN orders.ribbon_message IS '리본 문구(경조사어 등)';
+
+CREATE INDEX IF NOT EXISTS idx_orders_partner_desired_delivery
+  ON orders (partner_id, desired_delivery_date)
+  WHERE desired_delivery_date IS NOT NULL;

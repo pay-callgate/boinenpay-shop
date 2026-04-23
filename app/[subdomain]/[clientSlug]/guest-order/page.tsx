@@ -405,6 +405,8 @@ export default function GuestOrderPage() {
         deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
         deliveryMethod,
         deliveryFee,
+        ribbonSender: ribbonSender.trim(),
+        ribbonMessage: resolvedRibbonMessage,
         paymentMethod,
         isGuest: true,
         guestPassword: pw,

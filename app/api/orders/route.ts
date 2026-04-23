@@ -12,6 +12,7 @@ import {
   effectiveGuestUnitPrice,
   effectiveMemberUnitPrice,
 } from "@/lib/product-pricing";
+import { floristFieldsFromOrderBody } from "@/lib/orders/florist-order-payload";
 
 /**
  * T4-5 & T5-1: 주문 API
@@ -354,6 +355,8 @@ export async function POST(request: NextRequest) {
         ? rawGuestOrdererEmail.trim()
         : "";
 
+    const floristPayload = floristFieldsFromOrderBody(body as Record<string, unknown>);
+
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -376,6 +379,7 @@ export async function POST(request: NextRequest) {
         guest_password_hash: guestPasswordHash,
         orderer_name: ordererNameTrim || null,
         guest_orderer_email: guestEmailTrim || null,
+        ...floristPayload,
       })
       .select()
       .single();

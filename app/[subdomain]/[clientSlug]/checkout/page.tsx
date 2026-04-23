@@ -470,6 +470,7 @@ export default function CheckoutPage() {
         deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
         deliveryMethod,
         deliveryFee,
+        deliveryRequestMemo: noteText || undefined,
         paymentMethod,
       };
       if (ordererName.trim()) {
