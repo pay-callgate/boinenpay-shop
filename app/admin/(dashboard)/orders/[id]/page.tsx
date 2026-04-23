@@ -17,6 +17,12 @@ import {
   isNewrunCourierReadOnly,
 } from "@/lib/newrun/admin-newrun-courier-lock";
 import { formatAdminOrdererDetailLine } from "@/lib/admin-orderer-display";
+import {
+  formatAdminDeliveryMethod,
+  formatDesiredDeliveryDateTimeLine,
+  getAdminLocalTodayYmd,
+  isDesiredDeliveryToday,
+} from "@/lib/admin-florist-order-display";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -102,6 +108,12 @@ interface Order {
   is_guest?: boolean | null;
   orderer_name?: string | null;
   guest_orderer_email?: string | null;
+  desired_delivery_date?: string | null;
+  delivery_time_slot?: string | null;
+  delivery_method?: string | null;
+  delivery_request_memo?: string | null;
+  ribbon_sender?: string | null;
+  ribbon_message?: string | null;
 }
 
 function coerceStringMapFromJson(v: unknown): Record<string, string> | null {
@@ -497,6 +509,11 @@ export default function OrderDetailPage() {
   }
 
   const newrunCourierLocked = isNewrunCourierReadOnly(order);
+  const floristDetailTodayYmd = getAdminLocalTodayYmd();
+  const floristDesiredDeliveryIsToday = isDesiredDeliveryToday(
+    order.desired_delivery_date,
+    floristDetailTodayYmd
+  );
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-slate-50 p-6">
@@ -537,6 +554,70 @@ export default function OrderDetailPage() {
               >
                 {STATUS_LABELS[order.status] || order.status}
               </span>
+            </div>
+          </div>
+
+          {/* 화훼: 희망 배송일·리본 */}
+          <div className="rounded-lg border border-rose-200/90 bg-gradient-to-br from-rose-50/95 via-white to-amber-50/50 shadow-sm p-6">
+            <h2 className="text-lg font-bold text-rose-950">화훼 배송 및 리본 정보</h2>
+            <p className="mt-1 text-xs text-rose-800/75">
+              직배·화환 주문의 희망 배달 일시와 리본 인쇄 문구를 확인합니다.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <span className="block text-xs font-medium text-slate-500">희망 배송 일시</span>
+                <span
+                  className={`mt-0.5 inline-flex flex-wrap items-center gap-2 ${
+                    floristDesiredDeliveryIsToday ? "font-bold text-red-600" : "text-slate-900"
+                  }`}
+                >
+                  {floristDesiredDeliveryIsToday ? (
+                    <span className="rounded bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                      오늘 배송
+                    </span>
+                  ) : null}
+                  {formatDesiredDeliveryDateTimeLine(
+                    order.desired_delivery_date,
+                    order.delivery_time_slot
+                  )}
+                </span>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-slate-500">배송 방식</span>
+                <span className="mt-0.5 text-slate-900">
+                  {formatAdminDeliveryMethod(order.delivery_method)}
+                </span>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="block text-xs font-medium text-slate-500">배송 요청 메모</span>
+                <span className="mt-0.5 whitespace-pre-wrap text-slate-900">
+                  {order.delivery_request_memo?.trim() || "—"}
+                </span>
+              </div>
+            </div>
+            <div className="mt-6 border-t border-rose-200/60 pt-5">
+              <p className="text-sm font-semibold text-rose-900">리본 문구</p>
+              <p className="mt-1 text-xs text-slate-600">
+                화환 리본을 좌·우로 나누어 표시합니다. (좌: 경조사어 · 우: 보내는 분)
+              </p>
+              <div className="mt-3 flex flex-col overflow-hidden rounded-xl border-2 border-rose-300 bg-white shadow-inner sm:flex-row">
+                <div className="flex min-h-[5rem] flex-1 flex-col justify-center border-rose-200 px-4 py-3 sm:border-r">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-600">
+                    경조사어
+                  </span>
+                  <span className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-wrap break-words">
+                    {order.ribbon_message?.trim() || "—"}
+                  </span>
+                </div>
+                <div className="flex min-h-[5rem] flex-1 flex-col justify-center bg-rose-50/60 px-4 py-3">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-600">
+                    보내는 분
+                  </span>
+                  <span className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-wrap break-words">
+                    {order.ribbon_sender?.trim() || "—"}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -38,6 +38,9 @@ export async function GET(request: NextRequest) {
     const newrunSubmit = searchParams.get("newrunSubmit");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    /** 희망 배송일(desired_delivery_date) 구간 — YYYY-MM-DD */
+    const desiredDeliveryFrom = searchParams.get("desiredDeliveryFrom");
+    const desiredDeliveryTo = searchParams.get("desiredDeliveryTo");
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -121,6 +124,13 @@ export async function GET(request: NextRequest) {
     }
     if (endDate) {
       query = query.lte("created_at", endDate);
+    }
+
+    if (desiredDeliveryFrom) {
+      query = query.gte("desired_delivery_date", desiredDeliveryFrom);
+    }
+    if (desiredDeliveryTo) {
+      query = query.lte("desired_delivery_date", desiredDeliveryTo);
     }
 
     query = query

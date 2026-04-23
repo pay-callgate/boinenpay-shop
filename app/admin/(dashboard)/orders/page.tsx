@@ -11,6 +11,11 @@ import {
   type NewrunSubmitListFilter,
 } from "@/lib/newrun/admin-order-newrun-summary";
 import { formatAdminOrdererListLabel } from "@/lib/admin-orderer-display";
+import {
+  formatDesiredDeliveryDateTimeLine,
+  getAdminLocalTodayYmd,
+  isDesiredDeliveryToday,
+} from "@/lib/admin-florist-order-display";
 
 /**
  * T5-1: 주문 목록 페이지 (파트너 어드민) — 중앙 집중형 /admin/orders
@@ -44,6 +49,12 @@ interface Order {
   newrun_rwr_result?: string | null;
   newrun_rwr_orderkey?: string | null;
   newrun_last_submit_at?: string | null;
+  desired_delivery_date?: string | null;
+  delivery_time_slot?: string | null;
+  delivery_method?: string | null;
+  delivery_request_memo?: string | null;
+  ribbon_sender?: string | null;
+  ribbon_message?: string | null;
 }
 
 const NEWRUN_SUBMIT_FILTER_OPTIONS: { value: NewrunSubmitListFilter; label: string }[] = [
@@ -89,6 +100,8 @@ export default function OrdersPage() {
     useState<NewrunSubmitListFilter>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [desiredDeliveryFrom, setDesiredDeliveryFrom] = useState<string>("");
+  const [desiredDeliveryTo, setDesiredDeliveryTo] = useState<string>("");
   const [offset, setOffset] = useState(0);
   const limit = 20;
 
@@ -129,6 +142,8 @@ export default function OrdersPage() {
       }
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
+      if (desiredDeliveryFrom) url += `&desiredDeliveryFrom=${desiredDeliveryFrom}`;
+      if (desiredDeliveryTo) url += `&desiredDeliveryTo=${desiredDeliveryTo}`;
 
       const res = await adminFetch(url);
       if (res.ok) {
@@ -148,6 +163,8 @@ export default function OrdersPage() {
     selectedNewrunSubmit,
     startDate,
     endDate,
+    desiredDeliveryFrom,
+    desiredDeliveryTo,
     offset,
   ]);
 
@@ -178,6 +195,8 @@ export default function OrdersPage() {
     }
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
+    if (desiredDeliveryFrom) url += `&desiredDeliveryFrom=${desiredDeliveryFrom}`;
+    if (desiredDeliveryTo) url += `&desiredDeliveryTo=${desiredDeliveryTo}`;
 
     try {
       const res = await adminFetch(url);
@@ -216,6 +235,7 @@ export default function OrdersPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const currentPage = total === 0 ? 1 : Math.min(totalPages, Math.floor(offset / limit) + 1);
+  const floristListTodayYmd = getAdminLocalTodayYmd();
 
   if (status === "loading" || !partnerId) {
     return (
@@ -328,7 +348,7 @@ export default function OrdersPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">시작일</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">주문일 시작</label>
               <input
                 type="date"
                 value={startDate}
@@ -340,7 +360,7 @@ export default function OrdersPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">종료일</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">주문일 종료</label>
               <input
                 type="date"
                 value={endDate}
@@ -349,6 +369,30 @@ export default function OrdersPage() {
                   setOffset(0);
                 }}
                 className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">희망 배송일 시작</label>
+              <input
+                type="date"
+                value={desiredDeliveryFrom}
+                onChange={(e) => {
+                  setDesiredDeliveryFrom(e.target.value);
+                  setOffset(0);
+                }}
+                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">희망 배송일 종료</label>
+              <input
+                type="date"
+                value={desiredDeliveryTo}
+                onChange={(e) => {
+                  setDesiredDeliveryTo(e.target.value);
+                  setOffset(0);
+                }}
+                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
               />
             </div>
           </div>
@@ -368,6 +412,7 @@ export default function OrdersPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">거래처</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문자</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">받는 분</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-rose-800/90">희망 배송일시</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">금액</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">상태</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">결제</th>
@@ -378,17 +423,26 @@ export default function OrdersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-slate-500">
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-slate-500">
                     주문 내역이 없습니다.
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => (
+                orders.map((order) => {
+                  const deliveryToday = isDesiredDeliveryToday(
+                    order.desired_delivery_date,
+                    floristListTodayYmd
+                  );
+                  const deliveryLine = formatDesiredDeliveryDateTimeLine(
+                    order.desired_delivery_date,
+                    order.delivery_time_slot
+                  );
+                  return (
                   <tr
                     key={order.id}
                     onClick={() => router.push(`/admin/orders/${order.id}`)}
@@ -417,6 +471,20 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-700">
                       {order.shipping_name ?? "-"}
+                    </td>
+                    <td
+                      className={`px-4 py-3 text-sm ${
+                        deliveryToday
+                          ? "font-bold text-red-600"
+                          : "text-slate-700"
+                      }`}
+                    >
+                      {deliveryToday ? (
+                        <span className="mr-1.5 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                          오늘
+                        </span>
+                      ) : null}
+                      {deliveryLine}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-semibold text-slate-800">
                       {formatPrice(Number(order.total_amount) || 0)}원
@@ -470,7 +538,8 @@ export default function OrdersPage() {
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

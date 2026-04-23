@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
     const newrunSubmit = searchParams.get("newrunSubmit");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const desiredDeliveryFrom = searchParams.get("desiredDeliveryFrom");
+    const desiredDeliveryTo = searchParams.get("desiredDeliveryTo");
 
     if (!partnerId) {
       return NextResponse.json({ error: "partnerId가 필요합니다." }, { status: 400 });
@@ -112,6 +114,8 @@ export async function GET(request: NextRequest) {
     }
     if (startDate) query = query.gte("created_at", startDate);
     if (endDate) query = query.lte("created_at", endDate);
+    if (desiredDeliveryFrom) query = query.gte("desired_delivery_date", desiredDeliveryFrom);
+    if (desiredDeliveryTo) query = query.lte("desired_delivery_date", desiredDeliveryTo);
 
     query = query.order("created_at", { ascending: false });
 
