@@ -153,7 +153,10 @@ export default function GuestOrderPage() {
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  /** 이 전용몰 소속 회원이면 일반 체크아웃으로 (회원가 결제) */
+  /**
+   * 이 전용몰 소속 회원이면 일반 체크아웃으로 (회원가 결제).
+   * 타 거래처 소속으로 로그인된 채 비회원가로 들어온 경우는 그대로 비회원 주문서 유지(OrderGuard 에서 소속 불일치 차단 안 함).
+   */
   useEffect(() => {
     if (sessionStatus !== "authenticated" || !itemsQuery || !clientId) return;
     if (userClientLoading) return;
@@ -442,6 +445,7 @@ export default function GuestOrderPage() {
       shopClientId={clientId ?? undefined}
       shopClientName={template?.client?.name ?? undefined}
       requireAuth={false}
+      blockAffiliationMismatch={false}
     >
       <form
         onSubmit={handleSubmit}

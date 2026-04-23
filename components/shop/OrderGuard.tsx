@@ -11,6 +11,8 @@ import { ClientSearchModal } from "./ClientSearchModal";
  * - 기본(requireAuth): 미로그인 시 로그인 유도, user_clients 없으면 소속 기업 찾기
  * - blockAffiliationMismatch: URL 거래처 ≠ DB 소속 시 차단(마이·장바구니·결제 등)
  * - 상품 목록/상세: requireAuth=false, blockAffiliationMismatch=false 로 탐색만 허용(구매는 API·모달로 방어)
+ * - 비회원 주문(guest-order): requireAuth=false, blockAffiliationMismatch=false — 타 소속 로그인 상태에서도 비회원 결제 허용
+ * - checkout?guest=1: blockAffiliationMismatch=false 동일
  */
 
 interface Client {

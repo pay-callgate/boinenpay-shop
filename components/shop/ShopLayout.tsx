@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Menu, Search, ShoppingBag } from "lucide-react";
 import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
 import { ToastProvider, toast } from "./ToastContext";
@@ -111,6 +112,7 @@ function SmartHeader({
   const homeHref = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;
   const cartHref = base + "/cart";
   const ensureOrderAllowed = useShopTemplate()?.ensureOrderAllowed;
+  const { status: sessionStatus } = useSession();
   const [cartCount, setCartCount] = useState(0);
   const [logoLoadError, setLogoLoadError] = useState(false);
 
@@ -125,9 +127,10 @@ function SmartHeader({
       .catch(() => setCartCount(0));
   }, [client?.id]);
 
+  // 로그인/로그아웃 전환 시 회원 장바구니 ↔ 게스트 장바구니 기준이 바뀌므로 즉시 재조회
   useEffect(() => {
     refreshCartCount();
-  }, [refreshCartCount]);
+  }, [refreshCartCount, sessionStatus]);
 
   useEffect(() => {
     const onCartUpdated = () => refreshCartCount();
