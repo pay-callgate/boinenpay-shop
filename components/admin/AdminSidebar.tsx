@@ -61,6 +61,7 @@ export function AdminSidebar({
       icon: <Building2 className="h-5 w-5 shrink-0" />,
       items: [
         { href: `${base}/clients/links`, label: "거래처/링크 관리" },
+        { href: `${base}/clients/messages`, label: "알림톡 발송 내역" },
       ],
     },
     {

@@ -73,6 +73,14 @@ interface CartItem {
   };
 }
 
+/** POST /api/orders 성공 후 ViewPay prepare 실패 시, 재클릭에서 prepare만 재시도하기 위한 스냅샷 */
+type PendingOrderPrepareSnapshot = {
+  orderNo: string;
+  totalAmount: number;
+  guestCheckoutToken?: string;
+  paymentSignature?: string;
+};
+
 const inputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
 const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
@@ -152,6 +160,10 @@ export default function GuestOrderPage() {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  /** 주문 생성 성공 후 결제창만 실패한 경우 재시도용 (페이지 이탈 시 컴포넌트 언마운트로 함께 초기화) */
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [pendingPrepareSnapshot, setPendingPrepareSnapshot] =
+    useState<PendingOrderPrepareSnapshot | null>(null);
 
   /**
    * 이 전용몰 소속 회원이면 일반 체크아웃으로 (회원가 결제).
@@ -226,6 +238,10 @@ export default function GuestOrderPage() {
   const getItemPrice = (item: CartItem) => getItemUnit(item) * item.quantity;
   const getTotalProductPrice = () => items.reduce((sum, item) => sum + getItemPrice(item), 0);
   const finalTotal = getTotalProductPrice();
+  const displayPayTotal =
+    items.length > 0
+      ? finalTotal
+      : pendingPrepareSnapshot?.totalAmount ?? finalTotal;
   // + deliveryFee (배송비 계산 비활성화)
 
   const resolvedRibbonMessage =
@@ -248,7 +264,11 @@ export default function GuestOrderPage() {
       toast("마스터 템플릿 미리보기 상태에서는 주문이 불가능합니다.");
       return;
     }
-    if (!partnerId || !clientId || items.length === 0) {
+    if (!partnerId || !clientId) {
+      toast("주문 정보가 올바르지 않습니다.");
+      return;
+    }
+    if (!pendingOrderId && items.length === 0) {
       toast("주문 정보가 올바르지 않습니다.");
       return;
     }
@@ -310,51 +330,22 @@ export default function GuestOrderPage() {
     });
 
     setSubmitting(true);
-    const orderPayload: Record<string, unknown> = {
-      partnerId,
-      clientId,
-      cartItemIds: items.map((i) => i.id),
-      shippingName: rn,
-      shippingPhone: rp,
-      shippingPostcode: shippingPostcode.trim() || "00000",
-      shippingAddress: shippingAddress.trim(),
-      shippingDetail,
-      deliveryDate: deliveryDate || null,
-      deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
-      deliveryMethod,
-      deliveryFee,
-      paymentMethod,
-      isGuest: true,
-      guestPassword: pw,
-    };
 
-    try {
-      const res = await shopFetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderPayload),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast((err as { error?: string }).error || "주문에 실패했습니다.", "error");
-        setSubmitting(false);
-        return;
-      }
-      const data = await res.json();
-      const order = data.order as { id: string; order_no: string; total_amount: number };
-      const guestTok = data.guestCheckoutToken as string | undefined;
-      const paySig = data.paymentSignature as string | undefined;
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("cart-updated"));
-      }
-
+    const runViewPayPrepare = async (order: {
+      id: string;
+      order_no: string;
+      total_amount: number;
+      guestTok?: string;
+      paySig?: string;
+    }) => {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       let returnUrl = `${origin}/${subdomain}/${clientSlug}/order/complete?orderId=${order.id}`;
-      if (guestTok && paySig) {
-        returnUrl += `&guestToken=${encodeURIComponent(guestTok)}&sig=${encodeURIComponent(paySig)}`;
+      if (order.guestTok && order.paySig) {
+        returnUrl += `&guestToken=${encodeURIComponent(order.guestTok)}&sig=${encodeURIComponent(order.paySig)}`;
       }
       const cancelUrl = `${origin}/${subdomain}/${clientSlug}/guest-order?cancel=1&items=${encodeURIComponent(itemsQuery)}`;
-      const productName = items.length > 0 ? items[0].product?.name ?? "주문상품" : "주문상품";
+      const productName =
+        items.length > 0 ? items[0].product?.name ?? "주문상품" : "주문상품";
       const prepareBody: Record<string, unknown> = {
         orderId: order.id,
         orderNo: order.order_no,
@@ -366,9 +357,9 @@ export default function GuestOrderPage() {
         buyerPhone: op,
         buyerEmail: em,
       };
-      if (guestTok && paySig) {
-        prepareBody.guestCheckoutToken = guestTok;
-        prepareBody.paymentSignature = paySig;
+      if (order.guestTok && order.paySig) {
+        prepareBody.guestCheckoutToken = order.guestTok;
+        prepareBody.paymentSignature = order.paySig;
       }
       const prepareRes = await shopFetch("/api/payment/viewpay/prepare", {
         method: "POST",
@@ -377,14 +368,81 @@ export default function GuestOrderPage() {
       });
       const prepareData = await prepareRes.json().catch(() => ({}));
       if (prepareRes.ok && prepareData.success && prepareData.redirectUrl) {
+        setPendingOrderId(null);
+        setPendingPrepareSnapshot(null);
         window.location.href = prepareData.redirectUrl as string;
         return;
       }
       toast(
         (prepareData as { message?: string }).message ||
-          "결제창을 열 수 없습니다. 주문은 접수되었습니다.",
+          "결제창을 열 수 없습니다. 주문은 접수되었습니다. 같은 버튼으로 결제창만 다시 시도할 수 있습니다.",
         "error"
       );
+    };
+
+    try {
+      if (pendingOrderId && pendingPrepareSnapshot) {
+        await runViewPayPrepare({
+          id: pendingOrderId,
+          order_no: pendingPrepareSnapshot.orderNo,
+          total_amount: pendingPrepareSnapshot.totalAmount,
+          guestTok: pendingPrepareSnapshot.guestCheckoutToken,
+          paySig: pendingPrepareSnapshot.paymentSignature,
+        });
+        return;
+      }
+
+      const orderPayload: Record<string, unknown> = {
+        partnerId,
+        clientId,
+        cartItemIds: items.map((i) => i.id),
+        shippingName: rn,
+        shippingPhone: rp,
+        shippingPostcode: shippingPostcode.trim() || "00000",
+        shippingAddress: shippingAddress.trim(),
+        shippingDetail,
+        deliveryDate: deliveryDate || null,
+        deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
+        deliveryMethod,
+        deliveryFee,
+        paymentMethod,
+        isGuest: true,
+        guestPassword: pw,
+      };
+
+      const res = await shopFetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderPayload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast((err as { error?: string }).error || "주문에 실패했습니다.", "error");
+        return;
+      }
+      const data = await res.json();
+      const order = data.order as { id: string; order_no: string; total_amount: number };
+      const guestTok = data.guestCheckoutToken as string | undefined;
+      const paySig = data.paymentSignature as string | undefined;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("cart-updated"));
+      }
+
+      setPendingOrderId(order.id);
+      setPendingPrepareSnapshot({
+        orderNo: order.order_no,
+        totalAmount: order.total_amount,
+        guestCheckoutToken: guestTok,
+        paymentSignature: paySig,
+      });
+
+      await runViewPayPrepare({
+        id: order.id,
+        order_no: order.order_no,
+        total_amount: order.total_amount,
+        guestTok,
+        paySig,
+      });
     } catch {
       toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
@@ -413,7 +471,7 @@ export default function GuestOrderPage() {
     );
   }
 
-  if (selectedItemIds.length === 0 || items.length === 0) {
+  if (!pendingOrderId && (selectedItemIds.length === 0 || items.length === 0)) {
     return (
       <div
         className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
@@ -453,6 +511,15 @@ export default function GuestOrderPage() {
         style={{ paddingBottom: `calc(9rem + env(safe-area-inset-bottom, 0px))` }}
       >
         <div className="px-4 py-5">
+          {pendingOrderId && pendingPrepareSnapshot && (
+            <div
+              className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
+              role="status"
+            >
+              주문이 접수되었습니다(주문번호 {pendingPrepareSnapshot.orderNo}). 결제창만 다시 열려면
+              아래 <strong>결제하기</strong>를 눌러 주세요.
+            </div>
+          )}
           <header className="mb-6">
             <p className="text-xs font-medium uppercase tracking-wider" style={{ color: PRIMARY }}>
               비회원 주문
@@ -746,6 +813,12 @@ export default function GuestOrderPage() {
             </h2>
             <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-4">
               <ul className="space-y-3">
+                {items.length === 0 && pendingPrepareSnapshot ? (
+                  <li className="rounded-lg border border-gray-200 bg-white p-4 text-sm" style={{ color: TEXT_MUTED }}>
+                    장바구니는 비어 있지만, 접수된 주문 금액({formatPrice(displayPayTotal)}원)으로 결제를
+                    이어갈 수 있습니다.
+                  </li>
+                ) : null}
                 {items.map((item) => (
                   <li
                     key={item.id}
@@ -791,7 +864,7 @@ export default function GuestOrderPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span style={{ color: TEXT_MUTED }}>상품 합계</span>
-                <span style={{ color: TEXT }}>{formatPrice(getTotalProductPrice())}원</span>
+                <span style={{ color: TEXT }}>{formatPrice(displayPayTotal)}원</span>
               </div>
               <div
                 className="mt-4 flex items-center justify-between gap-4 border-t pt-4"
@@ -801,7 +874,7 @@ export default function GuestOrderPage() {
                   총 결제금액
                 </span>
                 <span className="shrink-0 text-2xl font-extrabold" style={{ color: ACCENT_DARK }}>
-                  {formatPrice(finalTotal)}원
+                  {formatPrice(displayPayTotal)}원
                 </span>
               </div>
             </div>
@@ -868,7 +941,7 @@ export default function GuestOrderPage() {
             className="w-full rounded-xl py-4 text-base font-bold text-white transition-opacity disabled:opacity-60"
             style={{ backgroundColor: submitting ? "#9CA3AF" : PRIMARY }}
           >
-            {submitting ? "처리 중…" : `${formatPrice(finalTotal)}원 결제하기`}
+            {submitting ? "처리 중…" : `${formatPrice(displayPayTotal)}원 결제하기`}
           </button>
         </div>
       </form>
