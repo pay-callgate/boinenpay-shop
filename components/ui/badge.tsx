@@ -11,6 +11,7 @@ const variants: Record<string, string> = {
   alim_scheduled: "bg-sky-100 text-sky-800",
   alim_sending: "bg-amber-100 text-amber-800",
   alim_failed: "bg-red-100 text-red-800",
+  alim_partial: "bg-orange-100 text-orange-800",
 };
 
 export function Badge({

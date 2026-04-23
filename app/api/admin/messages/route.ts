@@ -3,33 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
-  ADMIN_ALIMTALK_MESSAGES_STUB,
-  filterAdminAlimtalkRows,
-  summarizeAlimtalkSettlement,
-  type AdminAlimtalkHistoryStatus,
-  type AdminAlimtalkMessageRow,
-} from "@/lib/admin-alimtalk-messages";
+  fetchAdminAlimtalkGroupedListForPartner,
+  parseAdminAlimtalkListStatus,
+} from "@/lib/admin-alimtalk-messages-fetch";
+import { summarizeAlimtalkSettlement } from "@/lib/admin-alimtalk-messages";
 
 export const dynamic = "force-dynamic";
-
-function parseStatus(v: string | null): AdminAlimtalkHistoryStatus | "all" {
-  if (
-    v === "completed" ||
-    v === "scheduled" ||
-    v === "sending" ||
-    v === "failed"
-  ) {
-    return v;
-  }
-  return "all";
-}
 
 /**
  * GET /api/admin/messages
  * 쿼리: from=YYYY-MM-DD, to=YYYY-MM-DD, status=all|completed|scheduled|sending|failed, q=검색어, page=1, pageSize=10
- *
- * 현재: 스텁 데이터 + 세션 파트너 기준 필터·페이징.
- * TODO: link_kakao_notifications (또는 집계 테이블) 조회로 교체.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -59,7 +42,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const from = searchParams.get("from");
     const to = searchParams.get("to");
-    const status = parseStatus(searchParams.get("status"));
+    const status = parseAdminAlimtalkListStatus(searchParams.get("status"));
     const q = searchParams.get("q") ?? "";
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
     const pageSize = Math.min(
@@ -67,20 +50,25 @@ export async function GET(request: NextRequest) {
       Math.max(5, parseInt(searchParams.get("pageSize") ?? "10", 10) || 10)
     );
 
-    const stubRows: AdminAlimtalkMessageRow[] = ADMIN_ALIMTALK_MESSAGES_STUB.map(
-      (r) => ({ ...r, partnerId })
-    );
+    const { rows: filtered, dbError } =
+      await fetchAdminAlimtalkGroupedListForPartner(supabase, partnerId, {
+        from,
+        to,
+        status,
+        q,
+      });
 
-    // TODO: const { data: dbRows } = await supabase.from("link_kakao_notifications")...
-    // const rows = dbRows?.length ? mapDbToRows(dbRows) : stubRows;
-    const rows = stubRows;
-
-    const filtered = filterAdminAlimtalkRows(rows, {
-      fromIso: from,
-      toIso: to,
-      status,
-      q,
-    });
+    if (dbError) {
+      console.error("[GET /api/admin/messages] link_kakao_notifications", dbError);
+      return NextResponse.json(
+        {
+          ok: false,
+          message:
+            "발송 내역을 불러오지 못했습니다. link_kakao_notifications 테이블 존재 여부를 확인해 주세요.",
+        },
+        { status: 500 }
+      );
+    }
 
     const { totalSuccessCount, estimatedSettlementWon } =
       summarizeAlimtalkSettlement(filtered);

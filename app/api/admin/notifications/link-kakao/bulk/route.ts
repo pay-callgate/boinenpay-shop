@@ -1,7 +1,7 @@
 /**
  * 고객사 Link 안내 카카오 알림톡 — 대량 발송 (서버 순차 발송 + AlimtalkBulk 로그)
  */
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -148,6 +148,8 @@ export async function POST(request: NextRequest) {
       `대량 발송 시작 partnerId=${partnerId} clientId=${clientId} 건수=${recipients.length} ip=${ip}`
     );
 
+    const batchId = randomUUID();
+
     for (let i = 0; i < recipients.length; i++) {
       const raw = recipients[i];
       const phone = String(raw?.phone ?? "").replace(/\s/g, "");
@@ -167,6 +169,8 @@ export async function POST(request: NextRequest) {
       const baseRow = {
         partner_id: partnerId,
         client_id: clientId,
+        batch_id: batchId,
+        recipient_name: name ?? null,
         requested_by_user_id: session.user.id,
         tran_id: tranId,
         phone_masked: maskKoreanPhone(phone),
@@ -246,17 +250,10 @@ export async function POST(request: NextRequest) {
           `발송결과 index=${i + 1}/${recipients.length} phone=${maskKoreanPhone(phone)} name=${name ?? "-"} exception=${message.slice(0, 300)}`
         );
 
-        const tranId = randomBytes(14).toString("hex").slice(0, 29);
+        const tranIdFallback = randomBytes(14).toString("hex").slice(0, 29);
         await supabase.from("link_kakao_notifications").insert({
-          partner_id: partnerId,
-          client_id: clientId,
-          requested_by_user_id: session.user.id,
-          tran_id: tranId,
-          phone_masked: maskKoreanPhone(phone),
-          callback_masked: callback ? maskKoreanPhone(callback) : null,
-          template_code: templateCode || null,
-          msg_byte_length: utf8ByteLength(msg.slice(0, 1000)),
-          resolved_msg_preview: msg.slice(0, 220),
+          ...baseRow,
+          tran_id: tranIdFallback,
           http_status: null,
           provider_ok: false,
           result_code: null,

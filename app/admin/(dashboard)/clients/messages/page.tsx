@@ -16,7 +16,8 @@ function statusBadgeVariant(
   | "alim_completed"
   | "alim_scheduled"
   | "alim_sending"
-  | "alim_failed" {
+  | "alim_failed"
+  | "alim_partial" {
   switch (s) {
     case "completed":
       return "alim_completed";
@@ -26,6 +27,8 @@ function statusBadgeVariant(
       return "alim_sending";
     case "failed":
       return "alim_failed";
+    case "partial":
+      return "alim_partial";
     default:
       return "alim_completed";
   }
@@ -83,6 +86,7 @@ export default function AdminAlimtalkMessagesPage() {
   const [detailRow, setDetailRow] = useState<AdminAlimtalkMessageRow | null>(
     null
   );
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,6 +141,39 @@ export default function AdminAlimtalkMessagesPage() {
     setPage(1);
   };
 
+  const handleExcelDownload = async () => {
+    const qs = new URLSearchParams({
+      from: applied.from,
+      to: applied.to,
+      status: applied.status,
+      q: applied.q,
+    });
+    setExporting(true);
+    try {
+      const res = await adminFetch(
+        `/api/admin/messages/export?${qs.toString()}`
+      );
+      if (res.ok) {
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = `alimtalk_messages_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      } else {
+        alert("엑셀 다운로드에 실패했습니다.");
+      }
+    } catch (e) {
+      console.error("Excel download error:", e);
+      alert("엑셀 다운로드 중 오류가 발생했습니다.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <>
       {detailRow && (
@@ -147,21 +184,42 @@ export default function AdminAlimtalkMessagesPage() {
           body={detailRow.body}
           senderPhone={detailRow.senderPhone}
           receiverPhone={detailRow.recipientPhone}
+          batchId={detailRow.batchId}
+          listKind={detailRow.listKind}
         />
       )}
 
       <div className="flex flex-1 flex-col overflow-hidden bg-slate-50 p-6">
-        <div className="mb-6 shrink-0">
-          <h1 className="text-2xl font-bold text-slate-800">
-            알림톡 발송 내역
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            콜게이트·우리부고 알림톡 발송 건별 내역과 건당 {summary.unitWon}원
-            기준 예상 정산 금액을 확인합니다.
-          </p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            조회 결과 {total}건 · 성공 합계 {summary.totalSuccessCount}건
-          </p>
+        <div className="mb-6 shrink-0 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">
+              알림톡 발송 내역
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              콜게이트·우리부고 알림톡 발송 건별 내역과 건당 {summary.unitWon}원
+              기준 예상 정산 금액을 확인합니다.
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              조회 결과 {total}건 · 성공 합계 {summary.totalSuccessCount}건
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleExcelDownload()}
+            disabled={exporting}
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {exporting ? "다운로드 중…" : "엑셀 다운로드"}
+          </button>
         </div>
 
         <div className="mb-4 shrink-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -475,12 +533,12 @@ export default function AdminAlimtalkMessagesPage() {
             </svg>
           </span>
           <p className="text-sm text-blue-700">
-            현재 목록은 <span className="font-medium">스텁 데이터</span>입니다.
-            실제 발송 로그 연동 시 GET{" "}
+            목록은 Supabase{" "}
             <code className="rounded bg-blue-100/80 px-1 text-xs">
-              /api/admin/messages
+              link_kakao_notifications
             </code>{" "}
-            에서 DB 조회로 교체할 수 있습니다.
+            에서 조회합니다. 예약·발송 중 필터는 현재 스키마에 해당 상태가 없어 결과가 비어
+            있을 수 있습니다.
           </p>
         </div>
       </div>

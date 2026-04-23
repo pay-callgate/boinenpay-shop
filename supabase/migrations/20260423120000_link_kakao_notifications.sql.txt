@@ -1,8 +1,6 @@
-/**
- * Supabase SQL Editor 에서 실행할 DDL (파일로 보관).
- * 적용 후 POST /api/admin/notifications/link-kakao 의 DB insert 가 동작합니다.
- */
-export const LINK_KAKAO_NOTIFICATIONS_DDL = `
+-- Link 안내 카카오 알림톡 발송 로그 (파트너 어드민 / GET /api/admin/messages)
+-- 프로덕션에 이미 수동 적용한 경우 중복 실행은 IF NOT EXISTS 로 무해.
+
 create table if not exists public.link_kakao_notifications (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -20,15 +18,12 @@ create table if not exists public.link_kakao_notifications (
   cmid text,
   error_message text,
   raw_response jsonb,
-  resolved_msg_preview text,
-  batch_id uuid null,
-  recipient_name varchar(200) null
+  resolved_msg_preview text
 );
-create index if not exists idx_link_kakao_notifications_partner_batch
-  on public.link_kakao_notifications (partner_id, batch_id)
-  where batch_id is not null;
+
 create index if not exists idx_link_kakao_notifications_partner_created
   on public.link_kakao_notifications (partner_id, created_at desc);
 create index if not exists idx_link_kakao_notifications_client_created
   on public.link_kakao_notifications (client_id, created_at desc);
-`.trim();
+
+alter table public.link_kakao_notifications enable row level security;

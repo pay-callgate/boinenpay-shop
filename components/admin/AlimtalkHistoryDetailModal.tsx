@@ -1,10 +1,13 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogBody,
 } from "@/components/ui/dialog";
+import { adminFetch } from "@/lib/admin-fetch";
+import { Badge } from "@/components/ui/badge";
 
 const HEADER_BG = "bg-[#1A2234]";
 
@@ -24,6 +27,13 @@ function formatPhoneDisplay(raw: string): string {
 const inputReadOnly =
   "h-11 w-full rounded-lg border border-gray-200 bg-[#f3f4f6] px-3 text-sm text-gray-900";
 
+export type AlimtalkBatchRecipient = {
+  id: string;
+  recipientName: string;
+  recipientPhone: string;
+  success: boolean;
+};
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -31,10 +41,14 @@ interface Props {
   body: string;
   senderPhone: string;
   receiverPhone: string;
+  /** 대량 발송이면 수신자 탭·목록 API 조회 */
+  batchId: string | null;
+  listKind: "single" | "batch";
 }
 
 /**
  * LinkNotificationModal 과 동일한 헤더·미리보기 레이아웃, 발송 내역용 읽기 전용.
+ * batch 행이면 [수신자 목록] 탭에서 개별 수신자를 표시합니다.
  */
 export function AlimtalkHistoryDetailModal({
   isOpen,
@@ -43,8 +57,56 @@ export function AlimtalkHistoryDetailModal({
   body,
   senderPhone,
   receiverPhone,
+  batchId,
+  listKind,
 }: Props) {
   const byteCount = getByteCount(body);
+  const showRecipientsTab = listKind === "batch" && !!batchId;
+
+  const [tab, setTab] = useState<"message" | "recipients">("message");
+  const [recipients, setRecipients] = useState<AlimtalkBatchRecipient[]>([]);
+  const [recipientsLoading, setRecipientsLoading] = useState(false);
+  const [recipientsError, setRecipientsError] = useState<string | null>(null);
+
+  const loadRecipients = useCallback(async () => {
+    if (!batchId) return;
+    setRecipientsLoading(true);
+    setRecipientsError(null);
+    try {
+      const res = await adminFetch(
+        `/api/admin/messages/batch/${encodeURIComponent(batchId)}`
+      );
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setRecipientsError(json.message || "수신자 목록을 불러오지 못했습니다.");
+        setRecipients([]);
+        return;
+      }
+      setRecipients(json.data?.recipients ?? []);
+    } catch {
+      setRecipientsError("네트워크 오류");
+      setRecipients([]);
+    } finally {
+      setRecipientsLoading(false);
+    }
+  }, [batchId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setTab("message");
+      setRecipients([]);
+      setRecipientsError(null);
+      return;
+    }
+    if (showRecipientsTab) {
+      void loadRecipients();
+    }
+  }, [isOpen, showRecipientsTab, loadRecipients]);
+
+  const receiverLabel =
+    listKind === "batch"
+      ? `${receiverPhone ? `${receiverPhone} 등` : "다수"} (상세 탭에서 확인)`
+      : formatPhoneDisplay(receiverPhone);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -66,73 +128,174 @@ export function AlimtalkHistoryDetailModal({
           </p>
         </div>
 
+        {showRecipientsTab && (
+          <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-slate-50 px-4 pt-3">
+            <button
+              type="button"
+              onClick={() => setTab("message")}
+              className={`rounded-t-md px-4 py-2 text-sm font-medium transition-colors ${
+                tab === "message"
+                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 ring-b-0"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              메시지
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("recipients")}
+              className={`rounded-t-md px-4 py-2 text-sm font-medium transition-colors ${
+                tab === "recipients"
+                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 ring-b-0"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              수신자 목록
+            </button>
+          </div>
+        )}
+
         <DialogBody className="min-h-0 flex-1 overflow-y-auto bg-gray-50 px-6 py-6">
-          <p className="mb-4 text-sm font-semibold text-gray-900">{title}</p>
-          <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:min-h-[420px]">
-            <div className="flex flex-col gap-6 lg:col-span-5">
-              <div>
-                <h3 className="mb-2 text-sm font-bold text-gray-900">
-                  알림톡 미리보기
-                </h3>
-                <div
-                  className="flex min-h-[280px] max-h-[380px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-[#f3f4f6] shadow-sm"
-                  style={{ boxShadow: "inset 0 0 16px rgba(0,0,0,0.04)" }}
-                >
-                  <div className="flex shrink-0 justify-center border-b border-gray-200/80 py-2">
-                    <div className="h-4 w-12 rounded-full bg-gray-300" />
-                  </div>
-                  <div className="min-h-[200px] min-w-0 flex-1 overflow-y-auto p-4">
-                    <div className="min-w-0 max-w-full rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-                      <p className="min-w-0 whitespace-pre-wrap text-sm leading-relaxed text-gray-800 [overflow-wrap:anywhere]">
-                        {body || "내용 없음"}
-                      </p>
+          {tab === "recipients" && showRecipientsTab ? (
+            <div className="flex min-h-0 flex-col">
+              <p className="mb-3 text-sm text-slate-600">
+                대량 발송 수신자별 접수 결과입니다. (발송 순서)
+              </p>
+              {recipientsLoading && (
+                <p className="py-8 text-center text-sm text-slate-500">
+                  불러오는 중…
+                </p>
+              )}
+              {recipientsError && (
+                <p className="py-4 text-sm text-red-600" role="alert">
+                  {recipientsError}
+                </p>
+              )}
+              {!recipientsLoading && !recipientsError && (
+                <div className="max-h-[min(52vh,480px)] overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="sticky top-0 z-10 bg-slate-100">
+                      <tr>
+                        <th className="px-3 py-2.5 text-left font-semibold text-slate-700">
+                          수신자
+                        </th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-slate-700">
+                          수신번호
+                        </th>
+                        <th className="px-3 py-2.5 text-center font-semibold text-slate-700">
+                          결과
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recipients.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={3}
+                            className="px-4 py-8 text-center text-slate-500"
+                          >
+                            수신자가 없습니다.
+                          </td>
+                        </tr>
+                      ) : (
+                        recipients.map((r) => (
+                          <tr
+                            key={r.id}
+                            className="border-b border-slate-100 last:border-0"
+                          >
+                            <td className="px-3 py-2.5 text-slate-800">
+                              {r.recipientName}
+                            </td>
+                            <td className="px-3 py-2.5 tabular-nums text-slate-700">
+                              {r.recipientPhone || "—"}
+                            </td>
+                            <td className="px-3 py-2.5 text-center">
+                              {r.success ? (
+                                <Badge variant="alim_completed">성공</Badge>
+                              ) : (
+                                <Badge variant="alim_failed">실패</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="mb-4 text-sm font-semibold text-gray-900">{title}</p>
+              <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:min-h-[420px]">
+                <div className="flex flex-col gap-6 lg:col-span-5">
+                  <div>
+                    <h3 className="mb-2 text-sm font-bold text-gray-900">
+                      알림톡 미리보기
+                    </h3>
+                    <div
+                      className="flex min-h-[280px] max-h-[380px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-[#f3f4f6] shadow-sm"
+                      style={{
+                        boxShadow: "inset 0 0 16px rgba(0,0,0,0.04)",
+                      }}
+                    >
+                      <div className="flex shrink-0 justify-center border-b border-gray-200/80 py-2">
+                        <div className="h-4 w-12 rounded-full bg-gray-300" />
+                      </div>
+                      <div className="min-h-[200px] min-w-0 flex-1 overflow-y-auto p-4">
+                        <div className="min-w-0 max-w-full rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                          <p className="min-w-0 whitespace-pre-wrap text-sm leading-relaxed text-gray-800 [overflow-wrap:anywhere]">
+                            {body || "내용 없음"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
+                  </div>
+
+                  <div>
+                    <h3 className="mb-2 text-sm font-bold text-gray-900">
+                      메시지 내용
+                    </h3>
+                    <textarea
+                      value={body}
+                      readOnly
+                      rows={5}
+                      className="max-h-[160px] w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-800"
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                      [알림톡 본문] {body.length}자 · {byteCount} byte (매뉴얼
+                      기준 MSG 최대 1000자)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex min-h-0 w-full min-w-0 flex-col gap-6 lg:col-span-7">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-900">
+                      발신번호
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={formatPhoneDisplay(senderPhone)}
+                      className={inputReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-900">
+                      수신번호
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={receiverLabel}
+                      className={inputReadOnly}
+                    />
                   </div>
                 </div>
               </div>
-
-              <div>
-                <h3 className="mb-2 text-sm font-bold text-gray-900">
-                  메시지 내용
-                </h3>
-                <textarea
-                  value={body}
-                  readOnly
-                  rows={5}
-                  className="max-h-[160px] w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-800"
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                  [알림톡 본문] {body.length}자 · {byteCount} byte (매뉴얼 기준 MSG
-                  최대 1000자)
-                </p>
-              </div>
-            </div>
-
-            <div className="flex min-h-0 w-full min-w-0 flex-col gap-6 lg:col-span-7">
-              <div>
-                <label className="mb-2 block text-sm font-bold text-gray-900">
-                  발신번호
-                </label>
-                <input
-                  type="text"
-                  readOnly
-                  value={formatPhoneDisplay(senderPhone)}
-                  className={inputReadOnly}
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-bold text-gray-900">
-                  수신번호
-                </label>
-                <input
-                  type="text"
-                  readOnly
-                  value={formatPhoneDisplay(receiverPhone)}
-                  className={inputReadOnly}
-                />
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </DialogBody>
 
         <div className="flex shrink-0 items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
