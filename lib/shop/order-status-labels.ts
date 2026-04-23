@@ -33,6 +33,31 @@ export function shopPaymentStatusLabel(status: string | undefined | null): strin
   return SHOP_PAYMENT_STATUS_LABELS[status] ?? "처리 중";
 }
 
+/** 결제 완료 이후에만 의미 있는 주문(status) — DB와 결제 상태가 어긋날 때 고객 배지 혼선 방지 */
+const POST_PAYMENT_ORDER_STATUSES = new Set([
+  "preparing",
+  "shipping",
+  "delivered",
+  "confirmed_purchase",
+]);
+
+/**
+ * 주문 상세 상단 배지용 상태 키.
+ * 결제 대기인데 주문 status만 배송 단계로 올라간 경우(어드민 수동 등) 고객에게는 입금/결제 대기를 우선 표시.
+ */
+export function shopOrderDetailBadgeStatus(order: {
+  status: string;
+  payment_status: string;
+}): { statusKey: string; showPaymentBeforeFulfillmentNote: boolean } {
+  if (
+    order.payment_status === "pending" &&
+    POST_PAYMENT_ORDER_STATUSES.has(order.status)
+  ) {
+    return { statusKey: "pending_payment", showPaymentBeforeFulfillmentNote: true };
+  }
+  return { statusKey: order.status, showPaymentBeforeFulfillmentNote: false };
+}
+
 /** 배지·강조색 (hex) */
 export function shopOrderStatusColor(status: string): string {
   const colors: Record<string, string> = {

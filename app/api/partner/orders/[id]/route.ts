@@ -146,6 +146,25 @@ export async function PATCH(
       return NextResponse.json({ error: "해당 주문에 대한 수정 권한이 없습니다." }, { status: 403 });
     }
 
+    const postPaymentStatuses = new Set([
+      "preparing",
+      "shipping",
+      "delivered",
+      "confirmed_purchase",
+    ]);
+    if (
+      postPaymentStatuses.has(status) &&
+      existingOrder.payment_status !== "paid"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "결제가 완료된 주문만 배송 준비·배송 중·배송 완료·구매 확정 상태로 변경할 수 있습니다. 결제 상태를 먼저 확인해 주세요.",
+        },
+        { status: 400 }
+      );
+    }
+
     const updateData: {
       status: string;
       tracking_number?: string | null;

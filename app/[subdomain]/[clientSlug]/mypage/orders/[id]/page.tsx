@@ -8,6 +8,7 @@ import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { formatTrackingDisplay } from "@/lib/courier";
 import {
+  shopOrderDetailBadgeStatus,
   shopOrderStatusColor,
   shopOrderStatusLabel,
   shopPaymentStatusLabel,
@@ -271,6 +272,11 @@ export default function MyOrderDetailPage() {
     );
   }
 
+  const detailBadge = shopOrderDetailBadgeStatus({
+    status: order.status,
+    payment_status: order.payment_status,
+  });
+
   return (
     <OrderGuard
       partnerId={partner.id}
@@ -337,13 +343,35 @@ export default function MyOrderDetailPage() {
               borderRadius: "20px",
               fontSize: "1rem",
               fontWeight: 700,
-              backgroundColor: `${shopOrderStatusColor(order.status)}20`,
-              color: shopOrderStatusColor(order.status),
+              backgroundColor: `${shopOrderStatusColor(detailBadge.statusKey)}20`,
+              color: shopOrderStatusColor(detailBadge.statusKey),
               marginBottom: "12px",
             }}
           >
-            {shopOrderStatusLabel(order.status)}
+            {shopOrderStatusLabel(detailBadge.statusKey)}
           </span>
+          {detailBadge.showPaymentBeforeFulfillmentNote ? (
+            <p
+              style={{
+                fontSize: "0.75rem",
+                color: "#B45309",
+                backgroundColor: "#FFFBEB",
+                border: "1px solid #FDE68A",
+                borderRadius: "8px",
+                padding: "10px 12px",
+                marginBottom: "12px",
+                lineHeight: 1.5,
+                textAlign: "left",
+                maxWidth: "320px",
+                marginLeft: "auto",
+                marginRight: "auto",
+              }}
+            >
+              아직 <strong>결제가 완료되지 않은</strong> 주문입니다. 결제를 마치면 배송 준비 단계로
+              진행됩니다. (시스템에 등록된 주문 단계와 결제 상태가 잠시 어긋난 경우에도 안내와 같이
+              결제를 우선해 주세요.)
+            </p>
+          ) : null}
           <p style={{ fontSize: "0.875rem", color: "#666" }}>
             주문번호: {order.order_no}
           </p>
@@ -521,7 +549,7 @@ export default function MyOrderDetailPage() {
           </div>
         </div>
 
-        {/* 화훼: 희망 배달·리본 (저장된 경우만) */}
+        {/* 화훼: 희망 배달·리본 — 항상 이 위치(배송지 아래)에서 확인 */}
         {(() => {
           const o = order;
           const hasFlorist =
@@ -531,7 +559,6 @@ export default function MyOrderDetailPage() {
             (o.delivery_request_memo != null && String(o.delivery_request_memo).trim() !== "") ||
             (o.ribbon_sender != null && String(o.ribbon_sender).trim() !== "") ||
             (o.ribbon_message != null && String(o.ribbon_message).trim() !== "");
-          if (!hasFlorist) return null;
           const deliveryLine = formatDesiredDeliveryDateTimeLine(
             o.desired_delivery_date,
             o.delivery_time_slot
@@ -552,82 +579,108 @@ export default function MyOrderDetailPage() {
                 배달·리본 정보
               </h2>
               <p style={{ fontSize: "0.75rem", color: "#9D174D", marginBottom: "12px", lineHeight: 1.45 }}>
-                주문 시 입력하신 희망 배송 일정과 리본 문구입니다.
+                마이페이지에서는 <strong>배송지 정보 바로 아래</strong>에서 희망 배송일·시간과 리본 문구를
+                확인할 수 있습니다.
               </p>
-              <div style={{ fontSize: "0.875rem", lineHeight: 1.65, color: "#374151" }}>
-                <p style={{ marginBottom: "8px" }}>
-                  <span style={{ color: "#6B7280" }}>희망 배송 일시</span>
-                  <br />
-                  <span
-                    style={{
-                      fontWeight: deliveryIsToday ? 700 : 600,
-                      color: deliveryIsToday ? "#B91C1C" : "#111827",
-                    }}
-                  >
-                    {deliveryIsToday ? (
+              {!hasFlorist ? (
+                <p
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "#6B7280",
+                    lineHeight: 1.6,
+                    margin: 0,
+                    padding: "12px",
+                    backgroundColor: "#F9FAFB",
+                    borderRadius: "8px",
+                    border: "1px dashed #E5E7EB",
+                  }}
+                >
+                  저장된 희망 배송일·리본 정보가 없습니다. 이 주문이 저장 기능 도입 이전에 접수되었거나,
+                  주문 시 해당 항목을 남기지 않은 경우입니다. (상세 주소·요청은 위 <strong>배송지 정보</strong>
+                  란에 합쳐져 있을 수 있습니다.)
+                </p>
+              ) : (
+                <>
+                  <div style={{ fontSize: "0.875rem", lineHeight: 1.65, color: "#374151" }}>
+                    <p style={{ marginBottom: "8px" }}>
+                      <span style={{ color: "#6B7280" }}>희망 배송 일시</span>
+                      <br />
                       <span
                         style={{
-                          display: "inline-block",
-                          marginRight: "6px",
-                          fontSize: "0.65rem",
-                          fontWeight: 700,
-                          color: "#fff",
-                          backgroundColor: "#DC2626",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          verticalAlign: "middle",
+                          fontWeight: deliveryIsToday ? 700 : 600,
+                          color: deliveryIsToday ? "#B91C1C" : "#111827",
                         }}
                       >
-                        오늘
+                        {deliveryIsToday ? (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              marginRight: "6px",
+                              fontSize: "0.65rem",
+                              fontWeight: 700,
+                              color: "#fff",
+                              backgroundColor: "#DC2626",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              verticalAlign: "middle",
+                            }}
+                          >
+                            오늘
+                          </span>
+                        ) : null}
+                        {deliveryLine}
                       </span>
+                    </p>
+                    <p style={{ marginBottom: "8px" }}>
+                      <span style={{ color: "#6B7280" }}>배송 방식</span>
+                      <br />
+                      <span style={{ fontWeight: 600 }}>{formatAdminDeliveryMethod(o.delivery_method)}</span>
+                    </p>
+                    {o.delivery_request_memo?.trim() ? (
+                      <p style={{ marginBottom: "12px" }}>
+                        <span style={{ color: "#6B7280" }}>배송 요청</span>
+                        <br />
+                        <span style={{ whiteSpace: "pre-wrap" }}>{o.delivery_request_memo.trim()}</span>
+                      </p>
                     ) : null}
-                    {deliveryLine}
-                  </span>
-                </p>
-                <p style={{ marginBottom: "8px" }}>
-                  <span style={{ color: "#6B7280" }}>배송 방식</span>
-                  <br />
-                  <span style={{ fontWeight: 600 }}>{formatAdminDeliveryMethod(o.delivery_method)}</span>
-                </p>
-                {o.delivery_request_memo?.trim() ? (
-                  <p style={{ marginBottom: "12px" }}>
-                    <span style={{ color: "#6B7280" }}>배송 요청</span>
-                    <br />
-                    <span style={{ whiteSpace: "pre-wrap" }}>{o.delivery_request_memo.trim()}</span>
+                  </div>
+                  <p style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#831843", marginBottom: "8px" }}>
+                    리본 문구
                   </p>
-                ) : null}
-              </div>
-              <p style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#831843", marginBottom: "8px" }}>
-                리본 문구
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0,
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  border: "1px solid #F9A8D4",
-                  backgroundColor: "#fff",
-                }}
-              >
-                <div style={{ padding: "12px", borderBottom: "1px solid #FCE7F3" }}>
-                  <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#BE185D", marginBottom: "4px" }}>
-                    경조사어
-                  </p>
-                  <p style={{ fontSize: "0.875rem", fontWeight: 600, whiteSpace: "pre-wrap", margin: 0 }}>
-                    {o.ribbon_message?.trim() || "—"}
-                  </p>
-                </div>
-                <div style={{ padding: "12px", backgroundColor: "#FDF2F8" }}>
-                  <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#BE185D", marginBottom: "4px" }}>
-                    보내는 분
-                  </p>
-                  <p style={{ fontSize: "0.875rem", fontWeight: 600, whiteSpace: "pre-wrap", margin: 0 }}>
-                    {o.ribbon_sender?.trim() || "—"}
-                  </p>
-                </div>
-              </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0,
+                      borderRadius: "8px",
+                      overflow: "hidden",
+                      border: "1px solid #F9A8D4",
+                      backgroundColor: "#fff",
+                    }}
+                  >
+                    <div style={{ padding: "12px", borderBottom: "1px solid #FCE7F3" }}>
+                      <p
+                        style={{ fontSize: "0.65rem", fontWeight: 700, color: "#BE185D", marginBottom: "4px" }}
+                      >
+                        경조사어
+                      </p>
+                      <p style={{ fontSize: "0.875rem", fontWeight: 600, whiteSpace: "pre-wrap", margin: 0 }}>
+                        {o.ribbon_message?.trim() || "—"}
+                      </p>
+                    </div>
+                    <div style={{ padding: "12px", backgroundColor: "#FDF2F8" }}>
+                      <p
+                        style={{ fontSize: "0.65rem", fontWeight: 700, color: "#BE185D", marginBottom: "4px" }}
+                      >
+                        보내는 분
+                      </p>
+                      <p style={{ fontSize: "0.875rem", fontWeight: 600, whiteSpace: "pre-wrap", margin: 0 }}>
+                        {o.ribbon_sender?.trim() || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           );
         })()}

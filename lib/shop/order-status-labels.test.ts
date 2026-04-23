@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { shopOrderStatusLabel, shopPaymentStatusLabel } from "@/lib/shop/order-status-labels";
+import { shopOrderDetailBadgeStatus } from "./order-status-labels";
 
-describe("order-status-labels", () => {
-  it("shopOrderStatusLabel: 알 수 없는 값은 처리 중", () => {
-    expect(shopOrderStatusLabel("confirmed")).toBe("주문 확정");
-    expect(shopOrderStatusLabel("unknown_code")).toBe("처리 중");
-    expect(shopOrderStatusLabel(null)).toBe("처리 중");
+describe("shopOrderDetailBadgeStatus", () => {
+  it("결제 대기인데 배송준비중이면 입금 대기 배지로 통일", () => {
+    const r = shopOrderDetailBadgeStatus({ status: "preparing", payment_status: "pending" });
+    expect(r.statusKey).toBe("pending_payment");
+    expect(r.showPaymentBeforeFulfillmentNote).toBe(true);
   });
 
-  it("shopPaymentStatusLabel", () => {
-    expect(shopPaymentStatusLabel("paid")).toBe("결제 완료");
-    expect(shopPaymentStatusLabel("weird")).toBe("처리 중");
+  it("결제 완료면 주문 status 그대로", () => {
+    const r = shopOrderDetailBadgeStatus({ status: "preparing", payment_status: "paid" });
+    expect(r.statusKey).toBe("preparing");
+    expect(r.showPaymentBeforeFulfillmentNote).toBe(false);
+  });
+
+  it("결제 대기 + 접수는 그대로", () => {
+    const r = shopOrderDetailBadgeStatus({ status: "received", payment_status: "pending" });
+    expect(r.statusKey).toBe("received");
+    expect(r.showPaymentBeforeFulfillmentNote).toBe(false);
   });
 });
