@@ -10,6 +10,11 @@ import {
   shopOrderStatusLabel,
   SHOP_ORDER_STATUS_LABELS,
 } from "@/lib/shop/order-status-labels";
+import {
+  formatDesiredDeliveryDateTimeLine,
+  getAdminLocalTodayYmd,
+  isDesiredDeliveryToday,
+} from "@/lib/admin-florist-order-display";
 
 /**
  * T6-2: 마이페이지 주문 목록
@@ -46,6 +51,10 @@ interface Order {
   delivery_photo_url?: string | null;
   client?: Client | null;
   order_items: OrderItem[];
+  desired_delivery_date?: string | null;
+  delivery_time_slot?: string | null;
+  ribbon_message?: string | null;
+  ribbon_sender?: string | null;
 }
 
 export default function MyOrdersPage() {
@@ -309,6 +318,59 @@ export default function MyOrdersPage() {
                       {order.order_items.length > 1 &&
                         ` 외 ${order.order_items.length - 1}개`}
                     </p>
+                    {(() => {
+                      const deliveryLine = formatDesiredDeliveryDateTimeLine(
+                        order.desired_delivery_date,
+                        order.delivery_time_slot
+                      );
+                      if (deliveryLine === "—") return null;
+                      const today = getAdminLocalTodayYmd();
+                      const isToday = isDesiredDeliveryToday(order.desired_delivery_date, today);
+                      return (
+                        <p
+                          style={{
+                            fontSize: "0.8125rem",
+                            color: isToday ? "#B91C1C" : "#4B5563",
+                            fontWeight: isToday ? 700 : 500,
+                            marginBottom: "6px",
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {isToday ? (
+                            <span
+                              style={{
+                                marginRight: "6px",
+                                fontSize: "0.65rem",
+                                fontWeight: 700,
+                                color: "#fff",
+                                backgroundColor: "#DC2626",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                verticalAlign: "middle",
+                              }}
+                            >
+                              오늘
+                            </span>
+                          ) : null}
+                          희망 배송: {deliveryLine}
+                        </p>
+                      );
+                    })()}
+                    {(order.ribbon_message?.trim() || order.ribbon_sender?.trim()) && (
+                      <p
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "#6B7280",
+                          marginBottom: "6px",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        리본:{" "}
+                        {[order.ribbon_message?.trim(), order.ribbon_sender?.trim()]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    )}
                     <p style={{ fontSize: "1rem", fontWeight: 700, color: "#333" }}>
                       {formatPrice(order.total_amount)}원
                     </p>
