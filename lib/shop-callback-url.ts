@@ -107,3 +107,43 @@ export function inferPartnerSubdomainForRootLogin(defaultSub: string): string {
 
   return defaultSub;
 }
+
+/** ShopLayout이 심는 마지막 거래처 slug (로그인·추가정보 후 복귀 URL 보정용) */
+export const LAST_SHOP_CLIENT_SLUG_COOKIE = "last_shop_client_slug";
+
+export function readLastShopClientSlugFromBrowser(): string | null {
+  return readCookie(LAST_SHOP_CLIENT_SLUG_COOKIE);
+}
+
+/**
+ * /{subdomain}/mypage 처럼 거래처 slug 없이 mypage만 온 잘못된 경로를 보정합니다.
+ * @param pathOrUrl 상대 또는 절대 URL
+ * @param clientSlugHint 쿠키 등에서 복원한 거래처 slug (없으면 파트너 루트만 사용)
+ */
+export function normalizeShopReturnUrl(
+  pathOrUrl: string,
+  subdomain: string,
+  clientSlugHint: string | null
+): string {
+  if (!pathOrUrl?.trim()) return pathOrUrl;
+  try {
+    const isAbs = pathOrUrl.startsWith("http");
+    const u = isAbs
+      ? new URL(pathOrUrl)
+      : new URL(pathOrUrl, "http://relative.local");
+    const segs = u.pathname.split("/").filter(Boolean);
+    if (segs[0] !== subdomain) return pathOrUrl;
+    if (segs.length === 2 && segs[1] === "mypage") {
+      if (clientSlugHint && !RESERVED_FIRST_SEG.has(clientSlugHint)) {
+        u.pathname = `/${subdomain}/${clientSlugHint}/mypage`;
+      } else {
+        u.pathname = `/${subdomain}`;
+      }
+      if (isAbs) return `${u.origin}${u.pathname}${u.search}`;
+      return u.pathname + (u.search || "");
+    }
+    return pathOrUrl;
+  } catch {
+    return pathOrUrl;
+  }
+}

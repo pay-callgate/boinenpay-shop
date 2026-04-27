@@ -357,7 +357,10 @@ export function ShopLayout({
     if (typeof document === "undefined" || !subdomain) return;
     const maxAge = 60 * 60 * 24 * 180;
     document.cookie = `last_partner_subdomain=${encodeURIComponent(subdomain)}; path=/; max-age=${maxAge}; SameSite=Lax`;
-  }, [subdomain]);
+    if (clientSlug && clientSlug !== "_preview") {
+      document.cookie = `last_shop_client_slug=${encodeURIComponent(clientSlug)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+    }
+  }, [subdomain, clientSlug]);
 
   return (
     <ShopTemplateProvider value={contextValue}>

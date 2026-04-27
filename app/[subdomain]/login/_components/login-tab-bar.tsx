@@ -1,19 +1,20 @@
 import Link from "next/link";
+import { buildShopLoginQuery } from "../_lib/shop-login-query";
 import type { ShopLoginTab } from "./login-tab-bar-types";
 
 export type { ShopLoginTab } from "./login-tab-bar-types";
 
 type Props = {
   subdomain: string;
-  /** 예: callbackUrl=https%3A%2F%2F... */
-  searchQuery: string;
+  callbackUrl: string;
   active: ShopLoginTab;
 };
 
-export function LoginTabBar({ subdomain, searchQuery, active }: Props) {
-  const q = searchQuery ? `?${searchQuery}` : "";
-  const memberHref = `/${subdomain}/login${q}`;
-  const guestHref = `/${subdomain}/login/guest${q}`;
+export function LoginTabBar({ subdomain, callbackUrl, active }: Props) {
+  const memberQ = buildShopLoginQuery(callbackUrl, "member");
+  const guestQ = buildShopLoginQuery(callbackUrl, "guest");
+  const memberHref = `/${subdomain}/login?${memberQ}`;
+  const guestHref = `/${subdomain}/login?${guestQ}`;
 
   const baseInactive = "text-slate-600 hover:text-slate-900";
   const baseActive = "bg-slate-900 text-white shadow-md";

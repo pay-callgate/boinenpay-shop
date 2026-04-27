@@ -117,8 +117,11 @@ export default function ShopEmailSignupPage() {
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-600">
-        <Link href={`/${subdomain}/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="underline">
-          다른 방법으로 가입
+        <Link
+          href={`/${subdomain}/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+          className="underline"
+        >
+          로그인 화면으로
         </Link>
       </p>
     </div>

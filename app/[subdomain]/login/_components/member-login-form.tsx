@@ -1,9 +1,10 @@
 import Link from "next/link";
-import type { FormEvent } from "react";
+import type { FormEvent, RefObject } from "react";
 
 type Props = {
   subdomain: string;
   callbackUrl: string;
+  memberIdInputRef?: RefObject<HTMLInputElement | null>;
   memberId: string;
   memberPw: string;
   showPw: boolean;
@@ -20,6 +21,7 @@ type Props = {
 export function MemberLoginForm({
   subdomain,
   callbackUrl,
+  memberIdInputRef,
   memberId,
   memberPw,
   showPw,
@@ -40,6 +42,7 @@ export function MemberLoginForm({
         </label>
         <input
           id="shop-login-id"
+          ref={memberIdInputRef}
           name="shop_login_identifier"
           type="text"
           autoComplete="off"
@@ -99,10 +102,10 @@ export function MemberLoginForm({
         <span className="cursor-not-allowed opacity-70">비밀번호 찾기</span>
         <span className="text-slate-300">|</span>
         <Link
-          href={`/${subdomain}/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+          href={`/${subdomain}/signup/email?callbackUrl=${encodeURIComponent(callbackUrl)}`}
           className="font-bold text-slate-900 hover:underline"
         >
-          회원가입
+          이메일로 가입하기
         </Link>
       </div>
     </form>

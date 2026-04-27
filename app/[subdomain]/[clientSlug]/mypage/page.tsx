@@ -41,7 +41,7 @@ const ORDER_STATUS_ITEMS = [
 export default function MyPage() {
   const params = useParams();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const template = useShopTemplate();
   const partner = (template?.partner ?? null) as ShopPartner | null;
   const client = (template?.client ?? null) as ShopClient | null;
@@ -51,14 +51,37 @@ export default function MyPage() {
 
   const [stats, setStats] = useState<Stats | null>(null);
 
-  // 주문 현황 통계 (전역 shopFetch — 401/403 시 자동 세션 만료 처리)
+  // 주문 현황 통계 — 세션 확정 후에만 요청, 401 시 전역 signOut 금지(Silent Fail)
   useEffect(() => {
-    if (!client?.id) return;
-    shopFetch(`/api/mypage/stats?clientId=${client.id}`)
-      .then((res) => (res.ok ? res.json() : { stats: null }))
-      .then((data) => setStats(data?.stats ?? null))
-      .catch(() => setStats(null));
-  }, [client?.id]);
+    if (sessionStatus !== "authenticated" || !client?.id) return;
+    let cancelled = false;
+    shopFetch(`/api/mypage/stats?clientId=${client.id}`, {
+      handleSessionExpiry: false,
+    })
+      .then((res) => {
+        if (!res.ok) {
+          if (typeof window !== "undefined") {
+            console.warn("[MyPage] stats non-OK (silent)", res.status, client.id);
+          }
+          return { stats: null };
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setStats(data?.stats ?? null);
+          if (typeof window !== "undefined" && data?.stats) {
+            console.log("[MyPage] stats loaded", { clientId: client.id });
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionStatus, client?.id]);
 
   const base = `/${subdomain}/${clientSlug}`;
 

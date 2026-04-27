@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useUserClient } from "@/hooks/useUserClient";
@@ -56,11 +56,96 @@ export function OrderGuard({
   const params = useParams();
   const router = useRouter();
   const subdomain = (params?.subdomain as string) ?? "";
+  const clientSlugFromUrl = (params?.clientSlug as string | undefined) ?? "";
   const { data: session, status } = useSession();
   const { isMatched, loading, refresh, userClients } = useUserClient(partnerId);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [skipGuard, setSkipGuard] = useState(false);
   const [loopError, setLoopError] = useState<string | null>(null);
+  const [autoBindFailed, setAutoBindFailed] = useState(false);
+  const autoBindStartedRef = useRef(false);
+
+  const canAutoBind =
+    status === "authenticated" &&
+    requireAuth !== false &&
+    !!partnerId &&
+    !!shopClientId &&
+    !!clientSlugFromUrl &&
+    clientSlugFromUrl !== "_preview";
+
+  useEffect(() => {
+    if (isMatched) {
+      autoBindStartedRef.current = false;
+      setAutoBindFailed(false);
+    }
+  }, [isMatched]);
+
+  useEffect(() => {
+    if (!canAutoBind || loading || isMatched || autoBindFailed) return;
+    if (autoBindStartedRef.current) return;
+    autoBindStartedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/shop/auth/bind-client", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            partnerId,
+            clientSlug: clientSlugFromUrl,
+          }),
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          await refresh();
+          console.log("[OrderGuard] auto-bind OK", {
+            partnerId,
+            clientSlug: clientSlugFromUrl,
+          });
+        } else {
+          let staleSession = false;
+          try {
+            const body = (await res.json()) as { code?: string };
+            staleSession = body?.code === "STALE_SESSION";
+          } catch {
+            /* ignore */
+          }
+          if (staleSession && typeof window !== "undefined" && subdomain) {
+            try {
+              await signOut({ redirect: false });
+            } catch {
+              /* still navigate to login */
+            }
+            const returnTo = `${window.location.pathname}${window.location.search}`;
+            router.replace(
+              `/${subdomain}/login?callbackUrl=${encodeURIComponent(returnTo)}`
+            );
+            return;
+          }
+          setAutoBindFailed(true);
+          console.warn("[OrderGuard] auto-bind failed", res.status);
+        }
+      } catch {
+        if (!cancelled) {
+          setAutoBindFailed(true);
+          console.warn("[OrderGuard] auto-bind error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      autoBindStartedRef.current = false;
+    };
+  }, [
+    canAutoBind,
+    loading,
+    isMatched,
+    partnerId,
+    clientSlugFromUrl,
+    refresh,
+    autoBindFailed,
+  ]);
 
   // 미로그인 시 중간 Gate 없이 즉시 거래처 전용 로그인 페이지로 리다이렉트
   useEffect(() => {
@@ -133,6 +218,29 @@ export function OrderGuard({
       >
         {/* 로그인 페이지로 이동 중... */}
       </div>
+    );
+  }
+
+  const showAutoBindSpinner =
+    requireAuth !== false &&
+    !isMatched &&
+    !skipGuard &&
+    canAutoBind &&
+    !autoBindFailed;
+
+  if (showAutoBindSpinner) {
+    return (
+      fallback || (
+        <div
+          style={{
+            padding: "40px",
+            textAlign: "center",
+            color: "#999",
+          }}
+        >
+          {/* 소속 연결 중... */}
+        </div>
+      )
     );
   }
 

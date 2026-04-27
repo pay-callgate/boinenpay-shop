@@ -48,7 +48,9 @@ export function ShopLoginHeader({
       <h1 className="text-[1.35rem] font-bold leading-snug tracking-tight text-[#1e293b] sm:text-2xl">
         {displayPartner} 전용 쇼핑몰
       </h1>
-      <p className="mt-3 text-sm leading-relaxed text-slate-600">임직원 여러분 환영합니다.</p>
+      <p className="mt-3 text-sm leading-relaxed text-slate-600">
+        임직원 여러분 환영합니다!
+      </p>
     </div>
   );
 }

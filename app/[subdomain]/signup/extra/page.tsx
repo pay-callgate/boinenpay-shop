@@ -4,7 +4,11 @@ import { useSession } from "next-auth/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { getStorefrontUrl } from "@/lib/app-url";
-import { sanitizeCallbackUrlAgainstLoginLoop } from "@/lib/shop-callback-url";
+import {
+  normalizeShopReturnUrl,
+  readLastShopClientSlugFromBrowser,
+  sanitizeCallbackUrlAgainstLoginLoop,
+} from "@/lib/shop-callback-url";
 
 /**
  * 소셜/이메일 가입 후 추가 정보: 휴대폰 + 필수 약관.
@@ -16,15 +20,25 @@ export default function SignupExtraPage() {
   const searchParams = useSearchParams();
   const subdomain = (params?.subdomain as string) ?? "";
   const { data: session, status, update } = useSession();
+  const [lastClientSlug, setLastClientSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLastClientSlug(readLastShopClientSlugFromBrowser());
+  }, []);
 
   const callbackUrl = useMemo(() => {
     const raw = searchParams?.get("callbackUrl");
-    const fallback = getStorefrontUrl(subdomain);
+    const hint = lastClientSlug;
+    const fallback = normalizeShopReturnUrl(
+      getStorefrontUrl(subdomain, hint ?? undefined),
+      subdomain,
+      hint
+    );
     if (raw == null || raw === "") return fallback;
     const safe = sanitizeCallbackUrlAgainstLoginLoop(raw);
     if (safe === "") return fallback;
-    return safe;
-  }, [searchParams, subdomain]);
+    return normalizeShopReturnUrl(safe, subdomain, hint);
+  }, [searchParams, subdomain, lastClientSlug]);
 
   const [phone, setPhone] = useState("");
   const [terms, setTerms] = useState(false);

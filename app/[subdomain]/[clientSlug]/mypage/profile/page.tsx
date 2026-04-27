@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useUserClient } from "@/hooks/useUserClient";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
@@ -30,10 +31,11 @@ interface User {
 export default function ProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const template = useShopTemplate();
   const partner = template?.partner ?? null;
   const client = template?.client ?? null;
+  const { isMatched, loading: ucLoading, refresh } = useUserClient(partner?.id);
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
@@ -52,21 +54,74 @@ export default function ProfilePage() {
     phone: "",
   });
 
-  // 회원정보 조회 (Context 준비 후 실행, clientId 필수)
+  /** 같은 몰에서 인라인 bind-client 1회 (OrderGuard와 레이스 시 프로필이 먼저 나가는 것 방지) */
+  const profileBindIssuedRef = useRef(false);
+
+  useEffect(() => {
+    profileBindIssuedRef.current = false;
+  }, [session?.user?.id, partner?.id, clientSlug]);
+
+  /**
+   * 회원정보 조회: 세션 확정 + user_clients 로딩 완료 후,
+   * 미소속이면 bind-client → refresh → isMatched 된 뒤 재실행되어 조회.
+   */
   useEffect(() => {
     if (!partner?.id || !client?.id) return;
+
+    if (sessionStatus === "loading") return;
+    if (sessionStatus === "unauthenticated") {
+      setLoading(false);
+      setUser(null);
+      setLoadIssue(null);
+      return;
+    }
+
+    if (ucLoading) return;
+
     let cancelled = false;
-    setLoading(true);
 
     (async () => {
+      setLoading(true);
+      setLoadIssue(null);
+
+      if (
+        !isMatched &&
+        clientSlug &&
+        clientSlug !== "_preview" &&
+        !profileBindIssuedRef.current
+      ) {
+        profileBindIssuedRef.current = true;
+        try {
+          const res = await fetch("/api/shop/auth/bind-client", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              partnerId: partner.id,
+              clientSlug,
+            }),
+          });
+          if (cancelled) return;
+          if (res.ok) {
+            await refresh();
+            setUser(null);
+            setLoadIssue(null);
+            return;
+          }
+        } catch {
+          /* 아래에서 프로필 조회로 403 힌트 확보 */
+        }
+      }
+
       try {
-        setLoadIssue(null);
-        const res = await shopFetch(`/api/mypage/profile?clientId=${client.id}`);
+        const res = await shopFetch(`/api/mypage/profile?clientId=${client.id}`, {
+          handleSessionExpiry: false,
+        });
         if (cancelled) return;
 
         const parsed = await parseShopJsonResponse<{ user: User | null }>(res);
         if (!parsed.ok) {
-          console.error(
+          console.warn(
             "[mypage/profile] 조회 실패:",
             parsed.status,
             parsed.body?.error ?? res.statusText
@@ -100,10 +155,11 @@ export default function ProfilePage() {
           name: u.name ?? "",
           phone: u.phone || "",
         });
+        setLoadIssue(null);
       } catch (e) {
         if (e instanceof Error && e.message === "SESSION_EXPIRED") return;
         if (!cancelled) {
-          console.error("[mypage/profile] 네트워크 오류:", e);
+          console.warn("[mypage/profile] 네트워크 오류:", e);
           toast("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "error");
           setUser(null);
           setLoadIssue({
@@ -119,7 +175,16 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [partner?.id, client?.id]);
+  }, [
+    partner?.id,
+    client?.id,
+    clientSlug,
+    sessionStatus,
+    session?.user?.id,
+    ucLoading,
+    isMatched,
+    refresh,
+  ]);
 
   // 회원정보 저장
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,7 +208,7 @@ export default function ProfilePage() {
         toast("회원정보가 수정되었습니다.", "success");
         if (parsed.data.user?.id) setUser(parsed.data.user as User);
       } else {
-        console.error("[mypage/profile] 수정 실패:", parsed.status, parsed.body?.error);
+        console.warn("[mypage/profile] 수정 실패:", parsed.status, parsed.body?.error);
         if (parsed.status === 403) {
           const rc = parsed.body.registeredClient;
           const msg = rc?.name?.trim()
