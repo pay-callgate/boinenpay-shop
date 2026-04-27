@@ -129,7 +129,6 @@ export async function POST(request: NextRequest) {
     const { data: existingByUser } = await supabase
       .from("user_clients")
       .select(`
-        id,
         user_id,
         client_id,
         role,

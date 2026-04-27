@@ -14,7 +14,7 @@ export async function hasMypageClientAccess(
   const [userClientsRes, ordersRes] = await Promise.all([
     supabase
       .from("user_clients")
-      .select("id")
+      .select("client_id")
       .eq("user_id", userId)
       .eq("client_id", clientId)
       .maybeSingle(),
@@ -41,7 +41,7 @@ export async function userBelongsToClient(
 ): Promise<boolean> {
   const { data } = await supabase
     .from("user_clients")
-    .select("id")
+    .select("client_id")
     .eq("user_id", userId)
     .eq("client_id", clientId)
     .maybeSingle();

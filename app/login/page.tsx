@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import {
   inferPartnerSubdomainForRootLogin,
+  isAdminPortalCallbackUrl,
   sanitizeCallbackUrlAgainstLoginLoop,
 } from "@/lib/shop-callback-url";
 
@@ -32,6 +33,24 @@ function LoginRedirectContent() {
   useEffect(() => {
     const rawCallback = searchParams?.get("callbackUrl") ?? "";
     const params = new URLSearchParams(searchParams?.toString() ?? "");
+
+    const adminByReferrer =
+      typeof document !== "undefined" &&
+      (() => {
+        try {
+          const ref = document.referrer;
+          if (!ref) return false;
+          return new URL(ref).pathname.startsWith("/admin");
+        } catch {
+          return false;
+        }
+      })();
+
+    if (isAdminPortalCallbackUrl(rawCallback) || adminByReferrer) {
+      const query = params.toString() ? `?${params.toString()}` : "";
+      router.replace(`/admin/login${query}`);
+      return;
+    }
 
     let subdomain = DEFAULT_SUBDOMAIN;
     if (rawCallback) {

@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     const [userClientsRes, ordersRes] = await Promise.all([
       supabase
         .from("user_clients")
-        .select("id")
+        .select("client_id")
         .eq("user_id", session.user.id)
         .eq("client_id", clientId)
         .maybeSingle(),
@@ -153,7 +153,7 @@ export async function PUT(request: NextRequest) {
     const [userClientsRes, ordersRes] = await Promise.all([
       supabase
         .from("user_clients")
-        .select("id")
+        .select("client_id")
         .eq("user_id", session.user.id)
         .eq("client_id", clientId)
         .maybeSingle(),

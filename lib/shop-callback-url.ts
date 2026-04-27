@@ -13,6 +13,23 @@ const RESERVED_FIRST_SEG = new Set([
   "favicon.ico",
 ]);
 
+/**
+ * callbackUrl이 파트너 중앙 어드민(/admin...) 복귀용인지.
+ * NextAuth가 /login?error=...&callbackUrl=/admin 으로 보낼 때 몰 로그인으로 잘못 라우팅되지 않게 함.
+ */
+export function isAdminPortalCallbackUrl(raw: string): boolean {
+  if (!raw?.trim()) return false;
+  try {
+    const pathnameOnly = raw.startsWith("http")
+      ? new URL(raw).pathname
+      : raw.split("?")[0] ?? "";
+    const first = pathnameOnly.split("/").filter(Boolean)[0];
+    return first === "admin";
+  } catch {
+    return false;
+  }
+}
+
 /** 브라우저 기준 현재 쇼핑 풀 경로 (도메인 제외, 쿼리 포함) */
 export function getShopRelativeReturnPath(): string {
   if (typeof window === "undefined") return "";
