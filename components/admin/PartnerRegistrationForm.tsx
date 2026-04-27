@@ -40,7 +40,7 @@ export function PartnerRegistrationForm({
   onSuccess,
   onCancel,
 }: PartnerRegistrationFormProps) {
-  const { data: session, status: sessionStatus } = useSession();
+  const { data: session, status: sessionStatus, update } = useSession();
   const [partnerList, setPartnerList] = useState<PartnerListItem[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState("");
   const [businessRegistrationNumber, setBusinessRegistrationNumber] = useState("");
@@ -141,6 +141,7 @@ export function PartnerRegistrationForm({
       });
       const json = await res.json();
       if (json.success) {
+        await update({ role: "partner_admin", profileCompleted: true });
         onSuccess?.();
       } else {
         setSubmitError(json.error?.message ?? "등록에 실패했습니다.");

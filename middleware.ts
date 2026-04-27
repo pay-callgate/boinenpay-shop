@@ -76,6 +76,39 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  /** 쇼핑몰: 고객(end_customer) 프로필 미완료 → /{파트너}/signup/extra */
+  const pathParts = pathname.split("/").filter(Boolean);
+  if (pathParts.length >= 2) {
+    const partnerSeg = pathParts[0];
+    const secondSeg = pathParts[1];
+    const skipProfileGate =
+      secondSeg === "login" ||
+      secondSeg === "signup" ||
+      partnerSeg === "api" ||
+      partnerSeg === "_next";
+    if (!skipProfileGate && partnerSeg !== "admin") {
+      const token = await getToken({
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET,
+      });
+      const role = token?.role as string | undefined;
+      const profileCompleted = token?.profileCompleted as boolean | undefined;
+      if (
+        (token?.userId ?? token?.sub) &&
+        role === "end_customer" &&
+        profileCompleted === false
+      ) {
+        const url = request.nextUrl.clone();
+        url.pathname = `/${partnerSeg}/signup/extra`;
+        url.searchParams.set(
+          "callbackUrl",
+          `${pathname}${request.nextUrl.search}`
+        );
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   const isLocalhost =
     host.startsWith("localhost") || host.startsWith("127.0.0.1");
   const isShoppingRoot =

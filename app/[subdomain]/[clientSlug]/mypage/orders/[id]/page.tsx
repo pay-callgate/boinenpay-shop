@@ -94,18 +94,26 @@ export default function MyOrderDetailPage() {
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
   const orderId = params?.id as string;
+  const guestToken = searchParams?.get("guestToken") ?? "";
+  const guestSig = searchParams?.get("sig") ?? "";
+  const guestMode = Boolean(guestToken && guestSig);
 
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
+  const orderApiUrl =
+    guestMode && guestToken && guestSig
+      ? `/api/orders/${orderId}?guestToken=${encodeURIComponent(guestToken)}&sig=${encodeURIComponent(guestSig)}`
+      : `/api/orders/${orderId}`;
+
   // 주문 상세 조회 (Context 준비 후 실행)
   useEffect(() => {
     if (!orderId || !partner?.id || !client?.id) return;
     let cancelled = false;
     setLoading(true);
-    shopFetch(`/api/orders/${orderId}`)
+    shopFetch(orderApiUrl, { handleSessionExpiry: !guestMode })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;
@@ -120,7 +128,7 @@ export default function MyOrderDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [orderId, partner?.id, client?.id]);
+  }, [orderId, partner?.id, client?.id, orderApiUrl, guestMode]);
 
   // Phase F1: 결제창에서 취소 후 cancelUrl로 돌아온 경우
   useEffect(() => {
@@ -237,6 +245,8 @@ export default function MyOrderDetailPage() {
         partnerId={partner.id}
         shopClientId={client?.id}
         shopClientName={client?.name ?? undefined}
+        requireAuth={!guestMode}
+        blockAffiliationMismatch={!guestMode}
       >
         <div
           style={{
@@ -282,6 +292,8 @@ export default function MyOrderDetailPage() {
       partnerId={partner.id}
       shopClientId={client?.id}
       shopClientName={client?.name ?? undefined}
+      requireAuth={!guestMode}
+      blockAffiliationMismatch={!guestMode}
     >
       <div
         style={{

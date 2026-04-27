@@ -159,7 +159,12 @@ export async function POST(request: Request) {
 
     await supabase
       .from("users")
-      .update({ role: "partner_admin", updated_at: new Date().toISOString() })
+      .update({
+        role: "partner_admin",
+        profile_completed: true,
+        terms_agreed: true,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", session.user.id);
 
     console.log("✅ [API] 파트너 등록 완전히 성공! Partner ID:", partner.id);

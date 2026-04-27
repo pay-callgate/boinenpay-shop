@@ -1,11 +1,17 @@
 import type { NextAuthOptions } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 import KakaoProvider from "next-auth/providers/kakao";
 import NaverProvider from "next-auth/providers/naver";
 import type { JWT } from "next-auth/jwt";
 import { logger } from "@/lib/logger";
 
-/** 카카오는 profile.kakao_account.email / properties.nickname 에 값이 있음. 구글/네이버는 profile.email, profile.name */
+type JwtExt = JWT & {
+  userId?: string;
+  profileCompleted?: boolean;
+  role?: string;
+};
+
+/** 카카오: kakao_account.email / properties.nickname. 네이버: profile.response.name → nickname fallback (+ user.name). 기타: profile.name */
 function getEmailFromProfile(
   provider: string | undefined,
   profile: unknown,
@@ -28,21 +34,79 @@ function getNameFromProfile(
   const p = profile as Record<string, unknown> | null | undefined;
   if (provider === "kakao") {
     const props = (p?.properties as { nickname?: string } | undefined);
-    return props?.nickname ?? user?.name ?? null;
+    const nick = props?.nickname?.trim();
+    if (nick) return nick;
+    const un = user?.name?.trim();
+    return un || null;
   }
-  return (p?.name as string | undefined) ?? user?.name ?? null;
+  if (provider === "naver") {
+    const res = p?.response as { name?: string; nickname?: string } | undefined;
+    const realName = res?.name?.trim();
+    if (realName) return realName;
+    const nickname = res?.nickname?.trim();
+    if (nickname) return nickname;
+    const un = user?.name?.trim();
+    return un || null;
+  }
+  const top = (p?.name as string | undefined)?.trim();
+  if (top) return top;
+  const un = user?.name?.trim();
+  return un || null;
+}
+
+async function loadUserFlags(userId: string): Promise<{
+  profile_completed: boolean;
+  role: string;
+}> {
+  const { createServerSupabase } = await import("@/lib/supabase/server");
+  const supabase = createServerSupabase();
+  const { data, error } = await supabase
+    .from("users")
+    .select("profile_completed, role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data) {
+    return { profile_completed: false, role: "end_customer" };
+  }
+  return {
+    profile_completed: !!data.profile_completed,
+    role: String(data.role ?? "end_customer"),
+  };
 }
 
 /**
- * NextAuth 설정 (Phase 0 T0-3, Phase 1 T1-1).
- * SNS OAuth: 구글, 카카오, 네이버.
- * 로그인 시 public.users upsert 시도 (Supabase). FK to auth.users 있으면 실패 가능 → docs/SUPABASE_SCHEMA_AUDIT 참고.
+ * NextAuth: 카카오·네이버 OAuth + 이메일/비밀번호(Credentials).
+ * 로그인 시 public.users upsert/조회 (Supabase Service Role).
  */
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    CredentialsProvider({
+      id: "credentials",
+      name: "credentials",
+      credentials: {
+        email: { label: "이메일(아이디)", type: "text" },
+        password: { label: "비밀번호", type: "password" },
+      },
+      async authorize(credentials) {
+        const emailRaw = credentials?.email?.trim().toLowerCase() ?? "";
+        const password = credentials?.password ?? "";
+        if (!emailRaw || !password) return null;
+        const { createServerSupabase } = await import("@/lib/supabase/server");
+        const { verifyMemberPassword } = await import("@/lib/member-password");
+        const supabase = createServerSupabase();
+        const { data: row, error } = await supabase
+          .from("users")
+          .select("id, email, name, password_hash")
+          .eq("email", emailRaw)
+          .maybeSingle();
+        if (error || !row?.password_hash) return null;
+        if (!verifyMemberPassword(password, row.password_hash)) return null;
+        return {
+          id: row.id,
+          email: row.email,
+          name: row.name ?? undefined,
+        };
+      },
     }),
     KakaoProvider({
       clientId: process.env.KAKAO_CLIENT_ID ?? "",
@@ -69,8 +133,31 @@ export const authOptions: NextAuthOptions = {
       });
       return true;
     },
-    async jwt({ token, account, profile, user }) {
-      const existingUserId = (token as JWT & { userId?: string }).userId;
+    async jwt({ token, account, profile, user, trigger, session }): Promise<JWT> {
+      const t = token as JwtExt;
+      const existingUserId = t.userId;
+
+      if (trigger === "update" && session && typeof session === "object") {
+        const s = session as { profileCompleted?: boolean; role?: string };
+        if (typeof s.profileCompleted === "boolean") {
+          t.profileCompleted = s.profileCompleted;
+        }
+        if (typeof s.role === "string") {
+          t.role = s.role;
+        }
+        return t;
+      }
+
+      if (account?.provider === "credentials" && user?.id) {
+        const userId = String(user.id);
+        t.userId = userId;
+        const flags = await loadUserFlags(userId);
+        t.profileCompleted = flags.profile_completed;
+        t.role = flags.role;
+        logger.info("auth_jwt_credentials", { userId, data: flags });
+        return t;
+      }
+
       const resolvedEmail = getEmailFromProfile(account?.provider, profile, user);
       console.log("[Auth] jwt callback", {
         hasAccount: !!account,
@@ -80,10 +167,12 @@ export const authOptions: NextAuthOptions = {
         existingUserId,
       });
 
-      // 갱신 시(user/account 없음) 기존 토큰의 커스텀 데이터 보존 — JWT 콜백 버그 방어
       if (!account && existingUserId) {
-        (token as JWT & { userId?: string }).userId = existingUserId;
-        return token;
+        t.userId = existingUserId;
+        const flags = await loadUserFlags(existingUserId);
+        t.profileCompleted = flags.profile_completed;
+        t.role = flags.role;
+        return t;
       }
 
       if (account && (profile || user) && resolvedEmail) {
@@ -95,10 +184,9 @@ export const authOptions: NextAuthOptions = {
           const provider = account.provider;
           const providerId = account.providerAccountId;
 
-          // 🔥 Step 1: 이메일로 먼저 조회 (Find)
           const { data: existingUser, error: findError } = await supabase
             .from("users")
-            .select("id, provider, provider_id")
+            .select("id, provider, provider_id, name")
             .eq("email", email)
             .maybeSingle();
 
@@ -113,13 +201,11 @@ export const authOptions: NextAuthOptions = {
           let finalUserId: string | null = null;
 
           if (existingUser) {
-            // 🔥 CASE A: 이미 존재하는 유저 → provider 정보 업데이트 후 UUID 가져오기
             logger.info("auth_existing_user_found", {
               userEmail: email,
               userId: existingUser.id,
             });
-            
-            // Provider 정보가 다를 수 있으니 업데이트 (같은 이메일, 다른 OAuth 계정으로 로그인 시)
+
             if (existingUser.provider !== provider || existingUser.provider_id !== providerId) {
               const { error: updateError } = await supabase
                 .from("users")
@@ -144,11 +230,39 @@ export const authOptions: NextAuthOptions = {
                   data: { provider, providerId },
                 });
               }
+            } else {
+              const dbName = existingUser.name;
+              const dbNameEmpty =
+                dbName == null || String(dbName).trim() === "";
+              const socialName =
+                typeof name === "string" && name.trim() !== "" ? name.trim() : null;
+              if (dbNameEmpty && socialName) {
+                const { error: nameFillError } = await supabase
+                  .from("users")
+                  .update({
+                    name: socialName,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", existingUser.id);
+
+                if (nameFillError) {
+                  logger.error("auth_user_name_fill_failed", {
+                    userEmail: email,
+                    userId: existingUser.id,
+                    data: { error: nameFillError },
+                  });
+                } else {
+                  logger.info("auth_user_name_filled", {
+                    userEmail: email,
+                    userId: existingUser.id,
+                    data: { name: socialName },
+                  });
+                }
+              }
             }
 
             finalUserId = existingUser.id;
           } else {
-            // 🔥 CASE B: 신규 유저 → Insert 후 UUID 가져오기
             logger.info("auth_new_user_create_attempt", {
               userEmail: email,
               data: { provider, providerId },
@@ -162,6 +276,8 @@ export const authOptions: NextAuthOptions = {
                 provider,
                 provider_id: providerId,
                 role: "end_customer",
+                profile_completed: false,
+                terms_agreed: false,
               })
               .select("id")
               .single();
@@ -174,10 +290,8 @@ export const authOptions: NextAuthOptions = {
               throw new Error("사용자 생성에 실패했습니다.");
             }
 
-            if (!newUser || !newUser.id) {
-              logger.error("auth_new_user_create_missing_id", {
-                userEmail: email,
-              });
+            if (!newUser?.id) {
+              logger.error("auth_new_user_create_missing_id", { userEmail: email });
               throw new Error("사용자 ID를 가져올 수 없습니다.");
             }
 
@@ -188,26 +302,22 @@ export const authOptions: NextAuthOptions = {
             finalUserId = newUser.id;
           }
 
-          // 🔥 최종 검증: UUID를 못 가져왔으면 로그인 차단
           if (!finalUserId) {
-            logger.error("auth_fatal_missing_user_id", {
-              userEmail: email,
-            });
+            logger.error("auth_fatal_missing_user_id", { userEmail: email });
             throw new Error("인증 처리 중 오류가 발생했습니다.");
           }
 
-          // ✅ 토큰에 UUID 저장 (절대 Google ID가 들어가지 않음!)
-          (token as JWT & { userId?: string }).userId = finalUserId;
+          t.userId = finalUserId;
+          const flags = await loadUserFlags(finalUserId);
+          t.profileCompleted = flags.profile_completed;
+          t.role = flags.role;
           logger.info("auth_token_user_id_set", {
             userEmail: email,
             userId: finalUserId,
+            data: flags,
           });
-
         } catch (err) {
-          logger.error("auth_jwt_callback_error", {
-            data: { error: err },
-          });
-          // 🔥 에러 발생 시 로그인을 차단 (Google ID를 넣어서 통과시키지 않음!)
+          logger.error("auth_jwt_callback_error", { data: { error: err } });
           throw err;
         }
       }
@@ -220,25 +330,21 @@ export const authOptions: NextAuthOptions = {
         });
       }
 
-      // 한 번 더 보존: 갱신 경로에서 token이 덮어씌워졌을 수 있음
-      if (!account && existingUserId) {
-        (token as JWT & { userId?: string }).userId = existingUserId;
-      }
-      return token;
+      return t;
     },
     async redirect({ url, baseUrl }) {
       console.log("[Auth] redirect callback", { url, baseUrl });
       return url.startsWith(baseUrl) ? url : baseUrl + url;
     },
     async session({ session, token }) {
-      const userId = (token as JWT & { userId?: string }).userId;
+      const t = token as JwtExt;
+      const userId = t.userId;
       console.log("[Auth] session callback", {
         hasUser: !!session?.user,
         userId,
         userEmail: session?.user?.email,
       });
       if (session.user) {
-        // 🔥 UUID가 없으면 세션 생성 실패
         if (!userId) {
           logger.error("auth_session_missing_user_id", {
             userEmail: session.user.email ?? undefined,
@@ -246,7 +352,9 @@ export const authOptions: NextAuthOptions = {
           throw new Error("인증 정보가 올바르지 않습니다.");
         }
 
-        (session.user as { id?: string }).id = userId;
+        session.user.id = userId;
+        session.user.profileCompleted = t.profileCompleted === true;
+        session.user.role = (t.role as string) ?? "end_customer";
         logger.info("auth_session_created", {
           userEmail: session.user.email ?? undefined,
           userId,
@@ -257,7 +365,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 7200, // 2시간. 실질적 보안 관리는 AdminIdleGuard(유휴 30분)가 담당
+    maxAge: 7200,
   },
   pages: {
     signIn: "/login",
@@ -279,7 +387,7 @@ export const authOptions: NextAuthOptions = {
     async signOut({ token }) {
       logger.info("auth_sign_out", {
         userEmail: token?.email ?? undefined,
-        userId: (token as JWT & { userId?: string }).userId,
+        userId: (token as JwtExt).userId,
       });
     },
   },

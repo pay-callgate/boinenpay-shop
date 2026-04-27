@@ -54,9 +54,18 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     // users 테이블: name, phone 업데이트, role = partner_admin (신규/기존 공통)
-    const updates: { role: string; updated_at: string; name?: string; phone?: string } = {
+    const updates: {
+      role: string;
+      updated_at: string;
+      name?: string;
+      phone?: string;
+      profile_completed?: boolean;
+      terms_agreed?: boolean;
+    } = {
       role: "partner_admin",
       updated_at: new Date().toISOString(),
+      profile_completed: true,
+      terms_agreed: true,
     };
     if (name != null && String(name).trim() !== "") updates.name = String(name).trim();
     if (contact != null && String(contact).trim() !== "") updates.phone = String(contact).trim();
