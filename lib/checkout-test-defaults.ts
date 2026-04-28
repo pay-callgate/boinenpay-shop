@@ -11,12 +11,13 @@ export function isCheckoutTestDefaultsEnabled(): boolean {
 
 /** 테스트 전용 — 오픈 시 env 로 비활성화 */
 export const CHECKOUT_TEST_DEFAULTS = {
-  ordererName: "홍길동",
+  /** 우리부고 협의: 뉴런 rw_jname */
+  ordererName: "홍길동(테스트)",
   ordererPhone: "01012341234",
   guestEmail: "aa@gmail.com",
   guestPassword: "1111",
-  /** 받는 분 / 배송 */
-  recipientName: "김무스",
+  /** 받는 분 / 배송 — 우리부고 협의: 뉴런 rw_aname */
+  recipientName: "곽두팔(테스트)",
   recipientPhone: "01085209630",
   shippingPostcode: "06236",
   shippingAddress: "서울 강남구 테헤란로 152",
