@@ -9,7 +9,6 @@ import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
 import { ToastProvider, toast } from "./ToastContext";
 import { SideMenu } from "./SideMenu";
 import { ProductSearchModal } from "./ProductSearchModal";
-import { CheckoutKakaoInAppEscape } from "./CheckoutKakaoInAppEscape";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 
 function MasterTemplateIcon({ className }: { className?: string }) {
@@ -397,7 +396,6 @@ export function ShopLayout({
             subdomain={subdomain}
             clientSlug={clientSlug}
           />
-          <CheckoutKakaoInAppEscape />
           <main
             className="flex-1 overflow-auto"
             style={{
@@ -497,7 +495,6 @@ export function ShopGlobalLayout({
             subdomain={subdomain}
             clientSlug={clientSlug}
           />
-          <CheckoutKakaoInAppEscape />
           <main
             className="flex-1 overflow-auto"
             style={{

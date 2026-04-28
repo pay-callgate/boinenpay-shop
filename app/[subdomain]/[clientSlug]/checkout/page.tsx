@@ -12,6 +12,7 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { toast } from "@/components/shop/ToastContext";
@@ -457,7 +458,7 @@ export default function CheckoutPage() {
         console.debug("[Order:Checkout] ViewPay redirect 이동", {
           redirectUrlPreview: prepareData.redirectUrl?.slice(0, 80),
         });
-        window.location.href = prepareData.redirectUrl;
+        assignLocationHrefForPayment(String(prepareData.redirectUrl));
         return true;
       }
       console.debug("[Order:Checkout] ViewPay prepare 실패", {

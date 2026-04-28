@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
+import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
 import { toast } from "@/components/shop/ToastContext";
 import { formatTrackingDisplay } from "@/lib/courier";
 import {
@@ -194,7 +195,7 @@ export default function MyOrderDetailPage() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success && data.redirectUrl) {
         console.debug("[Order:Mypage] ViewPay redirect 이동", { orderId: order.id });
-        window.location.href = data.redirectUrl;
+        assignLocationHrefForPayment(String(data.redirectUrl));
         return;
       }
       console.debug("[Order:Mypage] prepare 실패", { ok: res.ok, message: data.message });

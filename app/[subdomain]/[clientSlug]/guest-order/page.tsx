@@ -11,6 +11,7 @@ import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { effectiveGuestUnitPrice } from "@/lib/product-pricing";
 import { openDaumPostcode } from "@/lib/daum-postcode";
+import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
 import { useUserClient } from "@/hooks/useUserClient";
 import {
   isCheckoutTestDefaultsEnabled,
@@ -396,7 +397,7 @@ export default function GuestOrderPage() {
       });
       const prepareData = await prepareRes.json().catch(() => ({}));
       if (prepareRes.ok && prepareData.success && prepareData.redirectUrl) {
-        window.location.href = prepareData.redirectUrl as string;
+        assignLocationHrefForPayment(String(prepareData.redirectUrl));
         return true;
       }
       toast(

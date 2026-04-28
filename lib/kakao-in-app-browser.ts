@@ -32,3 +32,18 @@ export function buildAndroidChromeIntentUrl(href: string): string {
     return `intent://${stripped}#Intent;scheme=https;package=com.android.chrome;end`;
   }
 }
+
+/**
+ * ViewPay 결제창 등 외부 PG URL로 이동.
+ * 카카오톡 인앱(Android)에서는 팝업 충돌 완화를 위해 Chrome intent로 동일 URL을 연다.
+ * (주문서 마운트 시 이탈이 아니라, 이 함수 호출 직전 타이밍에만 적용.)
+ */
+export function assignLocationHrefForPayment(targetUrl: string): void {
+  if (typeof window === "undefined") return;
+  const ua = navigator.userAgent;
+  if (isKakaoTalkInAppBrowser(ua) && isAndroidUserAgent(ua)) {
+    window.location.replace(buildAndroidChromeIntentUrl(targetUrl));
+    return;
+  }
+  window.location.href = targetUrl;
+}

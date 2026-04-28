@@ -5,8 +5,7 @@ import React from "react";
 /**
  * 카카오톡 인앱 브라우저 — 전역 강제 이탈 비활성화
  *
- * - 주문서(`/checkout`, `/guest-order`) 한정 이탈은 `CheckoutKakaoInAppEscape`에서 처리합니다
- *   (KAKAO_IAB_ESCAPE_ENABLED / 환경변수와 무관).
+ * ViewPay 등 결제 URL 이동 직전 이탈은 `assignLocationHrefForPayment` (`lib/kakao-in-app-browser`)를 사용합니다.
  *
  * 과거 전역 구현(비활성화됨):
  * - Android: Chrome intent(`buildAndroidChromeIntentUrl`)로 즉시 이탈
