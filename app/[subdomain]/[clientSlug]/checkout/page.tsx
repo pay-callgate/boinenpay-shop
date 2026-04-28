@@ -415,7 +415,7 @@ export default function CheckoutPage() {
       order: { id: string; order_no: string; total_amount: number },
       guestTok?: string,
       paySig?: string
-    ) => {
+    ): Promise<boolean> => {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       let returnUrl = `${origin}/${subdomain}/${clientSlug}/order/complete?orderId=${order.id}`;
       if (guestTok && paySig) {
@@ -457,10 +457,8 @@ export default function CheckoutPage() {
         console.debug("[Order:Checkout] ViewPay redirect 이동", {
           redirectUrlPreview: prepareData.redirectUrl?.slice(0, 80),
         });
-        setPendingOrderId(null);
-        setPendingPrepareSnapshot(null);
         window.location.href = prepareData.redirectUrl;
-        return;
+        return true;
       }
       console.debug("[Order:Checkout] ViewPay prepare 실패", {
         ok: prepareRes.ok,
@@ -468,13 +466,15 @@ export default function CheckoutPage() {
       });
       toast(
         prepareData.message ||
-          "결제창을 열 수 없습니다. 주문은 접수되었습니다. 같은 버튼으로 결제창만 다시 시도하거나 마이페이지에서 재결제할 수 있습니다.",
+          "결제창을 열 수 없습니다. 아래에서 결제하기를 다시 눌러 주시거나 마이페이지에서 재결제할 수 있습니다.",
         "error"
       );
+      return false;
     };
 
     try {
       if (pendingOrderId && pendingPrepareSnapshot) {
+        toast("안전한 결제창으로 이동합니다.", "default");
         await runViewPayPrepare(
           {
             id: pendingOrderId,
@@ -547,14 +547,6 @@ export default function CheckoutPage() {
         window.dispatchEvent(new CustomEvent("cart-updated"));
       }
 
-      setPendingOrderId(order.id);
-      setPendingPrepareSnapshot({
-        orderNo: order.order_no,
-        totalAmount: order.total_amount,
-        guestCheckoutToken: guestTok,
-        paymentSignature: paySig,
-      });
-
       if (saveAsDefaultAddress && session?.user?.id) {
         shopFetch("/api/mypage/addresses", {
           method: "POST",
@@ -571,7 +563,17 @@ export default function CheckoutPage() {
         }).catch(() => {});
       }
 
-      await runViewPayPrepare(order, guestTok, paySig);
+      toast("안전한 결제창으로 이동합니다.", "default");
+      const redirected = await runViewPayPrepare(order, guestTok, paySig);
+      if (!redirected) {
+        setPendingOrderId(order.id);
+        setPendingPrepareSnapshot({
+          orderNo: order.order_no,
+          totalAmount: order.total_amount,
+          guestCheckoutToken: guestTok,
+          paymentSignature: paySig,
+        });
+      }
     } catch (e) {
       console.debug("[Order:Checkout] 예외", e);
       toast("네트워크 오류가 발생했습니다.", "error");
@@ -1158,8 +1160,8 @@ export default function CheckoutPage() {
               className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
               role="status"
             >
-              주문이 접수되었습니다(주문번호 {pendingPrepareSnapshot.orderNo}). 결제창만 다시 열려면
-              아래 <strong>결제하기</strong>를 눌러 주세요.
+              결제창을 불러오지 못했습니다. 주문번호 {pendingPrepareSnapshot.orderNo}. 아래{" "}
+              <strong>결제하기</strong>를 다시 눌러 주세요.
             </div>
           )}
           {isCheckoutTestDefaultsEnabled() && guestModeUi && (

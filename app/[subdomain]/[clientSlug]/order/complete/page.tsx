@@ -132,6 +132,19 @@ export default function OrderCompletePage() {
 
   const guestSyncStarted = useRef(false);
 
+  useEffect(() => {
+    if (state !== "success" || !orderNo || !orderId) return;
+    if (typeof window === "undefined") return;
+    const key = `shop_order_receipt_toast_${orderId}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // sessionStorage 불가 시에도 토스트 1회 시도
+    }
+    toast(`주문이 접수되었습니다. 주문번호 ${orderNo}`, "success");
+  }, [state, orderNo, orderId]);
+
   // 결제 완료 성공 시 주문 상세 조회 (실제 데이터)
   useEffect(() => {
     if (state !== "success" || !orderId) return;

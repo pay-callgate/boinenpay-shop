@@ -3,17 +3,14 @@
 import React from "react";
 
 /**
- * 카카오톡 인앱 브라우저 — 외부 브라우저 강제 이탈 비활성화
+ * 카카오톡 인앱 브라우저 — 전역 강제 이탈 비활성화
  *
- * 정책: 고객이 알림톡 링크로 입장한 뒤 **카카오 인앱에서 쇼핑·ViewPay 결제까지** 이어가도록 함.
+ * - 주문서(`/checkout`, `/guest-order`) 한정 이탈은 `CheckoutKakaoInAppEscape`에서 처리합니다
+ *   (KAKAO_IAB_ESCAPE_ENABLED / 환경변수와 무관).
  *
- * 과거 구현(비활성화됨):
+ * 과거 전역 구현(비활성화됨):
  * - Android: Chrome intent(`buildAndroidChromeIntentUrl`)로 즉시 이탈
  * - iOS: Safari·「다른 브라우저로 열기」 전체 화면 안내
- * 배경: WebView에서 Google OAuth 등 `disallowed_useragent` 제한 대응.
- *
- * 복구 시: 아래 `KAKAO_IAB_ESCAPE_ENABLED` 를 true 로 두고,
- * `git` 히스토리에서 이전 본문(훅·오버레이 JSX)을 되살리거나 `lib/kakao-in-app-browser` 를 다시 연결.
  */
 const KAKAO_IAB_ESCAPE_ENABLED = false;
 
