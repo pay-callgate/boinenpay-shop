@@ -33,11 +33,8 @@ export function CheckoutKakaoInAppEscape() {
     }
 
     if (isIOSUserAgent(ua)) {
-      const w = window.open(href, "_blank", "noopener,noreferrer");
-      if (w == null) {
-        setIosHref(href);
-        setIosPrompt(true);
-      }
+      setIosHref(href);
+      setIosPrompt(true);
     }
   }, [pathname]);
 
