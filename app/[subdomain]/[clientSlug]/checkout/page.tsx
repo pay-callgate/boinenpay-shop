@@ -1,6 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  isCheckoutTestDefaultsEnabled,
+  CHECKOUT_TEST_DEFAULTS,
+} from "@/lib/checkout-test-defaults";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronUp, Calendar, ChevronRight } from "lucide-react";
@@ -150,6 +154,26 @@ export default function CheckoutPage() {
 
   const addressSectionRef = useRef<HTMLDivElement>(null);
   const addressesLoadedRef = useRef(false);
+  const checkoutTestDefaultsAppliedRef = useRef(false);
+
+  useEffect(() => {
+    const guest = isGuestCheckout && !session?.user?.id;
+    if (!guest || !isCheckoutTestDefaultsEnabled() || checkoutTestDefaultsAppliedRef.current) return;
+    if (sessionStatus === "loading") return;
+    checkoutTestDefaultsAppliedRef.current = true;
+    const d = CHECKOUT_TEST_DEFAULTS;
+    setOrdererName(d.ordererName);
+    setOrdererPhone(d.ordererPhone);
+    setGuestEmail(d.guestEmail);
+    setGuestPassword(d.guestPassword);
+    setGuestPasswordConfirm(d.guestPassword);
+    setShippingName(d.recipientName);
+    setShippingPhone(d.recipientPhone);
+    setShippingPostcode(d.shippingPostcode);
+    setShippingAddress(d.shippingAddress);
+    setShippingDetail(d.shippingDetail);
+    setShowAddressForm(true);
+  }, [isGuestCheckout, session?.user?.id, sessionStatus]);
 
   // Phase D3: ViewPay 결제창에서 취소 후 cancelUrl로 돌아온 경우
   useEffect(() => {
@@ -245,12 +269,14 @@ export default function CheckoutPage() {
             setShippingDetail(defaultAddr.detail || "");
           }
         } else {
-          setShowAddressForm(false);
+          if (!(isGuestCheckout && isCheckoutTestDefaultsEnabled())) {
+            setShowAddressForm(false);
+          }
         }
       }
     }
     loadAddresses();
-  }, [clientId]);
+  }, [clientId, isGuestCheckout]);
 
   useEffect(() => {
     if (!addressesLoadedRef.current || addresses.length > 0) return;
@@ -1090,6 +1116,15 @@ export default function CheckoutPage() {
             >
               주문이 접수되었습니다(주문번호 {pendingPrepareSnapshot.orderNo}). 결제창만 다시 열려면
               아래 <strong>결제하기</strong>를 눌러 주세요.
+            </div>
+          )}
+          {isCheckoutTestDefaultsEnabled() && guestModeUi && (
+            <div
+              className="mb-4 rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950"
+              role="status"
+            >
+              테스트 모드: 결제 연습용 기본값이 채워져 있습니다. 오픈 전
+              NEXT_PUBLIC_ENABLE_CHECKOUT_TEST_DEFAULTS 를 제거(또는 0)하고 재배포하세요.
             </div>
           )}
           {guestModeUi && (

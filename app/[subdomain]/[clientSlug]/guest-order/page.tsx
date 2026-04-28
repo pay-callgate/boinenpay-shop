@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Calendar, ChevronDown, ChevronUp } from "lucide-react";
@@ -12,6 +12,10 @@ import { toast } from "@/components/shop/ToastContext";
 import { effectiveGuestUnitPrice } from "@/lib/product-pricing";
 import { openDaumPostcode } from "@/lib/daum-postcode";
 import { useUserClient } from "@/hooks/useUserClient";
+import {
+  isCheckoutTestDefaultsEnabled,
+  CHECKOUT_TEST_DEFAULTS,
+} from "@/lib/checkout-test-defaults";
 
 /**
  * 비회원 전용 주문서 — 화환/꽃배달(우리부고) 입력 구성
@@ -164,6 +168,26 @@ export default function GuestOrderPage() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [pendingPrepareSnapshot, setPendingPrepareSnapshot] =
     useState<PendingOrderPrepareSnapshot | null>(null);
+
+  const checkoutTestDefaultsAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!isCheckoutTestDefaultsEnabled() || checkoutTestDefaultsAppliedRef.current) return;
+    checkoutTestDefaultsAppliedRef.current = true;
+    const d = CHECKOUT_TEST_DEFAULTS;
+    setOrdererName(d.ordererName);
+    setOrdererPhone(d.ordererPhone);
+    setGuestEmail(d.guestEmail);
+    setGuestPassword(d.guestPassword);
+    setGuestPasswordConfirm(d.guestPassword);
+    setRecipientName(d.recipientName);
+    setRecipientPhone(d.recipientPhone);
+    setShippingPostcode(d.shippingPostcode);
+    setShippingAddress(d.shippingAddress);
+    setVenueDetail(d.venueDetail);
+    setRibbonSender(d.ribbonSender);
+    setRibbonPreset(d.ribbonPreset);
+    setRibbonMessageCustom("");
+  }, []);
 
   /**
    * 이 전용몰 소속 회원이면 일반 체크아웃으로 (회원가 결제).
@@ -513,6 +537,15 @@ export default function GuestOrderPage() {
         style={{ paddingBottom: `calc(9rem + env(safe-area-inset-bottom, 0px))` }}
       >
         <div className="px-4 py-5">
+          {isCheckoutTestDefaultsEnabled() && (
+            <div
+              className="mb-4 rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950"
+              role="status"
+            >
+              테스트 모드: 결제 연습용 기본값이 채워져 있습니다. 오픈 전 Vercel에서
+              NEXT_PUBLIC_ENABLE_CHECKOUT_TEST_DEFAULTS 환경 변수를 제거(또는 0)한 뒤 재배포하세요.
+            </div>
+          )}
           {pendingOrderId && pendingPrepareSnapshot && (
             <div
               className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
