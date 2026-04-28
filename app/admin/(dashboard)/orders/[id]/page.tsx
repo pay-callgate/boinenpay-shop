@@ -324,19 +324,11 @@ export default function OrderDetailPage() {
     }
     setNewrunOpening(kind);
     try {
-      const res = await adminFetch(
-        `/api/partner/integrations/newrun/search-url?kind=${encodeURIComponent(kind)}&orderId=${encodeURIComponent(orderId)}`
-      );
-      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok) {
-        alert(data.error || "검색 URL을 가져오지 못했습니다.");
-        return;
-      }
-      if (!data.url) {
-        alert("검색 URL이 비어 있습니다.");
-        return;
-      }
-      const popup = window.open(data.url, "_blank", "noopener,noreferrer,width=1100,height=800");
+      const path = `/api/partner/integrations/newrun/open-search?kind=${encodeURIComponent(
+        kind
+      )}&orderId=${encodeURIComponent(orderId)}`;
+      /** 동일 출처 진입 후 서버 302 → 협회 HTTP. `noopener` 없음: var_ret가 opener.postMessage 사용 */
+      const popup = window.open(path, "_blank", "width=1100,height=800");
       if (popup == null) {
         alert(
           "팝업이 차단된 것 같습니다. 브라우저 주소창 오른쪽의 팝업 허용 아이콘을 눌러 이 사이트의 팝업을 허용한 뒤, 버튼을 다시 눌러 주세요."

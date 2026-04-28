@@ -42,6 +42,13 @@ export function AdminHeader() {
       </Link>
       <div className="flex items-center gap-4 text-sm">
         <Link
+          href="/admin/settings/integrations"
+          className="hover:underline"
+        >
+          뉴런 연동 테스트
+        </Link>
+        <span className="text-gray-300">|</span>
+        <Link
           href="/admin/settings"
           className="flex items-center gap-1.5 hover:underline"
         >
