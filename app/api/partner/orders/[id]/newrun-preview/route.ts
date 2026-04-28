@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { mapOrderToNewrunPayload } from "@/lib/newrun/map-order-to-newrun-payload";
+import { getNewrunCredentialsFromEnv } from "@/lib/newrun/submit-order";
 import {
   mergeFloristDraftForOrder,
   mergeProductDraftForOrder,
@@ -92,12 +93,13 @@ export async function GET(
       order.newrun_option_draft as Record<string, unknown> | null | undefined
     );
 
-    const creds = {
-      rw_rosewebid: process.env.NEWRUN_ROSEWEB_ID?.trim() ?? "",
-      rw_rosewebpw: process.env.NEWRUN_ROSEWEB_PW?.trim() ?? "",
-      rw_assoc: process.env.NEWRUN_ASSOC_CODE?.trim() ?? "",
-      rw_returnurl: process.env.NEWRUN_RW_RETURNURL?.trim() ?? "",
-    };
+    const creds =
+      getNewrunCredentialsFromEnv() ?? {
+        rw_rosewebid: "",
+        rw_rosewebpw: "",
+        rw_assoc: "",
+        rw_returnurl: "",
+      };
 
     const result = mapOrderToNewrunPayload(
       {
@@ -111,6 +113,7 @@ export async function GET(
         shipping_address: order.shipping_address,
         shipping_detail: order.shipping_detail,
         created_at: order.created_at,
+        desired_delivery_date: (order as { desired_delivery_date?: string | null }).desired_delivery_date ?? null,
       },
       rowItems.map((i) => ({
         quantity: i.quantity,
@@ -118,7 +121,7 @@ export async function GET(
       })),
       { florist, product, option },
       creds,
-      { strict: false }
+      { strict: false, headquartersBonbalju: true, rw_method: "1" }
     );
 
     const masked = {
@@ -131,7 +134,7 @@ export async function GET(
       warnings: result.warnings,
       blockingIssues: result.blockingIssues ?? [],
       envHints: {
-        NEWRUN_ROSEWEB_ID: Boolean(process.env.NEWRUN_ROSEWEB_ID?.trim()),
+        NEWRUN_ASSOC_INTRANET_ID: Boolean(process.env.NEWRUN_ASSOC_INTRANET_ID?.trim()),
         NEWRUN_ROSEWEB_PW: Boolean(process.env.NEWRUN_ROSEWEB_PW?.trim()),
         NEWRUN_ASSOC_CODE: Boolean(process.env.NEWRUN_ASSOC_CODE?.trim()),
         NEWRUN_RW_RETURNURL: Boolean(process.env.NEWRUN_RW_RETURNURL?.trim()),

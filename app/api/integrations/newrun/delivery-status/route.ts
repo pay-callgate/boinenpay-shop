@@ -52,8 +52,9 @@ async function parsePostBody(request: NextRequest): Promise<Record<string, unkno
 }
 
 /**
- * 뉴런시스템(Newrun) 배송결과 콜백 (문서 2.6)
- * 성공·실패와 무관하게 항상 200 + { success: true } (재시도 폭주 방지)
+ * 뉴런시스템 배송결과 웹훅 (문서 2.6)
+ * - 쿼리·본문: oid(주문번호), state(2·3·4), ordercode, dica, insuname, insurel, insudate1/2, rwid(oid 별칭) 등
+ * - 성공·실패와 무관하게 항상 200 + { success: true } (재시도 폭주 방지)
  */
 export async function HEAD() {
   return new NextResponse(null, { status: 200 });

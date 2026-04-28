@@ -40,11 +40,17 @@ export type SubmitNewrunOrderResult = {
 };
 
 export function getNewrunCredentialsFromEnv(): NewrunIntranetCredentials | null {
-  const rw_rosewebid = process.env.NEWRUN_ROSEWEB_ID?.trim() ?? "";
+  const rw_rosewebid =
+    process.env.NEWRUN_ASSOC_INTRANET_ID?.trim() ??
+    process.env.NEWRUN_ROSEWEB_ID?.trim() ??
+    "";
   const rw_rosewebpw = process.env.NEWRUN_ROSEWEB_PW?.trim() ?? "";
-  const rw_assoc = process.env.NEWRUN_ASSOC_CODE?.trim() ?? "";
   const rw_returnurl = process.env.NEWRUN_RW_RETURNURL?.trim() ?? "";
-  if (!rw_rosewebid || !rw_rosewebpw || !rw_assoc || !rw_returnurl) return null;
+  const rw_assoc =
+    process.env.NEWRUN_ASSOC_CODE?.trim() ||
+    process.env.NEWRUN_ASSOC_INTRANET_ID?.trim() ||
+    "";
+  if (!rw_rosewebid || !rw_rosewebpw || !rw_returnurl) return null;
   return { rw_rosewebid, rw_rosewebpw, rw_assoc, rw_returnurl };
 }
 
@@ -275,7 +281,8 @@ export async function submitNewrunOrder(
 
   const creds = getNewrunCredentialsFromEnv();
   if (!creds) {
-    const msg = "뉴런 발주 환경변수가 설정되지 않았습니다. (NEWRUN_ROSEWEB_ID/PW, NEWRUN_ASSOC_CODE, NEWRUN_RW_RETURNURL)";
+    const msg =
+      "뉴런 발주 환경변수가 설정되지 않았습니다. (NEWRUN_ASSOC_INTRANET_ID→rw_rosewebid, NEWRUN_ROSEWEB_PW, NEWRUN_RW_RETURNURL)";
     logger.warn(`${LOG} creds missing`, { action: "newrun_submit_no_env", data: { orderId } });
     await persistSubmitResultAndHistory(
       supabase,
@@ -315,11 +322,16 @@ export async function submitNewrunOrder(
         shipping_address: String(order.shipping_address),
         shipping_detail: (order.shipping_detail as string | null) ?? null,
         created_at: order.created_at as string | undefined,
+        desired_delivery_date: (order as { desired_delivery_date?: string | null }).desired_delivery_date ?? null,
       },
       itemSlices,
       ctx.drafts!,
       creds,
-      { strict: true }
+      {
+        strict: true,
+        headquartersBonbalju: true,
+        rw_method: "1",
+      }
     );
   } catch (e) {
     const msg =
@@ -351,7 +363,7 @@ export async function submitNewrunOrder(
 
   mapResult.fields.rw_returnurl = appendNewrunPoReturnTokenToReturnUrl(
     mapResult.fields.rw_returnurl,
-    String(order.order_no).trim()
+    mapResult.fields.rw_sno.trim()
   );
 
   const mock = isTruthyEnv(process.env.NEWRUN_MOCK);

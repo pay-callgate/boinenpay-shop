@@ -88,4 +88,42 @@ describe("delivery-status-callback", () => {
     expect(historyRows[0].status).toBe("confirmed");
     expect(historyRows[0].memo).toContain("주문 상태 변경 없음");
   });
+
+  it("rwid 별칭으로 주문번호 매칭", async () => {
+    let captured = "";
+    const supabase = {
+      from(table: string) {
+        if (table === "orders") {
+          return {
+            select: () => ({
+              eq: (_col: string, val: string) => ({
+                maybeSingle: async () => {
+                  captured = val;
+                  return {
+                    data: {
+                      id: "oid-1",
+                      status: "confirmed",
+                      newrun_delivery_info: {},
+                    },
+                    error: null,
+                  };
+                },
+              }),
+            }),
+            update: () => ({
+              eq: async () => ({ error: null }),
+            }),
+          };
+        }
+        if (table === "order_status_history") {
+          return { insert: () => Promise.resolve({ error: null }) };
+        }
+        throw new Error(`unexpected ${table}`);
+      },
+    } as unknown as SupabaseClient;
+
+    const r = await processNewrunDeliveryCallback(supabase, { rwid: "MY-ORDER", state: "3" });
+    expect(r.ok).toBe(true);
+    expect(captured).toBe("MY-ORDER");
+  });
 });

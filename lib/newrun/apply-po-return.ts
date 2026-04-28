@@ -53,16 +53,19 @@ function persistFromPoReturn(
     newrun_rwr_result: string;
     newrun_rwr_orderkey: string | null;
     newrun_last_submit_error: string | null;
-  }
+  },
+  /** 뉴런 결과 0(정상)일 때 내부 주문 상태 발주완료에 해당하는 값으로 갱신 */
+  setPurchaseConfirmed: boolean
 ) {
-  return supabase
-    .from("orders")
-    .update({
-      ...patch,
-      newrun_last_submit_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
+  const row: Record<string, unknown> = {
+    ...patch,
+    newrun_last_submit_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (setPurchaseConfirmed) {
+    row.status = "confirmed_purchase";
+  }
+  return supabase.from("orders").update(row).eq("id", orderId);
 }
 
 /**
@@ -120,13 +123,46 @@ export async function applyNewrunPoReturnFromSearchParams(
     };
   }
 
-  const { data: order, error: findErr } = await supabase
+  const { data: byNo, error: err1 } = await supabase
     .from("orders")
     .select("id, order_no")
     .eq("order_no", orderNo.trim())
     .maybeSingle();
 
-  if (findErr || !order) {
+  if (err1) {
+    logger.error(`${LOG} order lookup`, {
+      action: "newrun_po_return_find_error",
+      data: { message: err1.message },
+    });
+    return {
+      kind: "skipped",
+      reason: "db_error",
+      message: "주문 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    };
+  }
+
+  let order = byNo;
+  if (!order) {
+    const { data: byId, error: err2 } = await supabase
+      .from("orders")
+      .select("id, order_no")
+      .eq("id", orderNo.trim())
+      .maybeSingle();
+    if (err2) {
+      logger.error(`${LOG} order lookup by id`, {
+        action: "newrun_po_return_find_error",
+        data: { message: err2.message },
+      });
+      return {
+        kind: "skipped",
+        reason: "db_error",
+        message: "주문 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      };
+    }
+    order = byId;
+  }
+
+  if (!order) {
     logger.warn(`${LOG} order not found`, {
       action: "newrun_po_return_order_missing",
       data: { orderNo: orderNo.slice(0, 12) },
@@ -144,12 +180,19 @@ export async function applyNewrunPoReturnFromSearchParams(
   const submitStatus = ok ? (duplicate ? "duplicate" : "success") : "failed";
   const lastErr = ok ? null : `rwr_result=${rwr} (po-return)`;
 
-  const { error: updErr } = await persistFromPoReturn(supabase, order.id, {
-    newrun_submit_status: submitStatus,
-    newrun_rwr_result: rwr,
-    newrun_rwr_orderkey: rwr_orderkey?.trim() ?? null,
-    newrun_last_submit_error: lastErr,
-  });
+  const purchaseConfirmed = rwr === "0";
+
+  const { error: updErr } = await persistFromPoReturn(
+    supabase,
+    order.id,
+    {
+      newrun_submit_status: submitStatus,
+      newrun_rwr_result: rwr,
+      newrun_rwr_orderkey: rwr_orderkey?.trim() ?? null,
+      newrun_last_submit_error: lastErr,
+    },
+    purchaseConfirmed
+  );
 
   if (updErr) {
     logger.error(`${LOG} db update failed`, {
@@ -185,7 +228,7 @@ export async function applyNewrunPoReturnFromSearchParams(
   ].filter(Boolean);
   const { error: histErr } = await supabase.from("order_status_history").insert({
     order_id: order.id,
-    status: "received",
+    status: purchaseConfirmed ? "confirmed_purchase" : "received",
     memo: memoParts.join(" · "),
   });
   if (histErr) {

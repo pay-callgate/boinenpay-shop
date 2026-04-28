@@ -41,6 +41,8 @@ export type NewrunOrderSlice = {
   shipping_address: string;
   shipping_detail?: string | null;
   created_at?: string;
+  /** 희망 배송일 (DB DATE → 보통 YYYY-MM-DD) */
+  desired_delivery_date?: string | null;
 };
 
 export type NewrunOrderItemSlice = {
@@ -65,10 +67,15 @@ export type MapOrderToNewrunPayloadOptions = {
   rwSnoSource?: NewrunRwSnoSource;
   /** 배송방법 코드 — 협회·뉴런 문서 값 (미설정 시 1) */
   rw_method?: string;
-  /** YYYYMMDD. 없으면 `order.created_at` 기준 KST 당일 */
+  /** YYYYMMDD. 없으면 `order.created_at` 기준 KST 당일 — `headquartersBonbalju`이면 무시 */
   rw_bdate?: string;
   /** 기본 true. false면 검증 실패 시에도 필드는 채우고 `blockingIssues`로 반환(미리보기). */
   strict?: boolean;
+  /**
+   * 본부발주(head): `rw_type=head`, `rw_sender`·`rw_method` 고정, `rw_sno`=주문 UUID,
+   * `rw_bdate`=희망배송일 YYYY-MM-DD, 수주화원·상품코드 필수 검증 생략
+   */
+  headquartersBonbalju?: boolean;
 };
 
 export type MapOrderToNewrunPayloadResult = {
@@ -103,6 +110,30 @@ function formatBdateFromIso(iso: string | undefined): string {
     return `${x.getFullYear()}${String(x.getMonth() + 1).padStart(2, "0")}${String(x.getDate()).padStart(2, "0")}`;
   }
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** 본부발주 스펙: 희망배송일 `YYYY-MM-DD`, 없으면 `created_at` 일자 */
+export function formatRwBdateYmdDash(
+  desired: string | null | undefined,
+  createdIso: string | undefined
+): string {
+  const raw = desired?.trim();
+  if (raw) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    if (/^\d{8}$/.test(raw)) {
+      return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+    }
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+  }
+  const d2 = createdIso ? new Date(createdIso) : new Date();
+  if (Number.isNaN(d2.getTime())) {
+    const x = new Date();
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  }
+  return `${d2.getFullYear()}-${String(d2.getMonth() + 1).padStart(2, "0")}-${String(d2.getDate()).padStart(2, "0")}`;
 }
 
 function truncateField(
@@ -190,11 +221,14 @@ export function mapOrderToNewrunPayload(
 ): MapOrderToNewrunPayloadResult {
   const warnings: string[] = [];
   const strict = options.strict ?? true;
+  const hq = options.headquartersBonbalju === true;
   const rwSnoSource = options.rwSnoSource ?? "order_no";
   const rw_sno =
-    rwSnoSource === "order_id"
-      ? String(order.id).replace(/-/g, "").slice(0, 40)
-      : String(order.order_no).trim().slice(0, 40);
+    hq
+      ? String(order.id).trim().slice(0, 40)
+      : rwSnoSource === "order_id"
+        ? String(order.id).replace(/-/g, "").slice(0, 40)
+        : String(order.order_no).trim().slice(0, 40);
 
   const arrive = [order.shipping_postcode ? `[${order.shipping_postcode}]` : "", order.shipping_address]
     .filter(Boolean)
@@ -222,10 +256,19 @@ export function mapOrderToNewrunPayload(
     rw_aname: truncateField("rw_aname", order.shipping_name.trim(), warnings),
     rw_atel: truncateField("rw_atel", normalizePhone(order.shipping_phone), warnings),
     rw_arrive_place1: truncateField("rw_arrive_place1", arrive, warnings),
-    rw_bdate: options.rw_bdate?.trim() || formatBdateFromIso(order.created_at),
+    rw_bdate: hq
+      ? formatRwBdateYmdDash(order.desired_delivery_date, order.created_at)
+      : options.rw_bdate?.trim() || formatBdateFromIso(order.created_at),
     rw_memo: truncateField("rw_memo", memoFromDetail, warnings),
     rw_shopreq: truncateField("rw_shopreq", shopFromDetail, warnings),
   };
+
+  if (hq) {
+    fields.rw_type = "head";
+    fields.rw_sender = "100";
+    fields.rw_method = "1";
+    fields.rw_sno = truncateField("rw_sno", String(order.id).trim(), warnings);
+  }
 
   if (drafts.florist && Object.keys(drafts.florist).length > 0) {
     applyFloristDraft(drafts.florist, fields);
@@ -255,8 +298,14 @@ export function mapOrderToNewrunPayload(
   if (!creds.rw_assoc.trim()) issues.push("rw_assoc 비어 있음");
   if (!creds.rw_returnurl.trim()) issues.push("rw_returnurl 비어 있음");
   if (strict) {
-    if (!fields.rw_sujuid?.trim()) issues.push("수주화원(rw_sujuid) 없음 — 협회 검색 또는 거래처 기본 필요");
-    if (!fields.rw_menucode?.trim()) issues.push("상품코드(rw_menucode) 없음 — 상품 검색·기본 또는 rw_menucode 필요");
+    if (!hq) {
+      if (!fields.rw_sujuid?.trim()) {
+        issues.push("수주화원(rw_sujuid) 없음 — 협회 검색 또는 거래처 기본 필요");
+      }
+      if (!fields.rw_menucode?.trim()) {
+        issues.push("상품코드(rw_menucode) 없음 — 상품 검색·기본 또는 rw_menucode 필요");
+      }
+    }
     if (order.payment_status !== "paid") {
       issues.push(`결제완료(payment_status=paid)만 발주 권장 — 현재: ${order.payment_status}`);
     }

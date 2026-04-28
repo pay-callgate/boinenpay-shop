@@ -86,7 +86,12 @@ export async function processNewrunDeliveryCallback(
   supabase: SupabaseClient,
   params: Record<string, string>
 ): Promise<ProcessNewrunDeliveryCallbackResult> {
-  const oid = params.oid ?? params.order_id ?? params.orderid;
+  /** oid: 뉴런 주문 식별. rwid 등 별칭 허용 */
+  const oid =
+    params.oid ??
+    params.rwid ??
+    params.order_id ??
+    params.orderid;
   if (!oid?.trim()) {
     logger.warn(`${LOG} missing oid`, { action: "newrun_delivery_missing_oid" });
     return { ok: false, reason: "missing_oid", detail: "oid 없음" };
