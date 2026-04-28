@@ -17,6 +17,13 @@ import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { toast } from "@/components/shop/ToastContext";
 import { AddressSelectModal, type Address } from "@/components/shop/AddressSelectModal";
+import { openDaumPostcode } from "@/lib/daum-postcode";
+import {
+  TIME_SLOTS,
+  RIBBON_MESSAGE_PRESETS,
+  digitsOnlyPhone,
+  buildFloristShippingDetailText,
+} from "@/lib/checkout-florist-fields";
 import {
   effectiveGuestUnitPrice,
   effectiveMemberUnitPrice,
@@ -35,13 +42,11 @@ const BORDER = "#E5E7EB";
 const CARD_RADIUS = "12px";
 const PAYMENT_BG = "#F5F0F8";
 const ACCENT_DARK = "#5B21B6";
-const DELIVERY_NOTE_OPTIONS = [
-  { value: "", label: "배송 요청사항을 선택해주세요" },
-  { value: "door", label: "문 앞에 놓아주세요" },
-  { value: "guard", label: "부재 시 경비실에 맡겨주세요" },
-  { value: "parcel_box", label: "부재 시 택배함에 넣어주세요" },
-  { value: "custom", label: "직접 입력" },
-];
+
+const inputClass =
+  "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
+const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
+const sectionCardClass = "overflow-hidden rounded-xl border border-gray-200 bg-gray-50/90 p-5";
 
 interface CartItem {
   id: string;
@@ -74,15 +79,6 @@ type PendingOrderPrepareSnapshot = {
 //   { value: "quick", label: "퀵배송", fee: 5000 },
 //   { value: "store_pickup", label: "스토어픽업", fee: 1000 },
 // ] as const;
-
-const TIME_SLOTS = [
-  "09:00~11:00",
-  "11:00~13:00",
-  "13:00~15:00",
-  "14:00~16:00",
-  "15:00~17:00",
-  "17:00~19:00",
-];
 
 function getTomorrowDateString(): string {
   const d = new Date();
@@ -131,15 +127,18 @@ export default function CheckoutPage() {
   const [shippingPhone, setShippingPhone] = useState("");
   const [shippingPostcode, setShippingPostcode] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
-  const [shippingDetail, setShippingDetail] = useState("");
-  const [deliveryNotePreset, setDeliveryNotePreset] = useState("");
-  const [deliveryNoteCustom, setDeliveryNoteCustom] = useState("");
+  const [venueDetail, setVenueDetail] = useState("");
+
+  const [ribbonSender, setRibbonSender] = useState("");
+  const [ribbonPreset, setRibbonPreset] = useState(
+    RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__"
+  );
+  const [ribbonMessageCustom, setRibbonMessageCustom] = useState("");
+  const [ribbonSameAsOrderer, setRibbonSameAsOrderer] = useState(false);
 
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [showAddressForm, setShowAddressForm] = useState(false);
   const [saveAsDefaultAddress, setSaveAsDefaultAddress] = useState(false);
 
-  const [openDateAccordion, setOpenDateAccordion] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState(() => getTomorrowDateString());
   const DEFAULT_TIME_SLOT = "14:00~16:00";
   const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(DEFAULT_TIME_SLOT);
@@ -176,8 +175,10 @@ export default function CheckoutPage() {
     setShippingPhone(d.recipientPhone);
     setShippingPostcode(d.shippingPostcode);
     setShippingAddress(d.shippingAddress);
-    setShippingDetail(d.shippingDetail);
-    setShowAddressForm(true);
+    setVenueDetail(d.venueDetail);
+    setRibbonSender(d.ribbonSender);
+    setRibbonPreset(d.ribbonPreset);
+    setRibbonMessageCustom("");
   }, [isGuestCheckout, session?.user?.id, sessionStatus]);
 
   // Phase D3: ViewPay 결제창에서 취소 후 cancelUrl로 돌아온 경우
@@ -271,12 +272,10 @@ export default function CheckoutPage() {
             setShippingPhone(defaultAddr.phone);
             setShippingPostcode(defaultAddr.postcode || "");
             setShippingAddress(defaultAddr.address);
-            setShippingDetail(defaultAddr.detail || "");
+            setVenueDetail(defaultAddr.detail || "");
           }
         } else {
-          if (!(isGuestCheckout && isCheckoutTestDefaultsEnabled())) {
-            setShowAddressForm(false);
-          }
+          /* no saved addresses */
         }
       }
     }
@@ -288,6 +287,12 @@ export default function CheckoutPage() {
     setShippingName((prev) => (prev ? prev : ordererName || ""));
     setShippingPhone((prev) => (prev ? prev : ordererPhone || ""));
   }, [addresses.length, ordererName, ordererPhone]);
+
+  useEffect(() => {
+    if (ribbonSameAsOrderer) {
+      setRibbonSender(ordererName.trim());
+    }
+  }, [ordererName, ribbonSameAsOrderer]);
 
   const formatPrice = (price: number) => new Intl.NumberFormat("ko-KR").format(price);
   const getItemUnit = (item: CartItem) => {
@@ -315,43 +320,16 @@ export default function CheckoutPage() {
     setShippingPhone(a.phone);
     setShippingPostcode(a.postcode || "");
     setShippingAddress(a.address);
-    setShippingDetail(a.detail || "");
-    setShowAddressForm(false);
+    setVenueDetail(a.detail || "");
+    setShowAddressModal(false);
   };
-
-  const handleAddNewAddress = () => {
-    setShowAddressForm(true);
-    setSelectedAddressId(null);
-    setShippingName((prev) => prev || ordererName || "");
-    setShippingPhone((prev) => prev || ordererPhone || "");
-    setShippingPostcode("");
-    setShippingAddress("");
-    setShippingDetail("");
-  };
-
-  const postcodeScriptLoaded = useRef(false);
-  useEffect(() => {
-    if (postcodeScriptLoaded.current || typeof window === "undefined") return;
-    const script = document.createElement("script");
-    script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
-    script.async = true;
-    document.head.appendChild(script);
-    postcodeScriptLoaded.current = true;
-  }, []);
 
   const openPostcodeSearch = () => {
-    if (!window.daum?.Postcode) {
-      toast("주소 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
-    new window.daum.Postcode({
-      oncomplete(data) {
-        setShippingPostcode(data.zonecode || "");
-        setShippingAddress(data.address || "");
-        setShippingDetail("");
-        setShowAddressForm(true);
-      },
-    }).open();
+    openDaumPostcode(({ zonecode, address }) => {
+      setShippingPostcode(zonecode);
+      setShippingAddress(address);
+      setVenueDetail("");
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -372,27 +350,54 @@ export default function CheckoutPage() {
       toast("주문 정보가 올바르지 않습니다.");
       return;
     }
-    const name = shippingName;
-    const phone = shippingPhone;
-    const postcode = shippingPostcode;
-    let address = shippingAddress;
-    let detail = shippingDetail;
-    const noteText =
-      deliveryNotePreset === ""
-        ? ""
-        : deliveryNotePreset === "custom"
-          ? deliveryNoteCustom
-          : DELIVERY_NOTE_OPTIONS.find((o) => o.value === deliveryNotePreset)?.label || "";
-    if (noteText) {
-      detail = detail ? `${detail} / ${noteText}` : noteText;
-    }
-    if (!name || !phone || !address) {
-      toast("배송지 정보를 모두 입력해주세요.");
-      if (!address) {
-        addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+    const name = shippingName.trim();
+    const phoneDigits = digitsOnlyPhone(shippingPhone);
+    const postcode = shippingPostcode.trim();
+    const address = shippingAddress.trim();
+
+    const resolvedRibbonMessage =
+      ribbonPreset === "__custom__" ? ribbonMessageCustom.trim() : ribbonPreset;
+
+    const on = ordererName.trim();
+    const op = digitsOnlyPhone(ordererPhone);
+
+    if (!on || op.length < 8) {
+      toast("주문자 성명과 연락처를 올바르게 입력해 주세요.");
       return;
     }
+    if (!name || !phoneDigits || phoneDigits.length < 8) {
+      toast("받으시는 분 성명과 배달지 연락처를 올바르게 입력해 주세요.");
+      addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (!address) {
+      toast("배달지 주소를 입력해 주세요. 우편번호 찾기를 이용해 주세요.");
+      addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (!venueDetail.trim()) {
+      toast("장소 상세(장례·예식장 호실, 홀 위치 등)를 입력해 주세요.");
+      addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (!ribbonSender.trim()) {
+      toast("보내는 분(리본)을 입력해 주세요.");
+      return;
+    }
+    if (!resolvedRibbonMessage) {
+      toast("리본 메시지를 선택하거나 입력해 주세요.");
+      return;
+    }
+
+    const shippingDetailBlob = buildFloristShippingDetailText({
+      venueDetail,
+      deliveryDate,
+      deliveryTimeSlot,
+      ordererName: on,
+      ordererPhone: op,
+      ribbonSender: ribbonSender.trim(),
+      ribbonMessage: resolvedRibbonMessage,
+    });
 
     const isGuestOrder = isGuestCheckout && !session?.user?.id;
     if (isGuestOrder) {
@@ -432,8 +437,8 @@ export default function CheckoutPage() {
         productName,
         returnUrl,
         cancelUrl,
-        buyerName: ordererName || name,
-        buyerPhone: ordererPhone || phone,
+        buyerName: on || name,
+        buyerPhone: op || phoneDigits,
         buyerEmail:
           isGuestCheckout && !session?.user?.id
             ? guestEmail.trim()
@@ -493,19 +498,20 @@ export default function CheckoutPage() {
         clientId,
         cartItemIds: items.map((i) => i.id),
         shippingName: name,
-        shippingPhone: phone,
-        shippingPostcode: postcode || undefined,
+        shippingPhone: phoneDigits,
+        shippingPostcode: postcode || "00000",
         shippingAddress: address,
-        shippingDetail: detail || undefined,
+        shippingDetail: shippingDetailBlob,
         deliveryDate: deliveryDate || null,
         deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
         deliveryMethod,
         deliveryFee,
-        deliveryRequestMemo: noteText || undefined,
+        ribbonSender: ribbonSender.trim(),
+        ribbonMessage: resolvedRibbonMessage,
         paymentMethod,
       };
-      if (ordererName.trim()) {
-        orderPayload.ordererName = ordererName.trim();
+      if (on) {
+        orderPayload.ordererName = on;
       }
       if (isGuestOrder) {
         orderPayload.isGuest = true;
@@ -555,10 +561,10 @@ export default function CheckoutPage() {
           body: JSON.stringify({
             clientId,
             name,
-            phone,
+            phone: phoneDigits,
             postcode: postcode || "",
             address,
-            detail: detail || undefined,
+            detail: venueDetail.trim() || undefined,
             isDefault: true,
           }),
         }).catch(() => {});
@@ -582,9 +588,6 @@ export default function CheckoutPage() {
       setSubmitting(false);
     }
   };
-
-  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
-  const hasValidAddress = !!(shippingName && shippingPhone && shippingAddress);
 
   if (template == null || !partnerId || !clientId || loading) {
     return <div className="min-h-screen" style={{ backgroundColor: "#FAFAFA" }} />;
@@ -682,283 +685,64 @@ export default function CheckoutPage() {
 
       <SectionDivider />
 
-      {/* (2) 배송지 - 요약 카드 + 배송 요청사항 선택 박스 */}
       <section ref={addressSectionRef} className="py-4">
-        <h2 className="mb-3 text-base font-bold" style={{ color: TEXT }}>
-          배송지
-        </h2>
-
-        {!showAddressForm && hasValidAddress ? (
-          /* 요약 카드 + 배송 메모 */
-          <div className="space-y-3">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-5 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedAddress?.is_default && (
-                      <span
-                        className="rounded px-2 py-0.5 text-xs font-medium"
-                        style={{ backgroundColor: PRIMARY_LIGHT, color: PRIMARY }}
-                      >
-                        기본배송지
-                      </span>
-                    )}
-                    <span className="font-medium" style={{ color: TEXT }}>
-                      {shippingName} · {shippingPhone}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-sm" style={{ color: TEXT_MUTED }}>
-                    {shippingAddress} {shippingDetail || ""}
-                    {shippingPostcode ? ` (${shippingPostcode})` : ""}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddressModal(true)}
-                  className="shrink-0 rounded border px-3 py-1.5 text-sm font-medium"
-                  style={{ borderColor: BORDER, color: TEXT_MUTED }}
-                >
-                  변경
-                </button>
-              </div>
-            </div>
-            {/* 배송 요청사항 선택 박스 */}
-            <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                배송 요청사항
-              </label>
-              <select
-                value={deliveryNotePreset}
-                onChange={(e) => setDeliveryNotePreset(e.target.value)}
-                onFocus={checkoutFieldFocusScroll}
-                onKeyDown={checkoutInputEnterGoNext}
-                enterKeyHint="next"
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                style={{ color: TEXT }}
-              >
-                {DELIVERY_NOTE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              {deliveryNotePreset === "custom" && (
-                <input
-                  type="text"
-                  enterKeyHint="next"
-                  placeholder="요청사항을 입력해주세요"
-                  value={deliveryNoteCustom}
-                  onChange={(e) => setDeliveryNoteCustom(e.target.value)}
-                  onFocus={checkoutFieldFocusScroll}
-                  onKeyDown={checkoutInputEnterGoNext}
-                  className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                  style={{ color: TEXT }}
-                />
-              )}
-            </div>
-          </div>
-        ) : addresses.length > 0 && !showAddressForm ? (
-          <button
-            type="button"
-            onClick={() => setShowAddressModal(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-6 transition-colors hover:bg-gray-50"
-          >
-            <span className="font-medium text-gray-700">
-              배송지를 선택해주세요
-            </span>
-            <ChevronRight size={18} className="text-gray-500" />
-          </button>
-        ) : (
-          /* 신규: [배송지를 입력해주세요 >] - 클릭 시 주소 검색 창 즉시 */
-          <div className="space-y-4">
-            {!hasValidAddress && !showAddressForm ? (
+        <section className={sectionCardClass}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-bold" style={{ color: TEXT }}>
+              2. 받으시는 분 (배송지)
+            </h2>
+            {session?.user?.id && addresses.length > 0 ? (
               <button
                 type="button"
-                onClick={openPostcodeSearch}
-                className="flex w-full items-center justify-between rounded-lg border-2 border-gray-200 bg-white py-5 px-5 transition-colors hover:bg-gray-50"
-                style={{ borderColor: PRIMARY, color: PRIMARY }}
+                onClick={() => setShowAddressModal(true)}
+                className="flex items-center gap-0.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/80"
+                style={{ borderColor: BORDER, color: PRIMARY }}
               >
-                <span className="text-base font-semibold">배송지를 입력해주세요</span>
-                <ChevronRight size={22} />
+                저장된 배송지
+                <ChevronRight size={14} className="opacity-70" aria-hidden />
               </button>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-5">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-medium" style={{ color: TEXT }}>
-                    배송지 입력
-                  </span>
-                  {addresses.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAddressForm(false)}
-                      className="text-xs"
-                      style={{ color: TEXT_MUTED }}
-                    >
-                      취소
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                      수령인명 *
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="text"
-                      enterKeyHint="next"
-                      placeholder="받는 분 성함"
-                      value={shippingName}
-                      onChange={(e) => setShippingName(e.target.value)}
-                      onFocus={checkoutFieldFocusScroll}
-                      onKeyDown={checkoutInputEnterGoNext}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                      style={{ color: TEXT }}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                      주소 *
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        enterKeyHint="next"
-                        placeholder="우편번호"
-                        value={shippingPostcode}
-                        onChange={(e) => setShippingPostcode(e.target.value)}
-                        onFocus={checkoutFieldFocusScroll}
-                        onKeyDown={checkoutInputEnterGoNext}
-                        className="w-20 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                        style={{ color: TEXT }}
-                      />
-                      <button
-                        type="button"
-                        onClick={openPostcodeSearch}
-                        className="shrink-0 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-bold transition-colors hover:bg-gray-50"
-                        style={{ color: PRIMARY }}
-                      >
-                        주소 검색
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      enterKeyHint="next"
-                      placeholder="기본 주소"
-                      value={shippingAddress}
-                      onChange={(e) => setShippingAddress(e.target.value)}
-                      onFocus={checkoutFieldFocusScroll}
-                      onKeyDown={checkoutInputEnterGoNext}
-                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                      style={{ color: TEXT }}
-                    />
-                    <input
-                      type="text"
-                      enterKeyHint="next"
-                      placeholder="상세 주소 (동/호수 등)"
-                      value={shippingDetail}
-                      onChange={(e) => setShippingDetail(e.target.value)}
-                      onFocus={checkoutFieldFocusScroll}
-                      onKeyDown={checkoutInputEnterGoNext}
-                      className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                      style={{ color: TEXT }}
-                    />
-                    <label className="mt-3 flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={saveAsDefaultAddress}
-                        onChange={(e) => setSaveAsDefaultAddress(e.target.checked)}
-                        className="accent-[#D6A8E0]"
-                      />
-                      <span className="text-sm" style={{ color: TEXT }}>
-                        이 주소를 기본 배송지로 저장
-                      </span>
-                    </label>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                      휴대전화 *
-                    </label>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      enterKeyHint="next"
-                      placeholder="010-0000-0000"
-                      value={shippingPhone}
-                      onChange={(e) => setShippingPhone(e.target.value)}
-                      onFocus={checkoutFieldFocusScroll}
-                      onKeyDown={checkoutInputEnterGoNext}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                      style={{ color: TEXT }}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                      배송 요청사항
-                    </label>
-                    <select
-                      value={deliveryNotePreset}
-                      onChange={(e) => setDeliveryNotePreset(e.target.value)}
-                      onFocus={checkoutFieldFocusScroll}
-                      onKeyDown={checkoutInputEnterGoNext}
-                      enterKeyHint="next"
-                      className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                      style={{ color: TEXT }}
-                    >
-                      {DELIVERY_NOTE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    {deliveryNotePreset === "custom" && (
-                      <input
-                        type="text"
-                        enterKeyHint="next"
-                        placeholder="요청사항을 입력해주세요"
-                        value={deliveryNoteCustom}
-                        onChange={(e) => setDeliveryNoteCustom(e.target.value)}
-                        onFocus={checkoutFieldFocusScroll}
-                        onKeyDown={checkoutInputEnterGoNext}
-                        className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                        style={{ color: TEXT }}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
-        )}
-
-        {/* 희망배송일/시간 (아코디언) */}
-        <div className="mt-4 space-y-2">
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-            <button
-              type="button"
-              onClick={() => setOpenDateAccordion((v) => !v)}
-              className="flex w-full items-center justify-between px-5 py-3.5 text-left"
-            >
-              <span className="text-sm" style={{ color: TEXT }}>
-                희망배송일
-              </span>
-              <span className="flex items-center gap-4">
-                <span className="text-sm" style={{ color: TEXT_MUTED }}>
-                  {deliveryDate ? deliveryDate.replace(/-/g, ". ") : "선택 안 함"}
-                </span>
-                {openDateAccordion ? (
-                  <ChevronUp size={16} style={{ color: TEXT_MUTED }} />
-                ) : (
-                  <ChevronDown size={16} style={{ color: TEXT_MUTED }} />
-                )}
-              </span>
-            </button>
-            {openDateAccordion && (
-              <div className="border-t border-gray-200 px-5 pb-4 pt-3">
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3">
-                  <Calendar size={18} style={{ color: PRIMARY }} />
+          <div className="flex flex-col gap-5">
+            <div>
+              <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                수취인 성명 <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                inputMode="text"
+                enterKeyHint="next"
+                value={shippingName}
+                onChange={(e) => setShippingName(e.target.value)}
+                onFocus={checkoutFieldFocusScroll}
+                onKeyDown={checkoutInputEnterGoNext}
+                className={inputClass}
+                placeholder="받으시는 분 성함"
+              />
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                배달지 연락처 <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                enterKeyHint="next"
+                value={shippingPhone}
+                onChange={(e) => setShippingPhone(digitsOnlyPhone(e.target.value))}
+                onFocus={checkoutFieldFocusScroll}
+                onKeyDown={checkoutInputEnterGoNext}
+                className={inputClass}
+                placeholder="01012345678 (숫자만)"
+              />
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                배달 일시 <span className="text-rose-500">*</span>
+              </label>
+              <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                <div className="flex items-center gap-2">
+                  <Calendar size={18} style={{ color: PRIMARY }} aria-hidden />
                   <input
                     type="date"
                     enterKeyHint="next"
@@ -967,55 +751,196 @@ export default function CheckoutPage() {
                     onFocus={checkoutFieldFocusScroll}
                     onKeyDown={checkoutInputEnterGoNext}
                     min={new Date().toISOString().split("T")[0]}
-                    className="flex-1 border-0 bg-transparent py-1 text-sm outline-none"
+                    className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
                     style={{ color: TEXT }}
                   />
                 </div>
+                <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                  <button
+                    type="button"
+                    onClick={() => setOpenTimeAccordion((v) => !v)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-left"
+                  >
+                    <span className="text-sm" style={{ color: TEXT }}>
+                      희망 시간대
+                    </span>
+                    <span className="flex items-center gap-2 text-sm" style={{ color: TEXT_MUTED }}>
+                      {deliveryTimeSlot}
+                      {openTimeAccordion ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </span>
+                  </button>
+                  {openTimeAccordion && (
+                    <div className="border-t border-gray-200 px-3 pb-3 pt-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {TIME_SLOTS.map((slot) => (
+                          <button
+                            key={slot}
+                            type="button"
+                            onClick={() => {
+                              setDeliveryTimeSlot(slot);
+                              setOpenTimeAccordion(false);
+                            }}
+                            className="rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors"
+                            style={{
+                              borderColor: deliveryTimeSlot === slot ? PRIMARY : BORDER,
+                              backgroundColor: deliveryTimeSlot === slot ? PRIMARY_LIGHT : "white",
+                              color: deliveryTimeSlot === slot ? PRIMARY : TEXT,
+                            }}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-            <button
-              type="button"
-              onClick={() => setOpenTimeAccordion((v) => !v)}
-              className="flex w-full items-center justify-between px-5 py-3.5 text-left"
-            >
-              <span className="text-sm" style={{ color: TEXT }}>
-                희망배송시간
-              </span>
-              <span className="flex items-center gap-4">
-                <span className="text-sm" style={{ color: TEXT_MUTED }}>
-                  {deliveryTimeSlot || "선택"}
-                </span>
-                {openTimeAccordion ? (
-                  <ChevronUp size={16} style={{ color: TEXT_MUTED }} />
-                ) : (
-                  <ChevronDown size={16} style={{ color: TEXT_MUTED }} />
-                )}
-              </span>
-            </button>
-            {openTimeAccordion && (
-              <div className="border-t border-gray-200 px-5 pb-4 pt-3">
-                <select
-                  value={deliveryTimeSlot}
-                  onChange={(e) => setDeliveryTimeSlot(e.target.value)}
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                배달지 주소 <span className="text-rose-500">*</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={shippingPostcode}
+                  placeholder="우편번호"
                   onFocus={checkoutFieldFocusScroll}
-                  onKeyDown={checkoutInputEnterGoNext}
-                  enterKeyHint="next"
-                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
-                  style={{ color: TEXT }}
+                  className={`${inputClass} w-24 shrink-0 bg-gray-50`}
+                />
+                <button
+                  type="button"
+                  onClick={openPostcodeSearch}
+                  className="shrink-0 rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm font-bold"
+                  style={{ color: PRIMARY }}
                 >
-                  <option value="">시간대 선택</option>
-                  {TIME_SLOTS.map((slot) => (
-                    <option key={slot} value={slot}>
-                      {slot}
-                    </option>
-                  ))}
-                </select>
+                  주소 검색
+                </button>
               </div>
-            )}
+              <input
+                type="text"
+                enterKeyHint="next"
+                value={shippingAddress}
+                onChange={(e) => setShippingAddress(e.target.value)}
+                onFocus={checkoutFieldFocusScroll}
+                onKeyDown={checkoutInputEnterGoNext}
+                className={`${inputClass} mt-3`}
+                placeholder="도로명 주소"
+              />
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                장소 상세 <span className="text-rose-500">*</span>
+              </label>
+              <p className="mb-2 text-xs leading-snug" style={{ color: TEXT_MUTED }}>
+                빈소·예식장 호실, 층수, 홀 이름 등 배달 기사님이 찾으실 수 있게 적어 주세요.
+              </p>
+              <textarea
+                value={venueDetail}
+                onChange={(e) => setVenueDetail(e.target.value)}
+                onFocus={checkoutFieldFocusScroll}
+                rows={4}
+                enterKeyHint="done"
+                className={`${inputClass} min-h-[112px] resize-y ring-2 ring-[#D6A8E0]/25`}
+                placeholder="예) 아산병원 장례식장 201호, 3층 그랜드홀"
+              />
+            </div>
+            {session?.user?.id ? (
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={saveAsDefaultAddress}
+                  onChange={(e) => setSaveAsDefaultAddress(e.target.checked)}
+                  className="accent-[#D6A8E0]"
+                />
+                <span className="text-sm" style={{ color: TEXT }}>
+                  이 배송지를 기본 배송지로 저장
+                </span>
+              </label>
+            ) : null}
           </div>
-        </div>
+        </section>
+      </section>
+
+      <SectionDivider />
+
+      <section className="py-4">
+        <section className={sectionCardClass}>
+          <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
+            3. 리본 문구 정보
+          </h2>
+          <div className="flex flex-col gap-5">
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <label className={`${labelClass} mb-0`} style={{ color: TEXT_MUTED }}>
+                  보내는 분 <span className="text-rose-500">*</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-medium" style={{ color: TEXT_MUTED }}>
+                  <input
+                    type="checkbox"
+                    checked={ribbonSameAsOrderer}
+                    onChange={(e) => {
+                      const c = e.target.checked;
+                      setRibbonSameAsOrderer(c);
+                      if (c) setRibbonSender(ordererName.trim());
+                    }}
+                    className="accent-[#D6A8E0]"
+                  />
+                  주문자와 동일
+                </label>
+              </div>
+              <input
+                type="text"
+                inputMode="text"
+                enterKeyHint="next"
+                value={ribbonSender}
+                onChange={(e) => {
+                  setRibbonSameAsOrderer(false);
+                  setRibbonSender(e.target.value);
+                }}
+                onFocus={checkoutFieldFocusScroll}
+                onKeyDown={checkoutInputEnterGoNext}
+                className={inputClass}
+                placeholder="예: 주식회사 ○○○ 대표이사 홍길동"
+              />
+            </div>
+            <div>
+              <label className={labelClass} style={{ color: TEXT_MUTED }}>
+                메시지 (근조/축하) <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={ribbonPreset}
+                onChange={(e) => {
+                  setRibbonPreset(e.target.value);
+                  if (e.target.value !== "__custom__") setRibbonMessageCustom("");
+                }}
+                onFocus={checkoutFieldFocusScroll}
+                onKeyDown={checkoutInputEnterGoNext}
+                enterKeyHint="next"
+                className={inputClass}
+                style={{ color: TEXT }}
+              >
+                {RIBBON_MESSAGE_PRESETS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+              {ribbonPreset === "__custom__" && (
+                <textarea
+                  value={ribbonMessageCustom}
+                  onChange={(e) => setRibbonMessageCustom(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  rows={3}
+                  enterKeyHint="done"
+                  className={`${inputClass} mt-3 min-h-[88px] resize-y`}
+                  placeholder="리본에 들어갈 문구를 입력해 주세요."
+                />
+              )}
+            </div>
+          </div>
+        </section>
       </section>
 
       <SectionDivider />

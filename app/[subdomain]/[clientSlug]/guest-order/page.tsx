@@ -19,6 +19,12 @@ import {
 } from "@/lib/checkout-test-defaults";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
+import {
+  TIME_SLOTS,
+  RIBBON_MESSAGE_PRESETS,
+  digitsOnlyPhone,
+  buildFloristShippingDetailText,
+} from "@/lib/checkout-florist-fields";
 
 /**
  * 비회원 전용 주문서 — 화환/꽃배달(우리부고) 입력 구성
@@ -39,23 +45,6 @@ const ACCENT_DARK = "#5B21B6";
 //   { value: "quick", label: "퀵배송", fee: 5000 },
 //   { value: "store_pickup", label: "스토어픽업", fee: 1000 },
 // ] as const;
-
-const TIME_SLOTS = [
-  "09:00~11:00",
-  "11:00~13:00",
-  "13:00~15:00",
-  "14:00~16:00",
-  "15:00~17:00",
-  "17:00~19:00",
-];
-
-const RIBBON_MESSAGE_PRESETS: { value: string; label: string }[] = [
-  { value: "__custom__", label: "직접 입력" },
-  { value: "삼가 고인의 명복을 빕니다", label: "삼가 고인의 명복을 빕니다" },
-  { value: "근조", label: "근조" },
-  { value: "축하합니다", label: "축하합니다" },
-  { value: "정성을 담아 보냅니다", label: "정성을 담아 보냅니다" },
-];
 
 function getTomorrowDateString(): string {
   const d = new Date();
@@ -92,30 +81,6 @@ const inputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
 const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
 const sectionCardClass = "overflow-hidden rounded-xl border border-gray-200 bg-gray-50/90 p-5";
-
-function digitsOnlyPhone(value: string): string {
-  return value.replace(/\D/g, "");
-}
-
-function buildGuestShippingDetail(parts: {
-  venueDetail: string;
-  deliveryDate: string;
-  deliveryTimeSlot: string;
-  ordererName: string;
-  ordererPhone: string;
-  ribbonSender: string;
-  ribbonMessage: string;
-}): string {
-  const lines: string[] = [];
-  const v = parts.venueDetail.trim();
-  if (v) lines.push(v);
-  lines.push("");
-  lines.push(`[배달 희망] ${parts.deliveryDate} ${parts.deliveryTimeSlot}`);
-  lines.push(`[주문자] ${parts.ordererName.trim()} / ${parts.ordererPhone.trim()}`);
-  lines.push(`[보내는 분(리본)] ${parts.ribbonSender.trim()}`);
-  lines.push(`[리본 문구] ${parts.ribbonMessage.trim()}`);
-  return lines.join("\n");
-}
 
 export default function GuestOrderPage() {
   const params = useParams();
@@ -348,7 +313,7 @@ export default function GuestOrderPage() {
       return;
     }
 
-    const shippingDetail = buildGuestShippingDetail({
+    const shippingDetail = buildFloristShippingDetailText({
       venueDetail,
       deliveryDate,
       deliveryTimeSlot,
