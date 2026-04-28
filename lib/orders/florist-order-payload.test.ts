@@ -15,8 +15,22 @@ describe("floristFieldsFromOrderBody", () => {
     expect(f.delivery_time_slot).toBe("14:00~16:00");
     expect(f.delivery_method).toBe("parcel");
     expect(f.delivery_request_memo).toBe("문 앞");
-    expect(f.ribbon_sender).toBe("홍길동");
+    expect(f.ribbon_sender).toBe("홍길동");    
     expect(f.ribbon_message).toBe("근조");
+    expect(f.venue_detail).toBeNull();
+  });
+
+  it("parses detailPlace / venueDetail aliases into venue_detail", () => {
+    expect(
+      floristFieldsFromOrderBody({
+        detailPlace: "  201호 로비  ",
+      }).venue_detail
+    ).toBe("201호 로비");
+    expect(
+      floristFieldsFromOrderBody({
+        venueDetail: "홀 A",
+      }).venue_detail
+    ).toBe("홀 A");
   });
 
   it("rejects invalid date strings", () => {

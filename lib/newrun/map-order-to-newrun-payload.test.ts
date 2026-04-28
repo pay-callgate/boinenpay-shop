@@ -39,6 +39,42 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
     expect(r.fields.rw_sno).toBe("11111111-1111-1111-1111-111111111111");
     expect(r.fields.rw_bdate).toBe("2026-04-28");
     expect(r.fields.rw_price).toBe("90000");
+    expect(r.fields.rw_menucode).toBe("35");
+  });
+
+  it("리본·장소·주문자 컬럼이 있으면 발주 폼에 ribbonSender, detailPlace, rw_jname 포함", () => {
+    const r = mapOrderToNewrunPayload(
+      {
+        id: "33333333-3333-3333-3333-333333333333",
+        order_no: "ORD-3",
+        payment_status: "paid",
+        total_amount: 1,
+        shipping_name: "수취",
+        shipping_phone: "01000000000",
+        shipping_address: "서울",
+        shipping_detail: "장소첫줄\n\n[배달 희망] 2026-04-01",
+        created_at: "2026-03-31T12:00:00.000Z",
+        desired_delivery_date: "2026-04-02",
+        orderer_name: "주문자희",
+        ribbon_sender: "리본보냄",
+        ribbon_message: "축하",
+        venue_detail: "DB장소상세",
+      },
+      [],
+      { florist: null, product: { rw_menucode: "SHOULD_BE_OVERRIDDEN" }, option: null },
+      {
+        rw_rosewebid: "u",
+        rw_rosewebpw: "p",
+        rw_assoc: "a",
+        rw_returnurl: "https://x/po-return",
+      },
+      { strict: true, headquartersBonbalju: true, rw_method: "1" }
+    );
+    expect(r.fields.rw_menucode).toBe("35");
+    expect(r.fields.detailPlace).toBe("DB장소상세");
+    expect(r.fields.ribbonSender).toBe("리본보냄");
+    expect(r.fields.ribbonMessage).toBe("축하");
+    expect(r.fields.rw_jname).toBe("주문자희");
   });
 
   it("희망배송일 없으면 created_at 기준 YYYY-MM-DD", () => {

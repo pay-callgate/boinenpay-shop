@@ -323,6 +323,10 @@ export async function submitNewrunOrder(
         shipping_detail: (order.shipping_detail as string | null) ?? null,
         created_at: order.created_at as string | undefined,
         desired_delivery_date: (order as { desired_delivery_date?: string | null }).desired_delivery_date ?? null,
+        orderer_name: (order as { orderer_name?: string | null }).orderer_name ?? null,
+        ribbon_sender: (order as { ribbon_sender?: string | null }).ribbon_sender ?? null,
+        ribbon_message: (order as { ribbon_message?: string | null }).ribbon_message ?? null,
+        venue_detail: (order as { venue_detail?: string | null }).venue_detail ?? null,
       },
       itemSlices,
       ctx.drafts!,
@@ -441,7 +445,16 @@ export async function submitNewrunOrder(
 
   let res: Response;
   try {
-    logger.info(`${LOG} POST`, { action: "newrun_submit_http", data: { orderId, url } });
+    logger.info(`${LOG} POST`, {
+      action: "newrun_submit_http",
+      data: {
+        orderId,
+        url,
+        rw_menucode: mapResult.fields.rw_menucode,
+        detailPlace: mapResult.fields.detailPlace?.slice(0, 80),
+        ribbonSender: mapResult.fields.ribbonSender?.slice(0, 40),
+      },
+    });
     res = await fetch(url, {
       method: "POST",
       redirect: "manual",

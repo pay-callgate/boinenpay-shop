@@ -502,6 +502,7 @@ export default function CheckoutPage() {
         shippingPostcode: postcode || "00000",
         shippingAddress: address,
         shippingDetail: shippingDetailBlob,
+        detailPlace: venueDetail.trim(),
         deliveryDate: deliveryDate || null,
         deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
         deliveryMethod,

@@ -114,6 +114,10 @@ export async function GET(
         shipping_detail: order.shipping_detail,
         created_at: order.created_at,
         desired_delivery_date: (order as { desired_delivery_date?: string | null }).desired_delivery_date ?? null,
+        orderer_name: (order as { orderer_name?: string | null }).orderer_name ?? null,
+        ribbon_sender: (order as { ribbon_sender?: string | null }).ribbon_sender ?? null,
+        ribbon_message: (order as { ribbon_message?: string | null }).ribbon_message ?? null,
+        venue_detail: (order as { venue_detail?: string | null }).venue_detail ?? null,
       },
       rowItems.map((i) => ({
         quantity: i.quantity,

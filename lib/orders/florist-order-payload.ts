@@ -15,6 +15,7 @@ export type FloristOrderDbFields = {
   delivery_request_memo: string | null;
   ribbon_sender: string | null;
   ribbon_message: string | null;
+  venue_detail: string | null;
 };
 
 function clampText(raw: unknown, max: number): string | null {
@@ -45,6 +46,9 @@ export function floristFieldsFromOrderBody(body: Record<string, unknown>): Flori
   const ribbonRawMessage = body.ribbonMessage ?? body.ribbon_message;
   const ribbon_message = clampText(ribbonRawMessage, MAX_MEMO);
 
+  const detailPlaceRaw = body.detailPlace ?? body.venueDetail ?? body.venue_detail;
+  const venue_detail = clampText(detailPlaceRaw, MAX_MEMO);
+
   return {
     desired_delivery_date,
     delivery_time_slot,
@@ -52,5 +56,6 @@ export function floristFieldsFromOrderBody(body: Record<string, unknown>): Flori
     delivery_request_memo,
     ribbon_sender,
     ribbon_message,
+    venue_detail,
   };
 }

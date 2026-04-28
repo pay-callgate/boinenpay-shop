@@ -18,6 +18,12 @@ const RW_STYLE_DEFAULT = "0";
 const RW_SMS_DEFAULT = "0";
 const RW_FAX_DEFAULT = "0";
 
+/**
+ * 축하3단 — 상품↔뉴런 매핑 전 발주 E2E/테스트용 고정 상품 코드.
+ * 실매핑 도입 시 제거하거나 env 기본값으로 대체.
+ */
+export const NEWRUN_FIXED_RW_MENUCODE = "35";
+
 /** 문자열 필드 상한(보수적). 뉴런 문서·실측에 맞춰 조정 가능. */
 export const NEWRUN_RW_STRING_LIMITS: Record<string, number> = {
   rw_aname: 50,
@@ -28,7 +34,22 @@ export const NEWRUN_RW_STRING_LIMITS: Record<string, number> = {
   rw_sno: 40,
   rw_menucode: 80,
   rw_sujuid: 80,
+  rw_jname: 50,
+  detailPlace: 500,
+  ribbonSender: 100,
+  ribbonMessage: 500,
 };
+
+/** `shipping_detail` 블록에서 장소 상세 첫 줄(화훼 주문서 포맷) */
+export function extractFloristVenueLineFromShippingDetail(
+  shippingDetail: string | null | undefined
+): string {
+  const s = (shippingDetail ?? "").trim();
+  if (!s) return "";
+  const head = s.split(/\n\s*\n/)[0] ?? s;
+  const line = head.split("\n").find((l) => l.trim().length > 0) ?? "";
+  return line.trim();
+}
 
 export type NewrunOrderSlice = {
   id: string;
@@ -43,6 +64,10 @@ export type NewrunOrderSlice = {
   created_at?: string;
   /** 희망 배송일 (DB DATE → 보통 YYYY-MM-DD) */
   desired_delivery_date?: string | null;
+  orderer_name?: string | null;
+  ribbon_sender?: string | null;
+  ribbon_message?: string | null;
+  venue_detail?: string | null;
 };
 
 export type NewrunOrderItemSlice = {
@@ -277,20 +302,41 @@ export function mapOrderToNewrunPayload(
     applyProductDraft(drafts.product, fields);
   }
 
+  const detailPlaceSource =
+    (order.venue_detail ?? "").trim() ||
+    extractFloristVenueLineFromShippingDetail(order.shipping_detail);
+  if (detailPlaceSource) {
+    fields.detailPlace = truncateField("detailPlace", detailPlaceSource, warnings);
+  }
+
+  const rs = (order.ribbon_sender ?? "").trim();
+  const rm = (order.ribbon_message ?? "").trim();
+  if (rs) fields.ribbonSender = truncateField("ribbonSender", rs, warnings);
+  if (rm) fields.ribbonMessage = truncateField("ribbonMessage", rm, warnings);
+
+  const jn = (order.orderer_name ?? "").trim();
+  if (jn) fields.rw_jname = truncateField("rw_jname", jn, warnings);
+
   const truncateKeys = [
     "rw_sujuid",
     "rw_menucode",
     "rw_sno",
     "rw_aname",
     "rw_atel",
+    "rw_jname",
     "rw_arrive_place1",
     "rw_memo",
     "rw_shopreq",
     "rw_returnurl",
+    "detailPlace",
+    "ribbonSender",
+    "ribbonMessage",
   ] as const;
   for (const k of truncateKeys) {
     if (fields[k]) fields[k] = truncateField(k, fields[k], warnings);
   }
+
+  fields.rw_menucode = truncateField("rw_menucode", NEWRUN_FIXED_RW_MENUCODE, warnings);
 
   const issues: string[] = [];
   if (!creds.rw_rosewebid.trim()) issues.push("rw_rosewebid 비어 있음");

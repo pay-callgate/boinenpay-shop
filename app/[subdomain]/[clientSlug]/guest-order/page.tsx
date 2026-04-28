@@ -395,6 +395,7 @@ export default function GuestOrderPage() {
         shippingPostcode: shippingPostcode.trim() || "00000",
         shippingAddress: shippingAddress.trim(),
         shippingDetail,
+        detailPlace: venueDetail.trim(),
         deliveryDate: deliveryDate || null,
         deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
         deliveryMethod,
