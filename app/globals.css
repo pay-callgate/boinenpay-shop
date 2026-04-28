@@ -13,6 +13,13 @@
   }
 }
 
+/* 모바일 주문서: 주소창/가상 키보드에 대응 (100dvh 미지원 브라우저는 min-h-screen 클래스로 보완) */
+@supports (height: 100dvh) {
+  .checkout-tunnel-form {
+    min-height: 100dvh;
+  }
+}
+
 html,
 body {
   margin: 0;

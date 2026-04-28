@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { X, Plus } from "lucide-react";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
+import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 
 /** 주문서 디자인 시스템 - 더 연하고 부드러운 톤 */
 const PRIMARY_SOFT = "#F3E8F5";
@@ -278,9 +279,13 @@ export function AddressSelectModal({
                   </label>
                   <input
                     type="text"
+                    inputMode="text"
+                    enterKeyHint="next"
                     placeholder="수령인 성함"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     className="w-full border border-gray-200 p-2 text-xs outline-none focus:border-[#D6A8E0]"
                     style={{ borderRadius: CARD_RADIUS }}
                   />
@@ -292,9 +297,13 @@ export function AddressSelectModal({
                   </label>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    enterKeyHint="next"
                     placeholder="휴대폰 번호"
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     className="w-full border border-gray-200 p-2 text-xs outline-none focus:border-[#D6A8E0]"
                     style={{ borderRadius: CARD_RADIUS }}
                   />
@@ -307,9 +316,10 @@ export function AddressSelectModal({
                   <div className="flex gap-1.5">
                     <input
                       type="text"
-                      placeholder="우편번호"
-                      value={formPostcode}
                       readOnly
+                      value={formPostcode}
+                      placeholder="우편번호"
+                      onFocus={checkoutFieldFocusScroll}
                       className="flex-1 border border-gray-200 bg-gray-50 p-2 text-xs outline-none"
                       style={{ borderRadius: CARD_RADIUS }}
                     />
@@ -331,17 +341,21 @@ export function AddressSelectModal({
                   </div>
                   <input
                     type="text"
+                    readOnly
                     placeholder="기본 주소"
                     value={formAddress}
-                    readOnly
+                    onFocus={checkoutFieldFocusScroll}
                     className="mt-1 w-full border border-gray-200 bg-gray-50 p-2 text-xs outline-none"
                     style={{ borderRadius: CARD_RADIUS }}
                   />
                   <input
                     type="text"
+                    enterKeyHint="done"
                     placeholder="상세 주소"
                     value={formDetail}
                     onChange={(e) => setFormDetail(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     className="mt-1 w-full border border-gray-200 p-2 text-xs outline-none focus:border-[#D6A8E0]"
                     style={{ borderRadius: CARD_RADIUS }}
                   />

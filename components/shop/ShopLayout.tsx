@@ -9,6 +9,7 @@ import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
 import { ToastProvider, toast } from "./ToastContext";
 import { SideMenu } from "./SideMenu";
 import { ProductSearchModal } from "./ProductSearchModal";
+import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 
 function MasterTemplateIcon({ className }: { className?: string }) {
   return (
@@ -71,6 +72,7 @@ function mainScrollPaddingBottom(
   subdomain: string,
   clientSlug: string | null
 ) {
+  if (isShopPaymentTunnelPath(pathname)) return 0;
   const normalized =
     pathname.length > 1 && pathname.endsWith("/")
       ? pathname.slice(0, -1)
@@ -275,6 +277,8 @@ function ShopBottomNav({
   orderAllowed: boolean;
 }) {
   const pathname = usePathname();
+  if (isShopPaymentTunnelPath(pathname)) return null;
+
   const base = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
 
   const navItems = [

@@ -6,7 +6,6 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
-import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 
 /**
  * Phase E1: 주문 완료 페이지 (ViewPay returnUrl 리다이렉트 대상)
@@ -511,7 +510,7 @@ export default function OrderCompletePage() {
         className="min-h-[60vh] w-full"
         style={{
           backgroundColor: BG_PAGE,
-          paddingBottom: BOTTOM_NAV_HEIGHT + 24,
+          paddingBottom: `calc(24px + env(safe-area-inset-bottom, 0px))`,
         }}
       >
         {isSuccess ? (

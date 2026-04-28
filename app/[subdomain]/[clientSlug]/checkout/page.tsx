@@ -5,13 +5,15 @@ import {
   isCheckoutTestDefaultsEnabled,
   CHECKOUT_TEST_DEFAULTS,
 } from "@/lib/checkout-test-defaults";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronUp, Calendar, ChevronRight } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
+import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { toast } from "@/components/shop/ToastContext";
 import { AddressSelectModal, type Address } from "@/components/shop/AddressSelectModal";
 import {
@@ -95,6 +97,8 @@ export default function CheckoutPage() {
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
+  const pathname = usePathname();
+  const stickyAboveNav = isShopPaymentTunnelPath(pathname) ? 0 : BOTTOM_NAV_HEIGHT;
   const isGuestCheckout = searchParams?.get("guest") === "1";
   const itemsQuery = searchParams?.get("items") ?? "";
   const selectedItemIds = useMemo(
@@ -649,8 +653,12 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    enterKeyHint="next"
                     value={ordererPhone}
                     onChange={(e) => setOrdererPhone(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     placeholder="010-0000-0000"
                     className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30"
                   />
@@ -719,6 +727,9 @@ export default function CheckoutPage() {
               <select
                 value={deliveryNotePreset}
                 onChange={(e) => setDeliveryNotePreset(e.target.value)}
+                onFocus={checkoutFieldFocusScroll}
+                onKeyDown={checkoutInputEnterGoNext}
+                enterKeyHint="next"
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                 style={{ color: TEXT }}
               >
@@ -731,9 +742,12 @@ export default function CheckoutPage() {
               {deliveryNotePreset === "custom" && (
                 <input
                   type="text"
+                  enterKeyHint="next"
                   placeholder="요청사항을 입력해주세요"
                   value={deliveryNoteCustom}
                   onChange={(e) => setDeliveryNoteCustom(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                   style={{ color: TEXT }}
                 />
@@ -789,9 +803,13 @@ export default function CheckoutPage() {
                     </label>
                     <input
                       type="text"
+                      inputMode="text"
+                      enterKeyHint="next"
                       placeholder="받는 분 성함"
                       value={shippingName}
                       onChange={(e) => setShippingName(e.target.value)}
+                      onFocus={checkoutFieldFocusScroll}
+                      onKeyDown={checkoutInputEnterGoNext}
                       className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                       style={{ color: TEXT }}
                     />
@@ -803,9 +821,13 @@ export default function CheckoutPage() {
                     <div className="flex gap-2">
                       <input
                         type="text"
+                        inputMode="numeric"
+                        enterKeyHint="next"
                         placeholder="우편번호"
                         value={shippingPostcode}
                         onChange={(e) => setShippingPostcode(e.target.value)}
+                        onFocus={checkoutFieldFocusScroll}
+                        onKeyDown={checkoutInputEnterGoNext}
                         className="w-20 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                         style={{ color: TEXT }}
                       />
@@ -820,17 +842,23 @@ export default function CheckoutPage() {
                     </div>
                     <input
                       type="text"
+                      enterKeyHint="next"
                       placeholder="기본 주소"
                       value={shippingAddress}
                       onChange={(e) => setShippingAddress(e.target.value)}
+                      onFocus={checkoutFieldFocusScroll}
+                      onKeyDown={checkoutInputEnterGoNext}
                       className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                       style={{ color: TEXT }}
                     />
                     <input
                       type="text"
+                      enterKeyHint="next"
                       placeholder="상세 주소 (동/호수 등)"
                       value={shippingDetail}
                       onChange={(e) => setShippingDetail(e.target.value)}
+                      onFocus={checkoutFieldFocusScroll}
+                      onKeyDown={checkoutInputEnterGoNext}
                       className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                       style={{ color: TEXT }}
                     />
@@ -852,9 +880,13 @@ export default function CheckoutPage() {
                     </label>
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      enterKeyHint="next"
                       placeholder="010-0000-0000"
                       value={shippingPhone}
                       onChange={(e) => setShippingPhone(e.target.value)}
+                      onFocus={checkoutFieldFocusScroll}
+                      onKeyDown={checkoutInputEnterGoNext}
                       className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                       style={{ color: TEXT }}
                     />
@@ -866,6 +898,9 @@ export default function CheckoutPage() {
                     <select
                       value={deliveryNotePreset}
                       onChange={(e) => setDeliveryNotePreset(e.target.value)}
+                      onFocus={checkoutFieldFocusScroll}
+                      onKeyDown={checkoutInputEnterGoNext}
+                      enterKeyHint="next"
                       className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                       style={{ color: TEXT }}
                     >
@@ -878,9 +913,12 @@ export default function CheckoutPage() {
                     {deliveryNotePreset === "custom" && (
                       <input
                         type="text"
+                        enterKeyHint="next"
                         placeholder="요청사항을 입력해주세요"
                         value={deliveryNoteCustom}
                         onChange={(e) => setDeliveryNoteCustom(e.target.value)}
+                        onFocus={checkoutFieldFocusScroll}
+                        onKeyDown={checkoutInputEnterGoNext}
                         className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                         style={{ color: TEXT }}
                       />
@@ -920,8 +958,11 @@ export default function CheckoutPage() {
                   <Calendar size={18} style={{ color: PRIMARY }} />
                   <input
                     type="date"
+                    enterKeyHint="next"
                     value={deliveryDate}
                     onChange={(e) => setDeliveryDate(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     min={new Date().toISOString().split("T")[0]}
                     className="flex-1 border-0 bg-transparent py-1 text-sm outline-none"
                     style={{ color: TEXT }}
@@ -955,6 +996,9 @@ export default function CheckoutPage() {
                 <select
                   value={deliveryTimeSlot}
                   onChange={(e) => setDeliveryTimeSlot(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
+                  enterKeyHint="next"
                   className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm"
                   style={{ color: TEXT }}
                 >
@@ -1107,7 +1151,7 @@ export default function CheckoutPage() {
       requireAuth={!isGuestCheckout}
       blockAffiliationMismatch={!isGuestCheckout}
     >
-      <form onSubmit={handleSubmit} className="mx-auto min-h-screen max-w-[430px] bg-white pb-36 lg:max-w-6xl lg:px-6 lg:pb-40">
+      <form onSubmit={handleSubmit} className="checkout-tunnel-form mx-auto min-h-screen min-h-[100dvh] max-w-[430px] bg-white pb-36 lg:max-w-6xl lg:px-6 lg:pb-40">
         <div className="px-4 py-4 lg:py-6">
           {pendingOrderId && pendingPrepareSnapshot && (
             <div
@@ -1141,8 +1185,12 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-medium text-amber-900/80">이름</label>
                   <input
                     type="text"
+                    inputMode="text"
+                    enterKeyHint="next"
                     value={shippingName}
                     onChange={(e) => setShippingName(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
                     placeholder="수령인 이름"
                     autoComplete="name"
@@ -1152,8 +1200,12 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-medium text-amber-900/80">휴대폰 번호</label>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    enterKeyHint="next"
                     value={shippingPhone}
                     onChange={(e) => setShippingPhone(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
                     placeholder="010-0000-0000"
                     autoComplete="tel"
@@ -1163,8 +1215,11 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-medium text-amber-900/80">이메일 (결제 안내)</label>
                   <input
                     type="email"
+                    enterKeyHint="next"
                     value={guestEmail}
                     onChange={(e) => setGuestEmail(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
                     placeholder="example@email.com"
                     autoComplete="email"
@@ -1174,8 +1229,11 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-medium text-amber-900/80">주문 조회 비밀번호</label>
                   <input
                     type="password"
+                    enterKeyHint="next"
                     value={guestPassword}
                     onChange={(e) => setGuestPassword(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
                     placeholder="4자 이상"
                     autoComplete="new-password"
@@ -1185,8 +1243,11 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-medium text-amber-900/80">비밀번호 확인</label>
                   <input
                     type="password"
+                    enterKeyHint="done"
                     value={guestPasswordConfirm}
                     onChange={(e) => setGuestPasswordConfirm(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
+                    onKeyDown={checkoutInputEnterGoNext}
                     className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
                     autoComplete="new-password"
                   />
@@ -1205,7 +1266,7 @@ export default function CheckoutPage() {
           className="fixed left-0 right-0 bottom-0 z-50 mx-auto max-w-[430px] border-t bg-white px-4 py-4 lg:max-w-6xl"
           style={{
             borderColor: BORDER,
-            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM_NAV_HEIGHT}px)`,
+            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${stickyAboveNav}px)`,
           }}
         >
           <label className="mb-3 flex cursor-pointer items-start gap-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
@@ -16,6 +16,8 @@ import {
   isCheckoutTestDefaultsEnabled,
   CHECKOUT_TEST_DEFAULTS,
 } from "@/lib/checkout-test-defaults";
+import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
+import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 
 /**
  * 비회원 전용 주문서 — 화환/꽃배달(우리부고) 입력 구성
@@ -122,6 +124,8 @@ export default function GuestOrderPage() {
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
+  const pathname = usePathname();
+  const stickyAboveNav = isShopPaymentTunnelPath(pathname) ? 0 : BOTTOM_NAV_HEIGHT;
   const itemsQuery = searchParams?.get("items") ?? "";
   const selectedItemIds = useMemo(
     () => (itemsQuery ? itemsQuery.split(",").filter(Boolean) : []),
@@ -533,8 +537,10 @@ export default function GuestOrderPage() {
     >
       <form
         onSubmit={handleSubmit}
-        className="mx-auto min-h-screen max-w-[430px] bg-white pb-40"
-        style={{ paddingBottom: `calc(9rem + env(safe-area-inset-bottom, 0px))` }}
+        className="checkout-tunnel-form mx-auto min-h-screen min-h-[100dvh] max-w-[430px] bg-white pb-40"
+        style={{
+          paddingBottom: `calc(9rem + env(safe-area-inset-bottom, 0px))`,
+        }}
       >
         <div className="px-4 py-5">
           {isCheckoutTestDefaultsEnabled() && (
@@ -584,9 +590,13 @@ export default function GuestOrderPage() {
                 <input
                   type="text"
                   name="ordererName"
+                  inputMode="text"
                   autoComplete="name"
+                  enterKeyHint="next"
                   value={ordererName}
                   onChange={(e) => setOrdererName(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
                   placeholder="홍길동"
                 />
@@ -600,8 +610,11 @@ export default function GuestOrderPage() {
                   inputMode="numeric"
                   name="ordererPhone"
                   autoComplete="tel"
+                  enterKeyHint="next"
                   value={ordererPhone}
                   onChange={(e) => setOrdererPhone(digitsOnlyPhone(e.target.value))}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
                   placeholder="01012345678 (숫자만)"
                 />
@@ -614,8 +627,11 @@ export default function GuestOrderPage() {
                   type="email"
                   name="guestEmail"
                   autoComplete="email"
+                  enterKeyHint="next"
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
                   placeholder="example@email.com"
                 />
@@ -628,8 +644,11 @@ export default function GuestOrderPage() {
                   type="password"
                   name="guestPassword"
                   autoComplete="new-password"
+                  enterKeyHint="next"
                   value={guestPassword}
                   onChange={(e) => setGuestPassword(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
                   placeholder="4자 이상 (배송 조회 시 사용)"
                 />
@@ -642,8 +661,11 @@ export default function GuestOrderPage() {
                   type="password"
                   name="guestPasswordConfirm"
                   autoComplete="new-password"
+                  enterKeyHint="next"
                   value={guestPasswordConfirm}
                   onChange={(e) => setGuestPasswordConfirm(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
                   placeholder="비밀번호 재입력"
                 />
@@ -665,8 +687,12 @@ export default function GuestOrderPage() {
                 </label>
                 <input
                   type="text"
+                  inputMode="text"
+                  enterKeyHint="next"
                   value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
                   placeholder="받으시는 분 성함"
                 />
@@ -678,8 +704,11 @@ export default function GuestOrderPage() {
                 <input
                   type="tel"
                   inputMode="numeric"
+                  enterKeyHint="next"
                   value={recipientPhone}
                   onChange={(e) => setRecipientPhone(digitsOnlyPhone(e.target.value))}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
                   placeholder="01012345678 (숫자만)"
                 />
@@ -693,8 +722,11 @@ export default function GuestOrderPage() {
                     <Calendar size={18} style={{ color: PRIMARY }} aria-hidden />
                     <input
                       type="date"
+                      enterKeyHint="next"
                       value={deliveryDate}
                       onChange={(e) => setDeliveryDate(e.target.value)}
+                      onFocus={checkoutFieldFocusScroll}
+                      onKeyDown={checkoutInputEnterGoNext}
                       className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
                       style={{ color: TEXT }}
                     />
@@ -754,6 +786,7 @@ export default function GuestOrderPage() {
                     readOnly
                     value={shippingPostcode}
                     placeholder="우편번호"
+                    onFocus={checkoutFieldFocusScroll}
                     className={`${inputClass} w-24 shrink-0 bg-gray-50`}
                   />
                   <button
@@ -767,8 +800,11 @@ export default function GuestOrderPage() {
                 </div>
                 <input
                   type="text"
+                  enterKeyHint="next"
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={`${inputClass} mt-3`}
                   placeholder="도로명 주소"
                 />
@@ -780,7 +816,9 @@ export default function GuestOrderPage() {
                 <textarea
                   value={venueDetail}
                   onChange={(e) => setVenueDetail(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
                   rows={4}
+                  enterKeyHint="done"
                   className={`${inputClass} min-h-[112px] resize-y`}
                   placeholder="장례식장명/예식장명, 빈소 및 홀 호수를 정확히 입력해 주세요."
                 />
@@ -802,8 +840,12 @@ export default function GuestOrderPage() {
                 </label>
                 <input
                   type="text"
+                  inputMode="text"
+                  enterKeyHint="next"
                   value={ribbonSender}
                   onChange={(e) => setRibbonSender(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
                   placeholder="예: 주식회사 ○○○ 대표이사 홍길동"
                 />
@@ -818,6 +860,9 @@ export default function GuestOrderPage() {
                     setRibbonPreset(e.target.value);
                     if (e.target.value !== "__custom__") setRibbonMessageCustom("");
                   }}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
+                  enterKeyHint="next"
                   className={inputClass}
                   style={{ color: TEXT }}
                 >
@@ -831,7 +876,9 @@ export default function GuestOrderPage() {
                   <textarea
                     value={ribbonMessageCustom}
                     onChange={(e) => setRibbonMessageCustom(e.target.value)}
+                    onFocus={checkoutFieldFocusScroll}
                     rows={3}
+                    enterKeyHint="done"
                     className={`${inputClass} mt-3 min-h-[88px] resize-y`}
                     placeholder="리본에 들어갈 문구를 입력해 주세요."
                   />
@@ -956,7 +1003,7 @@ export default function GuestOrderPage() {
           className="fixed left-0 right-0 z-50 mx-auto max-w-[430px] border-t bg-white px-4 py-4 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]"
           style={{
             borderColor: BORDER,
-            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM_NAV_HEIGHT}px)`,
+            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${stickyAboveNav}px)`,
           }}
         >
           <label className="mb-3 flex cursor-pointer items-start gap-3">
