@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { parseNewrunVarRetRequest } from "@/lib/newrun/callback-request";
+import { parseNewrunVarRetRequest, collectVarRetSearchFragments } from "@/lib/newrun/callback-request";
 import type { NewrunCallbackKind } from "@/lib/newrun/constants";
 import { NEWRUN_CALLBACK_PATHS } from "@/lib/newrun/constants";
 
@@ -62,10 +62,21 @@ async function handle(
   request: NextRequest,
   kind: NewrunCallbackKind
 ): Promise<NextResponse> {
+  const fragments = collectVarRetSearchFragments(request);
+  const incomingRequestUrl =
+    request.url.length > 2048 ? `${request.url.slice(0, 2048)}…` : request.url;
+  const joinedSearch = fragments.join(" || ");
+  const incomingSearchRaw =
+    joinedSearch.length > 4096 ? `${joinedSearch.slice(0, 4096)}…` : joinedSearch || null;
+
   const { query, body } = await parseNewrunVarRetRequest(request);
   const method = request.method;
 
-  console.log("[Newrun:var_ret]", kind, method, { query, body });
+  console.log("[Newrun:var_ret]", kind, method, {
+    incomingPreview: incomingRequestUrl.slice(0, 180),
+    fragmentCount: fragments.length,
+    queryKeys: Object.keys(query),
+  });
 
   let rowId: string | null = null;
   try {
@@ -77,6 +88,8 @@ async function handle(
         method,
         raw_query: query,
         raw_body: body,
+        incoming_request_url: incomingRequestUrl,
+        incoming_search_raw: incomingSearchRaw,
       })
       .select("id")
       .single();
