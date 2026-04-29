@@ -138,6 +138,7 @@ export async function GET(
       warnings: result.warnings,
       blockingIssues: result.blockingIssues ?? [],
       envHints: {
+        NEWRUN_ROSEWEB_ID: Boolean(process.env.NEWRUN_ROSEWEB_ID?.trim()),
         NEWRUN_ASSOC_INTRANET_ID: Boolean(process.env.NEWRUN_ASSOC_INTRANET_ID?.trim()),
         NEWRUN_ROSEWEB_PW: Boolean(process.env.NEWRUN_ROSEWEB_PW?.trim()),
         NEWRUN_ASSOC_CODE: Boolean(process.env.NEWRUN_ASSOC_CODE?.trim()),

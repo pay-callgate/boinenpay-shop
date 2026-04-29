@@ -1,7 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  INTRANET_POST_RW_KEYS,
+  isIntranetPostRwKey,
+} from "@/lib/newrun/intranet-post-field-template";
 import { mapOrderToNewrunPayload } from "@/lib/newrun/map-order-to-newrun-payload";
 
 describe("mapOrderToNewrunPayload (본부발주 head)", () => {
+  const prev: { rose?: string; ret?: string } = {};
+
+  beforeEach(() => {
+    prev.rose = process.env.NEWRUN_ROSEWEB_ID;
+    prev.ret = process.env.NEWRUN_RW_RETURNURL;
+    process.env.NEWRUN_ROSEWEB_ID = "rose-web-id";
+    process.env.NEWRUN_RW_RETURNURL = "https://www.example.com/wooribugo/wooribu/newrun/po-return";
+  });
+
+  afterEach(() => {
+    if (prev.rose === undefined) delete process.env.NEWRUN_ROSEWEB_ID;
+    else process.env.NEWRUN_ROSEWEB_ID = prev.rose;
+    if (prev.ret === undefined) delete process.env.NEWRUN_RW_RETURNURL;
+    else process.env.NEWRUN_RW_RETURNURL = prev.ret;
+  });
+
   it("rw_type·rw_method·rw_sno(주문 id)·rw_bdate YYYY-MM-DD·수주화원/상품코드 없이 strict 통과", () => {
     const r = mapOrderToNewrunPayload(
       {
@@ -20,10 +40,10 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
       [{ quantity: 1, product_name: "화환" }],
       { florist: null, product: null, option: null },
       {
-        rw_rosewebid: "call0000",
+        rw_rosewebid: "ignored",
         rw_rosewebpw: "secret",
         rw_assoc: "call0000",
-        rw_returnurl: "https://www.example.com/wooribugo/wooribu/newrun/po-return",
+        rw_returnurl: "ignored",
       },
       {
         strict: true,
@@ -35,14 +55,22 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
     expect(r.fields.rw_type).toBe("head");
     expect(r.fields.rw_method).toBe("1");
     expect(r.fields.rw_sender).toBe("100");
-    expect(r.fields.rw_rosewebid).toBe("call0000");
+    expect(r.fields.rw_rosewebid).toBe("rose-web-id");
+    expect(r.fields.rw_assoc).toBe("call0000");
+    expect(r.fields.rw_returnurl).toBe("https://www.example.com/wooribugo/wooribu/newrun/po-return");
     expect(r.fields.rw_sno).toBe("11111111-1111-1111-1111-111111111111");
     expect(r.fields.rw_bdate).toBe("2026-04-28");
     expect(r.fields.rw_price).toBe("90000");
     expect(r.fields.rw_menucode).toBe("35");
+    expect(r.fields.rw_qty).toBe("1");
+
+    for (const k of Object.keys(r.fields)) {
+      expect(isIntranetPostRwKey(k)).toBe(true);
+    }
+    expect(Object.keys(r.fields)).toHaveLength(INTRANET_POST_RW_KEYS.length);
   });
 
-  it("리본·장소·주문자 컬럼이 있으면 발주 폼에 ribbonSender, detailPlace, rw_jname 포함", () => {
+  it("리본·장소·주문자 컬럼이 있으면 rw_arrive_place2·rw_sendpeople·rw_kyungjo·rw_jname 포함", () => {
     const r = mapOrderToNewrunPayload(
       {
         id: "33333333-3333-3333-3333-333333333333",
@@ -71,9 +99,9 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
       { strict: true, headquartersBonbalju: true, rw_method: "1" }
     );
     expect(r.fields.rw_menucode).toBe("35");
-    expect(r.fields.detailPlace).toBe("DB장소상세");
-    expect(r.fields.ribbonSender).toBe("리본보냄");
-    expect(r.fields.ribbonMessage).toBe("축하");
+    expect(r.fields.rw_arrive_place2).toBe("DB장소상세");
+    expect(r.fields.rw_sendpeople).toBe("리본보냄");
+    expect(r.fields.rw_kyungjo).toBe("축하");
     expect(r.fields.rw_jname).toBe("주문자희");
   });
 

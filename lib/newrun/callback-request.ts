@@ -1,4 +1,6 @@
 import type { NextRequest } from "next/server";
+import iconv from "iconv-lite";
+import { parseRawSearchParamsEucKrValues } from "@/lib/newrun/euc-kr-wire";
 
 function objectFromSearchParams(searchParams: URLSearchParams): Record<string, string> {
   const out: Record<string, string> = {};
@@ -10,13 +12,17 @@ function objectFromSearchParams(searchParams: URLSearchParams): Record<string, s
 
 /**
  * var_ret 요청에서 쿼리 + (POST 시) 본문을 평문 객체로 수집.
+ * 협회/뉴런 레거시는 EUC-KR 바이트를 URL·폼으로 보내므로 디코딩을 맞춘다.
  */
 export async function parseNewrunVarRetRequest(request: NextRequest): Promise<{
   query: Record<string, string>;
   body: Record<string, string> | null;
 }> {
-  const url = request.nextUrl;
-  const query = objectFromSearchParams(url.searchParams);
+  const rawSearch = request.nextUrl.search;
+  const query =
+    rawSearch.length > 1
+      ? parseRawSearchParamsEucKrValues(rawSearch)
+      : objectFromSearchParams(request.nextUrl.searchParams);
 
   if (request.method === "GET" || request.method === "HEAD") {
     return { query, body: null };
@@ -42,7 +48,18 @@ export async function parseNewrunVarRetRequest(request: NextRequest): Promise<{
     return { query, body: {} };
   }
 
-  if (ct.includes("application/x-www-form-urlencoded") || ct.includes("multipart/form-data")) {
+  if (ct.includes("application/x-www-form-urlencoded")) {
+    const buf = Buffer.from(await request.arrayBuffer());
+    const text = iconv.decode(buf, "euc-kr");
+    const sp = new URLSearchParams(text);
+    const body: Record<string, string> = {};
+    sp.forEach((value, key) => {
+      body[key] = value;
+    });
+    return { query, body };
+  }
+
+  if (ct.includes("multipart/form-data")) {
     const form = await request.formData();
     const body: Record<string, string> = {};
     form.forEach((value, key) => {

@@ -1,7 +1,14 @@
 /**
  * 뉴런 intranet_post용 `rw_*` 폼 필드 매핑 (문서 2.1.3 / Phase 4).
- * 협회·콜백 키는 현장마다 다를 수 있어, 알려진 별칭을 우선하고 `rw_` 접두어 키는 그대로 통과시킨다.
+ * 키 풀은 `INTRANET_POST_RW_KEYS`와 동일 — 비표준 키는 POST에 넣지 않는다.
  */
+
+import {
+  buildEmptyRwForm,
+  INTRANET_POST_RW_KEYS,
+  isIntranetPostRwKey,
+  type IntranetPostRwKey,
+} from "@/lib/newrun/intranet-post-field-template";
 
 /** T4.4: 쇼핑몰 고유번호 — `order_no` 권장(사람이 읽기 쉬움). 동일 값 재전송 시 뉴런 결과코드 20 등 멱등 정책은 Phase 5에서 처리. */
 export type NewrunRwSnoSource = "order_no" | "order_id";
@@ -29,15 +36,22 @@ export const NEWRUN_RW_STRING_LIMITS: Record<string, number> = {
   rw_aname: 50,
   rw_atel: 30,
   rw_arrive_place1: 255,
+  rw_arrive_place2: 500,
   rw_memo: 500,
   rw_shopreq: 500,
+  rw_shopreq1: 500,
+  rw_shopreq2: 500,
   rw_sno: 40,
   rw_menucode: 80,
   rw_sujuid: 80,
   rw_jname: 50,
-  detailPlace: 500,
-  ribbonSender: 100,
-  ribbonMessage: 500,
+  rw_sendpeople: 100,
+  rw_kyungjo: 500,
+  rw_jhandtel: 30,
+  rw_returnurl: 2048,
+  rw_rosewebid: 80,
+  rw_rosewebpw: 80,
+  rw_assoc: 80,
 };
 
 /** `shipping_detail` 블록에서 장소 상세 첫 줄(화훼 주문서 포맷) */
@@ -203,6 +217,7 @@ export function splitShippingDetailForRw(
 function mergeRwPrefixedFromDraft(draft: Record<string, string>, target: Record<string, string>) {
   for (const [k, v] of Object.entries(draft)) {
     if (!k.startsWith("rw_") || v === "") continue;
+    if (!isIntranetPostRwKey(k)) continue;
     target[k] = v;
   }
 }
@@ -232,6 +247,23 @@ function optionDraftToLine(d: Record<string, string>): string {
   return Object.entries(d)
     .map(([k, v]) => `${k}=${v}`)
     .join("; ");
+}
+
+function requireEnvRoseWebId(): string {
+  return process.env.NEWRUN_ROSEWEB_ID?.trim() ?? "";
+}
+
+function requireEnvReturnUrl(): string {
+  return process.env.NEWRUN_RW_RETURNURL?.trim() ?? "";
+}
+
+/** intranet_post 키만 담긴 객체로 정규화(템플릿 순서 유지) */
+function finalizeIntranetFields(f: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of INTRANET_POST_RW_KEYS) {
+    out[k] = f[k] ?? "";
+  }
+  return out;
 }
 
 /**
@@ -266,27 +298,30 @@ export function mapOrderToNewrunPayload(
     optionLine || null
   );
 
-  const fields: Record<string, string> = {
-    rw_sender: RW_SENDER_DEFAULT,
-    rw_style: RW_STYLE_DEFAULT,
-    rw_method: (options.rw_method ?? process.env.NEWRUN_DEFAULT_RW_METHOD ?? "1").trim(),
-    rw_sno,
-    rw_returnurl: creds.rw_returnurl.trim(),
-    rw_rosewebid: creds.rw_rosewebid.trim(),
-    rw_rosewebpw: creds.rw_rosewebpw.trim(),
-    rw_assoc: creds.rw_assoc.trim(),
-    rw_sendsms: RW_SMS_DEFAULT,
-    rw_sendfax: RW_FAX_DEFAULT,
-    rw_price: String(toIntWon(order.total_amount)),
-    rw_aname: truncateField("rw_aname", order.shipping_name.trim(), warnings),
-    rw_atel: truncateField("rw_atel", normalizePhone(order.shipping_phone), warnings),
-    rw_arrive_place1: truncateField("rw_arrive_place1", arrive, warnings),
-    rw_bdate: hq
-      ? formatRwBdateYmdDash(order.desired_delivery_date, order.created_at)
-      : options.rw_bdate?.trim() || formatBdateFromIso(order.created_at),
-    rw_memo: truncateField("rw_memo", memoFromDetail, warnings),
-    rw_shopreq: truncateField("rw_shopreq", shopFromDetail, warnings),
-  };
+  const fields = buildEmptyRwForm() as Record<string, string>;
+
+  const envRose = requireEnvRoseWebId();
+  const envReturn = requireEnvReturnUrl();
+
+  fields.rw_sender = RW_SENDER_DEFAULT;
+  fields.rw_style = RW_STYLE_DEFAULT;
+  fields.rw_method = (options.rw_method ?? process.env.NEWRUN_DEFAULT_RW_METHOD ?? "1").trim();
+  fields.rw_sno = rw_sno;
+  fields.rw_returnurl = envReturn;
+  fields.rw_rosewebid = envRose;
+  fields.rw_rosewebpw = creds.rw_rosewebpw.trim();
+  fields.rw_assoc = creds.rw_assoc.trim();
+  fields.rw_sendsms = RW_SMS_DEFAULT;
+  fields.rw_sendfax = RW_FAX_DEFAULT;
+  fields.rw_price = String(toIntWon(order.total_amount));
+  fields.rw_aname = truncateField("rw_aname", order.shipping_name.trim(), warnings);
+  fields.rw_atel = truncateField("rw_atel", normalizePhone(order.shipping_phone), warnings);
+  fields.rw_arrive_place1 = truncateField("rw_arrive_place1", arrive, warnings);
+  fields.rw_bdate = hq
+    ? formatRwBdateYmdDash(order.desired_delivery_date, order.created_at)
+    : options.rw_bdate?.trim() || formatBdateFromIso(order.created_at);
+  fields.rw_memo = truncateField("rw_memo", memoFromDetail, warnings);
+  fields.rw_shopreq = truncateField("rw_shopreq", shopFromDetail, warnings);
 
   if (hq) {
     fields.rw_type = "head";
@@ -306,43 +341,51 @@ export function mapOrderToNewrunPayload(
     (order.venue_detail ?? "").trim() ||
     extractFloristVenueLineFromShippingDetail(order.shipping_detail);
   if (detailPlaceSource) {
-    fields.detailPlace = truncateField("detailPlace", detailPlaceSource, warnings);
+    fields.rw_arrive_place2 = truncateField("rw_arrive_place2", detailPlaceSource, warnings);
   }
 
   const rs = (order.ribbon_sender ?? "").trim();
   const rm = (order.ribbon_message ?? "").trim();
-  if (rs) fields.ribbonSender = truncateField("ribbonSender", rs, warnings);
-  if (rm) fields.ribbonMessage = truncateField("ribbonMessage", rm, warnings);
+  if (rs) fields.rw_sendpeople = truncateField("rw_sendpeople", rs, warnings);
+  if (rm) fields.rw_kyungjo = truncateField("rw_kyungjo", rm, warnings);
 
   const jn = (order.orderer_name ?? "").trim();
   if (jn) fields.rw_jname = truncateField("rw_jname", jn, warnings);
 
-  const truncateKeys = [
+  if (items.length > 0) {
+    const q = Math.max(1, Math.floor(Number(items[0]!.quantity)) || 1);
+    fields.rw_qty = String(q);
+  }
+
+  fields.rw_menucode = truncateField("rw_menucode", NEWRUN_FIXED_RW_MENUCODE, warnings);
+
+  const truncateKeys: IntranetPostRwKey[] = [
     "rw_sujuid",
     "rw_menucode",
     "rw_sno",
     "rw_aname",
     "rw_atel",
     "rw_jname",
+    "rw_jhandtel",
     "rw_arrive_place1",
+    "rw_arrive_place2",
     "rw_memo",
     "rw_shopreq",
+    "rw_shopreq1",
+    "rw_shopreq2",
     "rw_returnurl",
-    "detailPlace",
-    "ribbonSender",
-    "ribbonMessage",
-  ] as const;
+    "rw_sendpeople",
+    "rw_kyungjo",
+  ];
   for (const k of truncateKeys) {
     if (fields[k]) fields[k] = truncateField(k, fields[k], warnings);
   }
 
-  fields.rw_menucode = truncateField("rw_menucode", NEWRUN_FIXED_RW_MENUCODE, warnings);
-
   const issues: string[] = [];
-  if (!creds.rw_rosewebid.trim()) issues.push("rw_rosewebid 비어 있음");
+  if (!fields.rw_rosewebid.trim()) issues.push("rw_rosewebid 비어 있음 — NEWRUN_ROSEWEB_ID 필수");
   if (!creds.rw_rosewebpw.trim()) issues.push("rw_rosewebpw 비어 있음");
-  if (!creds.rw_assoc.trim()) issues.push("rw_assoc 비어 있음");
-  if (!creds.rw_returnurl.trim()) issues.push("rw_returnurl 비어 있음");
+  if (!fields.rw_assoc.trim()) issues.push("rw_assoc 비어 있음");
+  if (!fields.rw_returnurl.trim()) issues.push("rw_returnurl 비어 있음 — NEWRUN_RW_RETURNURL 필수");
   if (strict) {
     if (!hq) {
       if (!fields.rw_sujuid?.trim()) {
@@ -357,15 +400,19 @@ export function mapOrderToNewrunPayload(
     }
   }
 
+  const normalized = finalizeIntranetFields(fields);
+
   if (issues.length > 0) {
     if (strict) throw new NewrunPayloadValidationError(issues);
-    return { fields, warnings, blockingIssues: issues };
+    return { fields: normalized, warnings, blockingIssues: issues };
   }
 
-  return { fields, warnings };
+  return { fields: normalized, warnings };
 }
 
-/** Phase 5에서 application/x-www-form-urlencoded 생성 시 사용 */
+/**
+ * 디버그·로컬 테스트용 UTF-8 URLSearchParams (실제 발주는 `encodeNewrunIntranetPostBody` + EUC-KR).
+ */
 export function newrunFieldsToSearchParams(fields: Record<string, string>): URLSearchParams {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(fields)) {

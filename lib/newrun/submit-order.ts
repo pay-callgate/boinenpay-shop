@@ -3,13 +3,13 @@ import { logger } from "@/lib/logger";
 import {
   mapOrderToNewrunPayload,
   NewrunPayloadValidationError,
-  newrunFieldsToSearchParams,
   type NewrunIntranetCredentials,
 } from "@/lib/newrun/map-order-to-newrun-payload";
 import {
   mergeFloristDraftForOrder,
   mergeProductDraftForOrder,
 } from "@/lib/newrun/merge-order-drafts";
+import { encodeNewrunIntranetPostBody } from "@/lib/newrun/euc-kr-wire";
 import { parseIntranetPostResponse } from "@/lib/newrun/parse-intranet-post-response";
 import { appendNewrunPoReturnTokenToReturnUrl } from "@/lib/newrun/po-return-signing";
 import { fireNewrunErrorWebhook } from "@/lib/newrun/error-webhook";
@@ -40,16 +40,11 @@ export type SubmitNewrunOrderResult = {
 };
 
 export function getNewrunCredentialsFromEnv(): NewrunIntranetCredentials | null {
-  const rw_rosewebid =
-    process.env.NEWRUN_ASSOC_INTRANET_ID?.trim() ??
-    process.env.NEWRUN_ROSEWEB_ID?.trim() ??
-    "";
+  const rw_rosewebid = process.env.NEWRUN_ROSEWEB_ID?.trim() ?? "";
   const rw_rosewebpw = process.env.NEWRUN_ROSEWEB_PW?.trim() ?? "";
   const rw_returnurl = process.env.NEWRUN_RW_RETURNURL?.trim() ?? "";
   const rw_assoc =
-    process.env.NEWRUN_ASSOC_CODE?.trim() ||
-    process.env.NEWRUN_ASSOC_INTRANET_ID?.trim() ||
-    "";
+    process.env.NEWRUN_ASSOC_CODE?.trim() || process.env.NEWRUN_ASSOC_INTRANET_ID?.trim() || "";
   if (!rw_rosewebid || !rw_rosewebpw || !rw_returnurl) return null;
   return { rw_rosewebid, rw_rosewebpw, rw_assoc, rw_returnurl };
 }
@@ -218,7 +213,7 @@ async function persistSubmitResultAndHistory(
 /**
  * 뉴런 intranet_post 발주 1회 시도 (자동·수동 공통).
  * - `NEWRUN_MOCK=true`: 외부 미호출, `NEWRUN_MOCK_RWR_RESULT`(기본 0) 시뮬레이션
- * - `NEWRUN_ENABLED=true` 이고 Mock 아님: 실제 POST (UTF-8 폼 — EUC-KR은 뉴런 확인 후)
+ * - `NEWRUN_ENABLED=true` 이고 Mock 아님: 실제 POST (`application/x-www-form-urlencoded`, 값 EUC-KR)
  * - 둘 다 아니면 skipped
  */
 export async function submitNewrunOrder(
@@ -282,7 +277,7 @@ export async function submitNewrunOrder(
   const creds = getNewrunCredentialsFromEnv();
   if (!creds) {
     const msg =
-      "뉴런 발주 환경변수가 설정되지 않았습니다. (NEWRUN_ASSOC_INTRANET_ID→rw_rosewebid, NEWRUN_ROSEWEB_PW, NEWRUN_RW_RETURNURL)";
+      "뉴런 발주 환경변수가 설정되지 않았습니다. (NEWRUN_ROSEWEB_ID, NEWRUN_ROSEWEB_PW, NEWRUN_RW_RETURNURL 필수 · rw_assoc는 NEWRUN_ASSOC_CODE 또는 NEWRUN_ASSOC_INTRANET_ID)";
     logger.warn(`${LOG} creds missing`, { action: "newrun_submit_no_env", data: { orderId } });
     await persistSubmitResultAndHistory(
       supabase,
@@ -441,7 +436,7 @@ export async function submitNewrunOrder(
   }
 
   const url = intranetPostUrl();
-  const body = newrunFieldsToSearchParams(mapResult.fields).toString();
+  const body = encodeNewrunIntranetPostBody(mapResult.fields);
 
   let res: Response;
   try {
@@ -451,15 +446,15 @@ export async function submitNewrunOrder(
         orderId,
         url,
         rw_menucode: mapResult.fields.rw_menucode,
-        detailPlace: mapResult.fields.detailPlace?.slice(0, 80),
-        ribbonSender: mapResult.fields.ribbonSender?.slice(0, 40),
+        rw_arrive_place2: mapResult.fields.rw_arrive_place2?.slice(0, 80),
+        rw_sendpeople: mapResult.fields.rw_sendpeople?.slice(0, 40),
       },
     });
     res = await fetch(url, {
       method: "POST",
       redirect: "manual",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Content-Type": "application/x-www-form-urlencoded; charset=EUC-KR",
       },
       body,
     });

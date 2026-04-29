@@ -101,6 +101,7 @@ describe("submitNewrunOrder", () => {
       prev[k] = process.env[k];
     }
     process.env.NEWRUN_ASSOC_INTRANET_ID = "id";
+    process.env.NEWRUN_ROSEWEB_ID = "rose-id";
     process.env.NEWRUN_ROSEWEB_PW = "pw";
     process.env.NEWRUN_ASSOC_CODE = "assoc";
     process.env.NEWRUN_RW_RETURNURL = "https://example.com/newrun/po-return";
