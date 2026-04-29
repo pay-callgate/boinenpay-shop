@@ -4,11 +4,16 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 
 /**
- * 뉴런 협회 HTTP 도메인 검색 — 브라우저는 open-search(HTTPS)만 연 뒤 서버 302로 이동.
+ * 뉴런 협회 HTTP 도메인 검색 — 브라우저는 open-search(HTTPS)만 연 뒤 서버가 302로 이동.
  * var_ret 콜백은 NEXT_PUBLIC_APP_URL(또는 요청 Host) 기준 절대 URL로 조립됩니다.
  */
 export default function AdminNewrunIntegrationsTestPage() {
   const [lastMessage, setLastMessage] = useState<string | null>(null);
+  const [previewJson, setPreviewJson] = useState<string | null>(null);
+  const [postResultJson, setPostResultJson] = useState<string | null>(null);
+  const [busyPreview, setBusyPreview] = useState(false);
+  const [busyPost, setBusyPost] = useState(false);
+  const [panelError, setPanelError] = useState<string | null>(null);
 
   useEffect(() => {
     const onMessage = (ev: MessageEvent) => {
@@ -27,6 +32,54 @@ export default function AdminNewrunIntegrationsTestPage() {
     const w = window.open(path, "_blank", "width=1100,height=800");
     if (w == null) {
       alert("팝업이 차단되었습니다. 이 사이트에 대한 팝업을 허용한 뒤 다시 시도해 주세요.");
+    }
+  };
+
+  const loadIntranetPostPreview = async () => {
+    setPanelError(null);
+    setBusyPreview(true);
+    try {
+      const r = await fetch("/api/partner/integrations/newrun/intranet-post-test", {
+        credentials: "same-origin",
+      });
+      const j = (await r.json()) as { error?: string };
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      setPreviewJson(JSON.stringify(j, null, 2));
+    } catch (e) {
+      setPanelError(e instanceof Error ? e.message : "미리보기 실패");
+      setPreviewJson(null);
+    } finally {
+      setBusyPreview(false);
+    }
+  };
+
+  const sendIntranetPostTest = async () => {
+    if (
+      !window.confirm(
+        "뉴런 ext2intra(intranet_post)로 샘플 Payload가 실제 전송됩니다. 뉴런에 테스트 접수가 생길 수 있습니다. 계속할까요?"
+      )
+    ) {
+      return;
+    }
+    setPanelError(null);
+    setBusyPost(true);
+    setPostResultJson(null);
+    try {
+      const r = await fetch("/api/partner/integrations/newrun/intranet-post-test", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ execute: true }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        throw new Error((j as { error?: string }).error ?? `HTTP ${r.status}`);
+      }
+      setPostResultJson(JSON.stringify(j, null, 2));
+    } catch (e) {
+      setPanelError(e instanceof Error ? e.message : "전송 실패");
+    } finally {
+      setBusyPost(false);
     }
   };
 
@@ -59,6 +112,65 @@ export default function AdminNewrunIntegrationsTestPage() {
             <code className="rounded bg-white px-1">NEWRUN_ASSOC_INTRANET_ID</code>가 서버에 있어야 합니다.
           </li>
         </ul>
+      </div>
+
+      <div className="mt-6 rounded-lg border border-violet-200 bg-violet-50/80 p-6 shadow-sm">
+        <h3 className="text-base font-semibold text-violet-950">intranet_post 발주 연동 테스트</h3>
+        <p className="mt-2 text-sm text-violet-900/90">
+          결제·실주문 없이 서버가 샘플 <code className="text-xs">rw_*</code> 폼을 만들어 뉴런{" "}
+          <code className="text-xs">intranet_post.html</code>로 보냅니다. URL은{" "}
+          <code className="text-xs">NEWRUN_INTRANET_POST_URL</code>
+          (미설정 시 http 기본 도메인)입니다. 수주화원 ID는{" "}
+          <code className="text-xs">NEWRUN_INTEGRATION_TEST_SUJUID</code>로 바꿀 수 있습니다.
+        </p>
+        {panelError ? (
+          <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{panelError}</p>
+        ) : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busyPreview}
+            onClick={() => void loadIntranetPostPreview()}
+            className="rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-950 hover:bg-violet-100 disabled:opacity-50"
+          >
+            {busyPreview ? "미리보기 로드 중…" : "Payload 미리보기 (GET)"}
+          </button>
+          <button
+            type="button"
+            disabled={busyPost}
+            onClick={() => void sendIntranetPostTest()}
+            className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
+          >
+            {busyPost ? "전송 중…" : "발주 테스트 전송 (POST)"}
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">Phase 4 스타일 — 미리보기 JSON</p>
+            {previewJson ? (
+              <pre className="mt-2 max-h-72 overflow-auto rounded border border-violet-200 bg-white p-3 text-xs text-slate-800">
+                {previewJson}
+              </pre>
+            ) : (
+              <p className="mt-2 text-sm text-violet-800/70">
+                위 버튼으로 로드하면 <code>fields</code>·<code>envHints</code>·<code>blockingIssues</code>가 표시됩니다.
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">intranet_post 응답 요약</p>
+            {postResultJson ? (
+              <pre className="mt-2 max-h-72 overflow-auto rounded border border-violet-200 bg-white p-3 text-xs text-slate-800">
+                {postResultJson}
+              </pre>
+            ) : (
+              <p className="mt-2 text-sm text-violet-800/70">
+                테스트 전송 후 HTTP 상태·<code>parsed.rwr_result</code>·본문 일부가 여기에 표시됩니다.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 rounded-lg bg-white p-6 shadow-sm">
