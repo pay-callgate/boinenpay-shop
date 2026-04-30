@@ -50,7 +50,6 @@ function envHints() {
     NEWRUN_RW_ASSOCID: Boolean(process.env.NEWRUN_RW_ASSOCID?.trim()),
     NEWRUN_RW_RETURNURL: Boolean(process.env.NEWRUN_RW_RETURNURL?.trim()),
     NEWRUN_INTRANET_POST_URL: Boolean(process.env.NEWRUN_INTRANET_POST_URL?.trim()),
-    NEWRUN_INTEGRATION_TEST_SUJUID: Boolean(process.env.NEWRUN_INTEGRATION_TEST_SUJUID?.trim()),
     NEWRUN_DEFAULT_RW_SENDPEOPLE: Boolean(process.env.NEWRUN_DEFAULT_RW_SENDPEOPLE?.trim()),
   };
 }
@@ -74,7 +73,7 @@ export async function GET() {
     envHints: envHints(),
     credsOk,
     note:
-      "샘플 주문·배송지·리본은 고정값입니다. 수주화원 ID(rw_sujuid) 기본은 운영 var_ret var_sid(kot4545)이며 env NEWRUN_INTEGRATION_TEST_SUJUID 로 덮어씁니다. 상품코드 샘플은 var_mcode 09입니다. 실제 전송 시 뉴런 접수가 될 수 있으니 운영 계정 주의.",
+      "샘플 주문·배송지·리본은 고정값입니다. intranet_post 샘플 Payload의 rw_rosewebid·rw_rosewebpw·rw_assoc·rw_associd·rw_sujuid 는 파트너 사전 테스트용으로 코드에 고정되어 env와 무관합니다(상품코드 09). 실제 전송 시 뉴런 접수가 될 수 있으니 운영 계정 주의.",
   });
 }
 

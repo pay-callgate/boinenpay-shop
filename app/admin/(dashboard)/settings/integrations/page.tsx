@@ -120,10 +120,9 @@ export default function AdminNewrunIntegrationsTestPage() {
           결제·실주문 없이 서버가 샘플 <code className="text-xs">rw_*</code> 폼을 만들어 뉴런{" "}
           <code className="text-xs">intranet_post.html</code>로 보냅니다. URL은{" "}
           <code className="text-xs">NEWRUN_INTRANET_POST_URL</code>
-          (미설정 시 http 기본 도메인)입니다. 수주화원 ID 샘플 기본은 운영 <code className="text-xs">var_sid</code>와 동일한{" "}
-          <code className="text-xs">kot4545</code>이며, <code className="text-xs">NEWRUN_INTEGRATION_TEST_SUJUID</code>로 바꿀 수
-          있습니다. 상품코드 샘플은 <code className="text-xs">var_mcode</code>{" "}
-          <code className="text-xs">09</code>입니다.
+          (미설정 시 http 기본 도메인)입니다. 수주화원·협회 인증 일부(
+          <code className="text-xs">rw_rosewebid</code> 등)는 사전 테스트 Payload에 코드 고정값이 실립니다. 상품코드 샘플은{" "}
+          <code className="text-xs">var_mcode</code> <code className="text-xs">09</code>입니다.
         </p>
         {panelError ? (
           <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{panelError}</p>

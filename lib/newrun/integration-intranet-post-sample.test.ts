@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildIntegrationIntranetPostSampleFields,
   INTEGRATION_INTRANET_POST_DEFAULT_SUJUID,
+  INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS,
 } from "@/lib/newrun/integration-intranet-post-sample";
 
 describe("integration-intranet-post-sample", () => {
@@ -30,20 +31,17 @@ describe("integration-intranet-post-sample", () => {
     }
   });
 
-  it("샘플 필드에 head·운영 기본 rw_menucode·rw_sujuid·주문번호가 채어진다", () => {
-    delete process.env.NEWRUN_INTEGRATION_TEST_SUJUID;
+  it("샘플 Payload 인증·수주 ID 는 env 와 무관하게 고정된다", () => {
+    process.env.NEWRUN_INTEGRATION_TEST_SUJUID = "custom-sid";
     const { fields } = buildIntegrationIntranetPostSampleFields();
     expect(fields.rw_type).toBe("head");
     expect(fields.rw_menucode).toBe("09");
+    expect(fields.rw_rosewebid).toBe(INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS.rw_rosewebid);
+    expect(fields.rw_rosewebpw).toBe(INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS.rw_rosewebpw);
+    expect(fields.rw_assoc).toBe(INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS.rw_assoc);
+    expect(fields.rw_associd).toBe(INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS.rw_associd);
     expect(fields.rw_sujuid).toBe(INTEGRATION_INTRANET_POST_DEFAULT_SUJUID);
     expect(fields.rw_sno).toBe("00000000-0000-4000-8000-00000000ab7e");
     expect(fields.rw_aname).toContain("발주연동");
-  });
-
-  it("NEWRUN_INTEGRATION_TEST_SUJUID 가 있으면 rw_sujuid 가 env 를 따른다", () => {
-    process.env.NEWRUN_INTEGRATION_TEST_SUJUID = "custom-sid";
-    const { fields } = buildIntegrationIntranetPostSampleFields();
-    expect(fields.rw_sujuid).toBe("custom-sid");
-    expect(fields.rw_menucode).toBe("09");
   });
 });

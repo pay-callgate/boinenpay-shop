@@ -11,8 +11,17 @@ import { getNewrunCredentialsFromEnv } from "@/lib/newrun/submit-order";
 /** 사전 테스트 화면·API에서 공통으로 쓰는 가짜 주문번호(실 주문 DB와 무관) */
 export const INTEGRATION_INTRANET_POST_TEST_ORDER_NO = "CALLLINK-INTRANET-TEST";
 
-/** 샘플 `rw_sujuid` — 운영 var_ret `var_sid` 기준 기본값, `NEWRUN_INTEGRATION_TEST_SUJUID`로 덮어쓸 수 있음 */
-export const INTEGRATION_INTRANET_POST_DEFAULT_SUJUID = "kot4545";
+/** 파트너 관리자 > 뉴런 사전 테스트(intranet_post 샘플) 전용 — env와 무관하게 항상 동일하게 실어보낼 인증·협회·수주 ID */
+export const INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS = {
+  rw_rosewebid: "kot4545",
+  rw_rosewebpw: "9l8ups",
+  rw_assoc: "kot45",
+  rw_associd: "call0000",
+  rw_sujuid: "kot4545",
+} as const;
+
+/** 하위 호환·문서용 — 샘플 수주 ID (`NEWRUN_INTEGRATION_TEST_SUJUID`는 사전 테스트 Payload에 더 이상 반영되지 않음) */
+export const INTEGRATION_INTRANET_POST_DEFAULT_SUJUID = INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS.rw_sujuid;
 
 function sampleOrder(overrides?: Partial<NewrunOrderSlice>): NewrunOrderSlice {
   const id = "00000000-0000-4000-8000-00000000ab7e";
@@ -41,8 +50,7 @@ function sampleItems(): NewrunOrderItemSlice[] {
 }
 
 function sampleDrafts(): NewrunMergedDrafts {
-  const sujuid =
-    process.env.NEWRUN_INTEGRATION_TEST_SUJUID?.trim() || INTEGRATION_INTRANET_POST_DEFAULT_SUJUID;
+  const sujuid = INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS.rw_sujuid;
   return {
     florist: { rw_sujuid: sujuid, var_sid: sujuid },
     product: {
@@ -88,12 +96,14 @@ export function buildIntegrationIntranetPostSampleFields(): IntegrationIntranetP
     }
   );
 
+  const fieldsFixed = { ...fields, ...INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS };
+
   const signedReturn = appendNewrunPoReturnTokenToReturnUrl(
-    fields.rw_returnurl,
-    fields.rw_sno.trim()
+    fieldsFixed.rw_returnurl,
+    fieldsFixed.rw_sno.trim()
   );
   return {
-    fields: { ...fields, rw_returnurl: signedReturn },
+    fields: { ...fieldsFixed, rw_returnurl: signedReturn },
     warnings,
     blockingIssues: blockingIssues ?? [],
   };
