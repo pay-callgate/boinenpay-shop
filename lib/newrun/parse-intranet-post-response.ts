@@ -3,7 +3,11 @@
  * 가이드 2.1.4 반환변수 + 현장에서 함께 오는 rwr_resmsg.
  */
 
-import { decodeNewrunVarRetUrlValue, refineAlreadyDecodedVarRetValue } from "@/lib/newrun/euc-kr-wire";
+import {
+  decodeNewrunVarRetUrlValue,
+  parseRawSearchParamsEucKrValues,
+  refineAlreadyDecodedVarRetValue,
+} from "@/lib/newrun/euc-kr-wire";
 
 /** 스냅샷·화면 노출 시 가이드 표 순서 */
 export const INTRANET_POST_RETURN_SNAPSHOT_KEYS = [
@@ -52,28 +56,13 @@ function normalizeRwrMessageValue(raw: string): string {
   return refineAlreadyDecodedVarRetValue(trimmed);
 }
 
-function parseQueryStringToRecord(qs: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  const s = qs.startsWith("?") ? qs.slice(1) : qs;
-  if (!s) return out;
-  const params = new URLSearchParams(s);
-  params.forEach((v, k) => {
-    out[k] = v;
-  });
-  return out;
-}
-
 function parseUrlQuery(urlString: string): Record<string, string> {
   try {
     const u = new URL(urlString, "https://intranet-post.invalid");
-    const out: Record<string, string> = {};
-    u.searchParams.forEach((v, k) => {
-      out[k] = v;
-    });
-    return out;
+    return parseRawSearchParamsEucKrValues(u.search);
   } catch {
     const q = urlString.indexOf("?");
-    if (q >= 0) return parseQueryStringToRecord(urlString.slice(q));
+    if (q >= 0) return parseRawSearchParamsEucKrValues(urlString.slice(q));
     return {};
   }
 }
@@ -105,13 +94,7 @@ function pickRwrFromQuery(q: Record<string, string>): Partial<IntranetPostReturn
   for (const k of INTRANET_POST_RETURN_SNAPSHOT_KEYS) {
     const v = q[k];
     if (v !== undefined) {
-      if (k === "rwr_resmsg") {
-        out[k] = normalizeRwrMessageValue(v);
-      } else if (k === "rwr_orderkey") {
-        out[k] = decodeOrderKey(v);
-      } else {
-        out[k] = v;
-      }
+      out[k] = k === "rwr_resmsg" ? refineAlreadyDecodedVarRetValue(v) : v;
     }
   }
   return out;

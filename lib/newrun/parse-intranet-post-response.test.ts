@@ -1,3 +1,4 @@
+import iconv from "iconv-lite";
 import { describe, expect, it } from "vitest";
 import {
   buildIntranetPostReturnSnapshot,
@@ -75,6 +76,17 @@ describe("parseIntranetPostResponse", () => {
         locationHeader: null,
       }).rwr_orderkey
     ).toBe("한글");
+  });
+
+  it("document.location.href 안 rwr_resmsg 가 EUC-KR 퍼센트이면 한글로 복원", () => {
+    const msg = "회원정보 불일치";
+    const pct = Buffer.from(iconv.encode(msg, "euc-kr"))
+      .toString("hex")
+      .match(/.{2}/g)!
+      .map((b) => "%" + b.toUpperCase())
+      .join("");
+    const html = `<script>document.location.href='https://shop.example/po?rwr_result=2&rwr_resmsg=${pct}';</script>`;
+    expect(parseIntranetPostResponse({ status: 200, bodyText: html, locationHeader: null }).rwr_resmsg).toBe(msg);
   });
 
   it("document.location.href 스크립트에서 반환변수·빈 rwr_orderkey", () => {
