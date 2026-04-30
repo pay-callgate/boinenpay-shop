@@ -14,7 +14,7 @@ export const INTEGRATION_INTRANET_POST_TEST_ORDER_NO = "CALLLINK-INTRANET-TEST";
 /** 파트너 관리자 > 뉴런 사전 테스트(intranet_post 샘플) 전용 — env와 무관하게 항상 동일하게 실어보낼 인증·협회·수주 ID */
 export const INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS = {
   rw_rosewebid: "kot4545",
-  rw_rosewebpw: "9l8ups",
+  rw_rosewebpw: "9i8ups",
   rw_assoc: "kot45",
   rw_associd: "call0000",
   rw_sujuid: "kot4545",

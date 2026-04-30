@@ -45,7 +45,7 @@ describe("integration-intranet-post-sample", () => {
     expect(fields.rw_assoc).toBe("kot45");
     expect(fields.rw_associd).toBe("call0000");
     expect(fields.rw_rosewebid).toBe("kot4545");
-    expect(fields.rw_rosewebpw).toBe("9l8ups");
+    expect(fields.rw_rosewebpw).toBe("9i8ups");
     expect(fields.rw_sujuid).toBe("kot4545");
   });
 
