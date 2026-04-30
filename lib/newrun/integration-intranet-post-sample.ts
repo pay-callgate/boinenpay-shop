@@ -78,9 +78,22 @@ export type IntegrationIntranetPostSampleResult = {
   blockingIssues: string[];
 };
 
+/** intranet_post 샘플 Payload에만 적용(env·draft와 무관) */
+function applyIntegrationIntranetPostFixedIds(fields: Record<string, string>): Record<string, string> {
+  const f = { ...fields };
+  const x = INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS;
+  f.rw_rosewebid = x.rw_rosewebid;
+  f.rw_rosewebpw = x.rw_rosewebpw;
+  f.rw_assoc = x.rw_assoc;
+  f.rw_associd = x.rw_associd;
+  f.rw_sujuid = x.rw_sujuid;
+  return f;
+}
+
 /**
  * 결제·DB 없이 intranet_post와 동일 규칙으로 필드 생성(미리보기·테스트 POST 공통).
  * `strict: false` — 결제 미완료 등은 blockingIssues로만 표시.
+ * 인증·협회·수주 ID 5개는 `INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS`로 최종 고정.
  */
 export function buildIntegrationIntranetPostSampleFields(): IntegrationIntranetPostSampleResult {
   const creds = getNewrunCredentialsFromEnv() ?? fallbackCreds();
@@ -96,7 +109,7 @@ export function buildIntegrationIntranetPostSampleFields(): IntegrationIntranetP
     }
   );
 
-  const fieldsFixed = { ...fields, ...INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS };
+  const fieldsFixed = applyIntegrationIntranetPostFixedIds(fields);
 
   const signedReturn = appendNewrunPoReturnTokenToReturnUrl(
     fieldsFixed.rw_returnurl,
