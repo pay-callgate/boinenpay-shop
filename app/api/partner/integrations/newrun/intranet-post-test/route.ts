@@ -7,6 +7,7 @@ import {
   maskIntranetPostFieldsForClient,
 } from "@/lib/newrun/integration-intranet-post-sample";
 import { encodeNewrunIntranetPostBody } from "@/lib/newrun/euc-kr-wire";
+import { readIntranetPostResponseBodyText } from "@/lib/newrun/intranet-post-response-body";
 import { parseIntranetPostResponse, buildIntranetPostReturnSnapshot } from "@/lib/newrun/parse-intranet-post-response";
 import { getNewrunCredentialsFromEnv } from "@/lib/newrun/submit-order";
 
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
       },
       body: postBody,
     });
-    const bodyText = await res.text();
+    const bodyText = await readIntranetPostResponseBodyText(res);
     const location = res.status >= 300 && res.status < 400 ? res.headers.get("Location") : null;
     const parsed = parseIntranetPostResponse({
       status: res.status,

@@ -10,6 +10,7 @@ import {
   mergeProductDraftForOrder,
 } from "@/lib/newrun/merge-order-drafts";
 import { encodeNewrunIntranetPostBody } from "@/lib/newrun/euc-kr-wire";
+import { readIntranetPostResponseBodyText } from "@/lib/newrun/intranet-post-response-body";
 import { parseIntranetPostResponse } from "@/lib/newrun/parse-intranet-post-response";
 import { appendNewrunPoReturnTokenToReturnUrl } from "@/lib/newrun/po-return-signing";
 import { fireNewrunErrorWebhook } from "@/lib/newrun/error-webhook";
@@ -479,7 +480,7 @@ export async function submitNewrunOrder(
     return { ok: false, skipped: false, duplicate: false, message: msg, warnings: mapResult.warnings };
   }
 
-  const bodyText = await res.text();
+  const bodyText = await readIntranetPostResponseBodyText(res);
   const location =
     res.status >= 300 && res.status < 400 ? res.headers.get("Location") : null;
   const parsed = parseIntranetPostResponse({

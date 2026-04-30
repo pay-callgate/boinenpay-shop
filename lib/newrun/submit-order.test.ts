@@ -185,12 +185,13 @@ describe("submitNewrunOrder", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({
-        status: 200,
-        headers: new Headers(),
-        text: async () =>
-          '<input name="rwr_result" value="0" /><input name="rwr_orderkey" value="GW-999" />',
-      })) as unknown as typeof fetch
+      vi.fn(
+        async () =>
+          new Response(
+            '<input name="rwr_result" value="0" /><input name="rwr_orderkey" value="GW-999" />',
+            { status: 200, headers: new Headers() }
+          )
+      ) as unknown as typeof fetch
     );
 
     let updated: Record<string, unknown> | undefined;
