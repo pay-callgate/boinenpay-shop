@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { NEWRUN_RW_STRING_LIMITS } from "@/lib/newrun/map-order-to-newrun-payload";
 import {
   buildIntegrationIntranetPostSampleFields,
   INTEGRATION_INTRANET_POST_DEFAULT_SUJUID,
   INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS,
+  mergeIntranetPostTestCredentials,
 } from "@/lib/newrun/integration-intranet-post-sample";
 
 describe("integration-intranet-post-sample", () => {
@@ -45,7 +47,7 @@ describe("integration-intranet-post-sample", () => {
     expect(fields.rw_assoc).toBe("kot45");
     expect(fields.rw_associd).toBe("call0000");
     expect(fields.rw_rosewebid).toBe("kot4545");
-    expect(fields.rw_rosewebpw).toBe("9i8ups");
+    expect(fields.rw_rosewebpw).toBe("9l8ups");
     expect(fields.rw_sujuid).toBe("kot4545");
   });
 
@@ -61,5 +63,15 @@ describe("integration-intranet-post-sample", () => {
     expect(fields.rw_sujuid).toBe(INTEGRATION_INTRANET_POST_DEFAULT_SUJUID);
     expect(fields.rw_sno).toBe("00000000-0000-4000-8000-00000000ab7e");
     expect(fields.rw_aname).toContain("발주연동");
+  });
+
+  it("mergeIntranetPostTestCredentials는 전달된 값으로 덮어쓰고 문자열 상한을 적용한다", () => {
+    const { fields: base } = buildIntegrationIntranetPostSampleFields();
+    const merged = mergeIntranetPostTestCredentials(base, {
+      rw_rosewebpw: "new-pass",
+      rw_rosewebid: "x".repeat(100),
+    });
+    expect(merged.rw_rosewebpw).toBe("new-pass");
+    expect(merged.rw_rosewebid.length).toBe(NEWRUN_RW_STRING_LIMITS.rw_rosewebid);
   });
 });

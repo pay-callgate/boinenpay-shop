@@ -3,8 +3,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
+  INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS,
+  INTRANET_POST_TEST_CREDENTIAL_KEYS,
+  type IntranetPostTestCredentialPatch,
+} from "@/lib/newrun/intranet-post-integration-test-constants";
+import {
   buildIntegrationIntranetPostSampleFields,
   maskIntranetPostFieldsForClient,
+  mergeIntranetPostTestCredentials,
 } from "@/lib/newrun/integration-intranet-post-sample";
 import { encodeNewrunIntranetPostBody } from "@/lib/newrun/euc-kr-wire";
 import { readIntranetPostResponseBodyText } from "@/lib/newrun/intranet-post-response-body";
@@ -41,6 +47,20 @@ async function gatePartnerAdmin(): Promise<
   return { ok: true };
 }
 
+function parseCredentialsFromBody(body: Record<string, unknown>): IntranetPostTestCredentialPatch | undefined {
+  const raw = body.credentials;
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const patch: IntranetPostTestCredentialPatch = {};
+  const o = raw as Record<string, unknown>;
+  for (const key of INTRANET_POST_TEST_CREDENTIAL_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(o, key)) continue;
+    const v = o[key];
+    if (v === undefined || v === null) continue;
+    patch[key] = typeof v === "string" ? v : String(v);
+  }
+  return Object.keys(patch).length ? patch : undefined;
+}
+
 function envHints() {
   return {
     NEWRUN_ROSEWEB_ID: Boolean(process.env.NEWRUN_ROSEWEB_ID?.trim()),
@@ -55,8 +75,8 @@ function envHints() {
 }
 
 /**
- * GET: intranet_post 샘플 Payload 미리보기(비밀번호 마스킹, 결제·주문 DB 불필요)
- * POST `{ "execute": true }`: 동일 Payload로 실제 intranet_post 전송 후 응답 요약
+ * GET: intranet_post 샘플 Payload 미리보기(`fields`의 비밀번호는 마스킹, 결제·주문 DB 불필요)
+ * POST `{ "execute": true, "credentials"?: { rw_rosewebid?, … } }`: credentials로 5필드 덮어쓴 뒤 전송
  */
 export async function GET() {
   const gate = await gatePartnerAdmin();
@@ -67,13 +87,14 @@ export async function GET() {
 
   return NextResponse.json({
     intranetPostUrl: intranetPostUrl(),
+    credentialDefaults: { ...INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS },
     fields: maskIntranetPostFieldsForClient(fields),
     warnings,
     blockingIssues,
     envHints: envHints(),
     credsOk,
     note:
-      "샘플 주문·배송지·리본은 고정값입니다. intranet_post 샘플 Payload의 rw_rosewebid·rw_rosewebpw·rw_assoc·rw_associd·rw_sujuid 는 파트너 사전 테스트용으로 코드에 고정되어 env와 무관합니다(상품코드 09). 실제 전송 시 뉴런 접수가 될 수 있으니 운영 계정 주의.",
+      "샘플 주문·배송지·리본은 고정값입니다. rw_rosewebid·rw_rosewebpw·rw_assoc·rw_associd·rw_sujuid 는 아래 기본값에서 화면에서 수정한 뒤 미리보기·발주 테스트 전송에 반영할 수 있습니다(상품코드 09). 실제 전송 시 뉴런 접수가 될 수 있으니 운영 계정 주의.",
   });
 }
 
@@ -81,10 +102,10 @@ export async function POST(request: NextRequest) {
   const gate = await gatePartnerAdmin();
   if (!gate.ok) return gate.response;
 
-  let body: { execute?: boolean } = {};
+  let body: { execute?: boolean; credentials?: unknown } = {};
   try {
     const t = (await request.json()) as unknown;
-    if (t && typeof t === "object" && !Array.isArray(t)) body = t as { execute?: boolean };
+    if (t && typeof t === "object" && !Array.isArray(t)) body = t as { execute?: boolean; credentials?: unknown };
   } catch {
     /* 빈 본문 */
   }
@@ -107,8 +128,10 @@ export async function POST(request: NextRequest) {
   }
 
   const { fields, warnings, blockingIssues } = buildIntegrationIntranetPostSampleFields();
+  const patch = parseCredentialsFromBody(body as Record<string, unknown>);
+  const fieldsToSend = mergeIntranetPostTestCredentials(fields, patch ?? {});
   const url = intranetPostUrl();
-  const postBody = encodeNewrunIntranetPostBody(fields);
+  const postBody = encodeNewrunIntranetPostBody(fieldsToSend);
 
   try {
     const res = await fetch(url, {
@@ -136,7 +159,7 @@ export async function POST(request: NextRequest) {
       location,
       bodySnippet: bodyText.slice(0, 1200),
       parsed,
-      fieldsSent: maskIntranetPostFieldsForClient(fields),
+      fieldsSent: maskIntranetPostFieldsForClient(fieldsToSend),
       warnings,
       blockingIssues,
       envHints: envHints(),
@@ -147,7 +170,7 @@ export async function POST(request: NextRequest) {
       {
         ok: false,
         error: msg,
-        fieldsSent: maskIntranetPostFieldsForClient(fields),
+        fieldsSent: maskIntranetPostFieldsForClient(fieldsToSend),
         intranetPostUrl: url,
         envHints: envHints(),
       },

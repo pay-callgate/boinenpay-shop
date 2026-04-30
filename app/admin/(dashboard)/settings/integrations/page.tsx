@@ -1,7 +1,26 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS,
+  INTRANET_POST_TEST_CREDENTIAL_KEYS,
+  type IntranetPostTestCredentialKey,
+} from "@/lib/newrun/intranet-post-integration-test-constants";
+
+type CredsFormState = Record<IntranetPostTestCredentialKey, string>;
+
+const CRED_LABELS: Record<IntranetPostTestCredentialKey, string> = {
+  rw_rosewebid: "rw_rosewebid",
+  rw_rosewebpw: "rw_rosewebpw (변경된 비밀번호 입력)",
+  rw_assoc: "rw_assoc",
+  rw_associd: "rw_associd",
+  rw_sujuid: "rw_sujuid",
+};
+
+function initialCredsForm(): CredsFormState {
+  return { ...INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS };
+}
 
 /**
  * 뉴런 협회 HTTP 도메인 검색 — 브라우저는 open-search(HTTPS)만 연 뒤 서버가 302로 이동.
@@ -9,11 +28,25 @@ import Link from "next/link";
  */
 export default function AdminNewrunIntegrationsTestPage() {
   const [lastMessage, setLastMessage] = useState<string | null>(null);
-  const [previewJson, setPreviewJson] = useState<string | null>(null);
+  const [previewRaw, setPreviewRaw] = useState<Record<string, unknown> | null>(null);
+  const [credsForm, setCredsForm] = useState<CredsFormState>(initialCredsForm);
   const [postResult, setPostResult] = useState<Record<string, unknown> | null>(null);
   const [busyPreview, setBusyPreview] = useState(false);
   const [busyPost, setBusyPost] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
+
+  const previewDisplay = useMemo(() => {
+    if (!previewRaw) return null;
+    const f = previewRaw.fields;
+    if (!f || typeof f !== "object" || Array.isArray(f)) return previewRaw;
+    const fields = { ...(f as Record<string, string>) };
+    for (const k of INTRANET_POST_TEST_CREDENTIAL_KEYS) {
+      fields[k] = credsForm[k];
+    }
+    return { ...previewRaw, fields };
+  }, [previewRaw, credsForm]);
+
+  const previewJsonText = previewDisplay ? JSON.stringify(previewDisplay, null, 2) : null;
 
   useEffect(() => {
     const onMessage = (ev: MessageEvent) => {
@@ -42,12 +75,12 @@ export default function AdminNewrunIntegrationsTestPage() {
       const r = await fetch("/api/partner/integrations/newrun/intranet-post-test", {
         credentials: "same-origin",
       });
-      const j = (await r.json()) as { error?: string };
+      const j = (await r.json()) as Record<string, unknown> & { error?: string };
       if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
-      setPreviewJson(JSON.stringify(j, null, 2));
+      setPreviewRaw(j);
     } catch (e) {
       setPanelError(e instanceof Error ? e.message : "미리보기 실패");
-      setPreviewJson(null);
+      setPreviewRaw(null);
     } finally {
       setBusyPreview(false);
     }
@@ -69,7 +102,7 @@ export default function AdminNewrunIntegrationsTestPage() {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ execute: true }),
+        body: JSON.stringify({ execute: true, credentials: credsForm }),
       });
       const j = (await r.json()) as Record<string, unknown>;
       if (!r.ok) {
@@ -120,10 +153,43 @@ export default function AdminNewrunIntegrationsTestPage() {
           결제·실주문 없이 서버가 샘플 <code className="text-xs">rw_*</code> 폼을 만들어 뉴런{" "}
           <code className="text-xs">intranet_post.html</code>로 보냅니다. URL은{" "}
           <code className="text-xs">NEWRUN_INTRANET_POST_URL</code>
-          (미설정 시 http 기본 도메인)입니다. 수주화원·협회 인증 일부(
-          <code className="text-xs">rw_rosewebid</code> 등)는 사전 테스트 Payload에 코드 고정값이 실립니다. 상품코드 샘플은{" "}
-          <code className="text-xs">var_mcode</code> <code className="text-xs">09</code>입니다.
+          (미설정 시 http 기본 도메인)입니다. 아래 입력란에서 로즈웹·협회·수주 ID·비밀번호를 바꾼 뒤 미리보기와 발주 테스트에
+          동일하게 반영됩니다. 상품코드 샘플은 <code className="text-xs">var_mcode</code>{" "}
+          <code className="text-xs">09</code>입니다.
         </p>
+        <div className="mt-4 rounded-md border border-violet-200/80 bg-white/90 p-4">
+          <p className="text-xs font-semibold text-violet-950">intranet_post 인증·협회·수주 (테스트용)</p>
+          <p className="mt-1 text-xs text-violet-800/85">
+            기본값은 코드와 동일합니다. 비밀번호가 바뀌면 여기서 수정 후 다시 전송하세요. 미리보기 JSON의{" "}
+            <code className="text-[10px]">fields</code>에 입력값이 그대로 보입니다(파트너 관리자 전용 화면).
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {INTRANET_POST_TEST_CREDENTIAL_KEYS.map((key) => (
+              <label key={key} className="block text-xs">
+                <span className="font-medium text-violet-950">{CRED_LABELS[key]}</span>
+                <input
+                  type={key === "rw_rosewebpw" ? "password" : "text"}
+                  autoComplete="off"
+                  value={credsForm[key]}
+                  onChange={(e) =>
+                    setCredsForm((prev) => ({
+                      ...prev,
+                      [key]: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full rounded border border-violet-200 bg-white px-2 py-1.5 text-sm text-slate-900"
+                />
+              </label>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="mt-3 text-xs font-medium text-violet-800 underline decoration-violet-400 hover:text-violet-950"
+            onClick={() => setCredsForm(initialCredsForm())}
+          >
+            위 값을 코드 기본값으로 되돌리기
+          </button>
+        </div>
         {panelError ? (
           <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{panelError}</p>
         ) : null}
@@ -149,9 +215,9 @@ export default function AdminNewrunIntegrationsTestPage() {
         <div className="mt-4 space-y-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">Phase 4 스타일 — 미리보기 JSON</p>
-            {previewJson ? (
+            {previewJsonText ? (
               <pre className="mt-2 max-h-72 overflow-auto rounded border border-violet-200 bg-white p-3 text-xs text-slate-800">
-                {previewJson}
+                {previewJsonText}
               </pre>
             ) : (
               <p className="mt-2 text-sm text-violet-800/70">
