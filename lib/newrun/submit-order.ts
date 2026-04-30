@@ -527,7 +527,7 @@ export async function submitNewrunOrder(
     {
       newrun_submit_status: ok ? (duplicate ? "duplicate" : "success") : "failed",
       newrun_rwr_result: rwr,
-      newrun_rwr_orderkey: parsed.rwr_orderkey ?? null,
+      newrun_rwr_orderkey: parsed.rwr_orderkey.trim() || null,
       newrun_last_submit_error: ok ? null : `rwr_result=${rwr}`,
     },
     {

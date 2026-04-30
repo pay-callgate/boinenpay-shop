@@ -7,7 +7,7 @@ import {
   maskIntranetPostFieldsForClient,
 } from "@/lib/newrun/integration-intranet-post-sample";
 import { encodeNewrunIntranetPostBody } from "@/lib/newrun/euc-kr-wire";
-import { parseIntranetPostResponse } from "@/lib/newrun/parse-intranet-post-response";
+import { parseIntranetPostResponse, buildIntranetPostReturnSnapshot } from "@/lib/newrun/parse-intranet-post-response";
 import { getNewrunCredentialsFromEnv } from "@/lib/newrun/submit-order";
 
 export const dynamic = "force-dynamic";
@@ -126,9 +126,11 @@ export async function POST(request: NextRequest) {
       bodyText,
       locationHeader: location,
     });
+    const newrunResponse = buildIntranetPostReturnSnapshot(parsed);
 
     return NextResponse.json({
       ok: true,
+      newrunResponse,
       intranetPostUrl: url,
       httpStatus: res.status,
       location,

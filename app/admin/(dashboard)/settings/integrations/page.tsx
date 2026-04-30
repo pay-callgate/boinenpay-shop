@@ -10,7 +10,7 @@ import Link from "next/link";
 export default function AdminNewrunIntegrationsTestPage() {
   const [lastMessage, setLastMessage] = useState<string | null>(null);
   const [previewJson, setPreviewJson] = useState<string | null>(null);
-  const [postResultJson, setPostResultJson] = useState<string | null>(null);
+  const [postResult, setPostResult] = useState<Record<string, unknown> | null>(null);
   const [busyPreview, setBusyPreview] = useState(false);
   const [busyPost, setBusyPost] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export default function AdminNewrunIntegrationsTestPage() {
     }
     setPanelError(null);
     setBusyPost(true);
-    setPostResultJson(null);
+    setPostResult(null);
     try {
       const r = await fetch("/api/partner/integrations/newrun/intranet-post-test", {
         method: "POST",
@@ -71,11 +71,11 @@ export default function AdminNewrunIntegrationsTestPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ execute: true }),
       });
-      const j = await r.json();
+      const j = (await r.json()) as Record<string, unknown>;
       if (!r.ok) {
-        throw new Error((j as { error?: string }).error ?? `HTTP ${r.status}`);
+        throw new Error(typeof j.error === "string" ? j.error : `HTTP ${r.status}`);
       }
-      setPostResultJson(JSON.stringify(j, null, 2));
+      setPostResult(j);
     } catch (e) {
       setPanelError(e instanceof Error ? e.message : "전송 실패");
     } finally {
@@ -160,13 +160,35 @@ export default function AdminNewrunIntegrationsTestPage() {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">intranet_post 응답 요약</p>
-            {postResultJson ? (
-              <pre className="mt-2 max-h-72 overflow-auto rounded border border-violet-200 bg-white p-3 text-xs text-slate-800">
-                {postResultJson}
-              </pre>
+            {postResult ? (
+              <div className="mt-2 space-y-2">
+                {postResult.newrunResponse != null &&
+                typeof postResult.newrunResponse === "object" &&
+                !Array.isArray(postResult.newrunResponse) ? (
+                  <div>
+                    <p className="text-xs text-violet-900/90">
+                      뉴런 반환 스냅샷 — 가이드 <span className="font-medium">2.1.4 반환변수</span>를{" "}
+                      <code className="rounded bg-white px-1 text-[10px]">마지막 var_ret</code>과 동일한{" "}
+                      <code className="rounded bg-white px-1 text-[10px]">kind</code> +{" "}
+                      <code className="rounded bg-white px-1 text-[10px]">payload</code> 형태로 표시합니다.
+                    </p>
+                    <pre className="mt-1 max-h-56 overflow-auto rounded border border-violet-200 bg-white p-3 text-xs text-slate-800">
+                      {JSON.stringify(postResult.newrunResponse, null, 2)}
+                    </pre>
+                  </div>
+                ) : null}
+                <details className="rounded border border-violet-100 bg-white/70 p-2">
+                  <summary className="cursor-pointer text-xs font-medium text-violet-900">
+                    전체 응답 JSON (HTTP·본문 스냅샷·전송 필드 등)
+                  </summary>
+                  <pre className="mt-2 max-h-72 overflow-auto rounded border border-violet-200 bg-white p-3 text-xs text-slate-800">
+                    {JSON.stringify(postResult, null, 2)}
+                  </pre>
+                </details>
+              </div>
             ) : (
               <p className="mt-2 text-sm text-violet-800/70">
-                테스트 전송 후 HTTP 상태·<code>parsed.rwr_result</code>·본문 일부가 여기에 표시됩니다.
+                테스트 전송 후 위에 뉴런 반환(<code>kind: intranet_post_return</code>)이 표시되고, 전체 JSON은 펼쳐서 확인할 수 있습니다.
               </p>
             )}
           </div>
