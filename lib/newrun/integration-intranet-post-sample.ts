@@ -55,6 +55,7 @@ function fallbackCreds(): NewrunIntranetCredentials {
     rw_rosewebid: "",
     rw_rosewebpw: "",
     rw_assoc: "",
+    rw_associd: "",
     rw_returnurl: "",
   };
 }

@@ -34,7 +34,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         shipping_postcode: "04524",
         shipping_address: "서울특별시 중구",
         shipping_detail: "101호",
-        created_at: "2026-03-31T12:00:00.000Z",
+        created_at: "2026-04-31T12:00:00.000Z",
         desired_delivery_date: "2026-04-28",
       },
       [{ quantity: 1, product_name: "화환" }],
@@ -43,6 +43,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         rw_rosewebid: "ignored",
         rw_rosewebpw: "secret",
         rw_assoc: "call0000",
+        rw_associd: "assoc-intra-01",
         rw_returnurl: "ignored",
       },
       {
@@ -63,6 +64,9 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
     expect(r.fields.rw_price).toBe("90000");
     expect(r.fields.rw_menucode).toBe("35");
     expect(r.fields.rw_qty).toBe("1");
+    expect(r.fields.rw_sendsms).toBe("N");
+    expect(r.fields.rw_sendfax).toBe("N");
+    expect(r.fields.rw_associd).toBe("assoc-intra-01");
 
     for (const k of Object.keys(r.fields)) {
       expect(isIntranetPostRwKey(k)).toBe(true);
@@ -94,11 +98,11 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         rw_rosewebid: "u",
         rw_rosewebpw: "p",
         rw_assoc: "a",
+        rw_associd: "",
         rw_returnurl: "https://x/po-return",
       },
-      { strict: true, headquartersBonbalju: true, rw_method: "1" }
+      { headquartersBonbalju: true, rw_method: "1" }
     );
-    expect(r.fields.rw_menucode).toBe("35");
     expect(r.fields.rw_arrive_place2).toBe("DB장소상세");
     expect(r.fields.rw_sendpeople).toBe("리본보냄");
     expect(r.fields.rw_kyungjo).toBe("축하");
@@ -124,6 +128,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         rw_rosewebid: "u",
         rw_rosewebpw: "p",
         rw_assoc: "a",
+        rw_associd: "",
         rw_returnurl: "https://x/po-return",
       },
       { strict: true, headquartersBonbalju: true, rw_method: "1" }

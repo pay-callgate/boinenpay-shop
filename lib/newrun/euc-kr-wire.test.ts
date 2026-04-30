@@ -31,6 +31,7 @@ describe("euc-kr-wire", () => {
 
   it("encodeNewrunIntranetPostBody 가 본문을 키=값& 형태로 만든다", () => {
     const body = encodeNewrunIntranetPostBody({ rw_aname: "홍길동", rw_memo: "" });
+    expect(body.startsWith("rw_sender=")).toBe(true);
     expect(body).toContain("rw_aname=");
     expect(body).toContain("&");
     const first = body.split("&").find((p) => p.startsWith("rw_aname="))!;

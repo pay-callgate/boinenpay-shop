@@ -22,8 +22,12 @@ export class NewrunPayloadValidationError extends Error {
 
 const RW_SENDER_DEFAULT = "100";
 const RW_STYLE_DEFAULT = "0";
-const RW_SMS_DEFAULT = "0";
-const RW_FAX_DEFAULT = "0";
+/** 가이드: Y/N (미발송 N) */
+const RW_SMS_DEFAULT = "N";
+const RW_FAX_DEFAULT = "N";
+
+const NEWRUN_DEFAULT_SENDPEOPLE =
+  process.env.NEWRUN_DEFAULT_RW_SENDPEOPLE?.trim() ?? "주식회사 콜게이트 대표이사 아무개";
 
 /**
  * 축하3단 — 상품↔뉴런 매핑 전 발주 E2E/테스트용 고정 상품 코드.
@@ -33,25 +37,46 @@ export const NEWRUN_FIXED_RW_MENUCODE = "35";
 
 /** 문자열 필드 상한(보수적). 뉴런 문서·실측에 맞춰 조정 가능. */
 export const NEWRUN_RW_STRING_LIMITS: Record<string, number> = {
-  rw_aname: 50,
-  rw_atel: 30,
-  rw_arrive_place1: 255,
-  rw_arrive_place2: 500,
-  rw_memo: 500,
-  rw_shopreq: 500,
-  rw_shopreq1: 500,
-  rw_shopreq2: 500,
-  rw_sno: 40,
-  rw_menucode: 80,
-  rw_sujuid: 80,
-  rw_jname: 50,
+  rw_sender: 20,
+  rw_style: 20,
+  rw_method: 10,
+  rw_sno: 255,
+  rw_returnurl: 255,
+  rw_rosewebid: 19,
+  rw_rosewebpw: 70,
+  rw_sendsms: 1,
+  rw_sendfax: 1,
+  rw_assoc: 20,
+  rw_associd: 20,
+  rw_sujuid: 20,
+  rw_bdate: 10,
+  rw_btime: 60,
+  rw_menucode: 8,
+  rw_menu_etc: 100,
+  rw_jname: 20,
+  rw_jtel: 20,
+  rw_jhandtel: 20,
+  rw_aname: 100,
+  rw_atel: 20,
+  rw_ahandtel: 20,
+  rw_arrive_place1: 250,
+  rw_arrive_place2: 250,
+  rw_kyungjo: 150,
   rw_sendpeople: 100,
-  rw_kyungjo: 500,
-  rw_jhandtel: 30,
-  rw_returnurl: 2048,
-  rw_rosewebid: 80,
-  rw_rosewebpw: 80,
-  rw_assoc: 80,
+  rw_card: 2000,
+  rw_memo: 2000,
+  rw_shopreq1: 2000,
+  rw_shopreq2: 2000,
+  rw_custreq: 2000,
+  rw_photourl: 250,
+  rw_type: 10,
+  rw_paymethod: 10,
+  rw_writer: 20,
+  rw_dica: 1,
+  rw_happycall: 1,
+  rw_item_name: 100,
+  rw_item_key: 100,
+  rw_item_price: 100,
 };
 
 /** `shipping_detail` 블록에서 장소 상세 첫 줄(화훼 주문서 포맷) */
@@ -93,6 +118,8 @@ export type NewrunIntranetCredentials = {
   rw_rosewebid: string;
   rw_rosewebpw: string;
   rw_assoc: string;
+  /** 가이드 `rw_associd` — env `NEWRUN_RW_ASSOCID` */
+  rw_associd: string;
   rw_returnurl: string;
 };
 
@@ -187,31 +214,31 @@ function truncateField(
   return value.slice(0, max);
 }
 
-/** T4.5: 상세 주소·요청을 memo / shopreq에 나눔 */
+/** T4.5: 상세 주소·요청을 memo / rw_custreq(가이드)에 나눔 — `rw_shopreq` 필드는 사용하지 않음 */
 export function splitShippingDetailForRw(
   shippingDetail: string | null | undefined,
   optionExtraLine: string | null | undefined
-): { rw_memo: string; rw_shopreq: string } {
+): { rw_memo: string; rw_custreq: string } {
   const detail = (shippingDetail ?? "").trim();
   const extra = (optionExtraLine ?? "").trim();
-  const memoMax = NEWRUN_RW_STRING_LIMITS.rw_memo ?? 500;
-  const shopMax = NEWRUN_RW_STRING_LIMITS.rw_shopreq ?? 500;
+  const memoMax = NEWRUN_RW_STRING_LIMITS.rw_memo ?? 2000;
+  const custMax = NEWRUN_RW_STRING_LIMITS.rw_custreq ?? 2000;
 
   let memo = detail;
-  let shop = "";
+  let cust = "";
   if (memo.length > memoMax) {
-    shop = memo.slice(memoMax);
+    cust = memo.slice(memoMax);
     memo = memo.slice(0, memoMax);
   }
   if (extra) {
-    const combined = shop ? `${shop} | ${extra}` : extra;
-    if (combined.length > shopMax) {
-      shop = combined.slice(0, shopMax);
+    const combined = cust ? `${cust} | ${extra}` : extra;
+    if (combined.length > custMax) {
+      cust = combined.slice(0, custMax);
     } else {
-      shop = combined;
+      cust = combined;
     }
   }
-  return { rw_memo: memo, rw_shopreq: shop };
+  return { rw_memo: memo, rw_custreq: cust };
 }
 
 function mergeRwPrefixedFromDraft(draft: Record<string, string>, target: Record<string, string>) {
@@ -239,6 +266,8 @@ function applyProductDraft(draft: Record<string, string>, target: Record<string,
     "good_code",
   ]);
   if (menu) target.rw_menucode = menu;
+  const menuEtc = pickFirst(draft, ["rw_menu_etc", "rw_menuetc", "menu_etc", "var_menu_etc"]);
+  if (menuEtc) target.rw_menu_etc = menuEtc;
   mergeRwPrefixedFromDraft(draft, target);
 }
 
@@ -293,7 +322,7 @@ export function mapOrderToNewrunPayload(
     .trim();
 
   const optionLine = drafts.option ? optionDraftToLine(drafts.option) : "";
-  const { rw_memo: memoFromDetail, rw_shopreq: shopFromDetail } = splitShippingDetailForRw(
+  const { rw_memo: memoFromDetail, rw_custreq: custFromDetail } = splitShippingDetailForRw(
     order.shipping_detail,
     optionLine || null
   );
@@ -311,6 +340,7 @@ export function mapOrderToNewrunPayload(
   fields.rw_rosewebid = envRose;
   fields.rw_rosewebpw = creds.rw_rosewebpw.trim();
   fields.rw_assoc = creds.rw_assoc.trim();
+  fields.rw_associd = creds.rw_associd.trim();
   fields.rw_sendsms = RW_SMS_DEFAULT;
   fields.rw_sendfax = RW_FAX_DEFAULT;
   fields.rw_price = String(toIntWon(order.total_amount));
@@ -321,7 +351,7 @@ export function mapOrderToNewrunPayload(
     ? formatRwBdateYmdDash(order.desired_delivery_date, order.created_at)
     : options.rw_bdate?.trim() || formatBdateFromIso(order.created_at);
   fields.rw_memo = truncateField("rw_memo", memoFromDetail, warnings);
-  fields.rw_shopreq = truncateField("rw_shopreq", shopFromDetail, warnings);
+  fields.rw_custreq = truncateField("rw_custreq", custFromDetail, warnings);
 
   if (hq) {
     fields.rw_type = "head";
@@ -346,7 +376,11 @@ export function mapOrderToNewrunPayload(
 
   const rs = (order.ribbon_sender ?? "").trim();
   const rm = (order.ribbon_message ?? "").trim();
-  if (rs) fields.rw_sendpeople = truncateField("rw_sendpeople", rs, warnings);
+  fields.rw_sendpeople = truncateField(
+    "rw_sendpeople",
+    rs || NEWRUN_DEFAULT_SENDPEOPLE,
+    warnings
+  );
   if (rm) fields.rw_kyungjo = truncateField("rw_kyungjo", rm, warnings);
 
   const jn = (order.orderer_name ?? "").trim();
@@ -356,26 +390,34 @@ export function mapOrderToNewrunPayload(
     const q = Math.max(1, Math.floor(Number(items[0]!.quantity)) || 1);
     fields.rw_qty = String(q);
   }
+  if (!fields.rw_qty.trim()) {
+    fields.rw_qty = "1";
+  }
 
   fields.rw_menucode = truncateField("rw_menucode", NEWRUN_FIXED_RW_MENUCODE, warnings);
 
   const truncateKeys: IntranetPostRwKey[] = [
     "rw_sujuid",
     "rw_menucode",
+    "rw_menu_etc",
     "rw_sno",
     "rw_aname",
     "rw_atel",
+    "rw_ahandtel",
     "rw_jname",
+    "rw_jtel",
     "rw_jhandtel",
     "rw_arrive_place1",
     "rw_arrive_place2",
     "rw_memo",
-    "rw_shopreq",
+    "rw_custreq",
     "rw_shopreq1",
     "rw_shopreq2",
     "rw_returnurl",
     "rw_sendpeople",
     "rw_kyungjo",
+    "rw_card",
+    "rw_associd",
   ];
   for (const k of truncateKeys) {
     if (fields[k]) fields[k] = truncateField(k, fields[k], warnings);

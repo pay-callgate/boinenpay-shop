@@ -1,4 +1,5 @@
 import iconv from "iconv-lite";
+import { INTRANET_POST_RW_KEYS } from "@/lib/newrun/intranet-post-field-template";
 
 /** 뉴런 var_ret: 복수 디코딩 후보 중 '한글 정상도'가 가장 높은 문자열 선택 */
 export function scoreVarRetDecodedValue(s: string): number {
@@ -98,11 +99,12 @@ export function encodeWwwFormValueEucKr(value: string): string {
 }
 
 /**
- * intranet_post 전송용 본문. 키 이름은 ASCII이므로 encodeURIComponent 사용.
+ * intranet_post 전송용 본문. 키는 가이드 2.1.3 행 순서(`INTRANET_POST_RW_KEYS`)와 동일.
  */
 export function encodeNewrunIntranetPostBody(fields: Record<string, string>): string {
   const parts: string[] = [];
-  for (const [k, v] of Object.entries(fields)) {
+  for (const k of INTRANET_POST_RW_KEYS) {
+    const v = fields[k] ?? "";
     parts.push(`${encodeURIComponent(k)}=${encodeWwwFormValueEucKr(v)}`);
   }
   return parts.join("&");

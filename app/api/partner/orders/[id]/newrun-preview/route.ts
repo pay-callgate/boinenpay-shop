@@ -98,6 +98,7 @@ export async function GET(
         rw_rosewebid: "",
         rw_rosewebpw: "",
         rw_assoc: "",
+        rw_associd: "",
         rw_returnurl: "",
       };
 
@@ -143,6 +144,7 @@ export async function GET(
         NEWRUN_ROSEWEB_PW: Boolean(process.env.NEWRUN_ROSEWEB_PW?.trim()),
         NEWRUN_ASSOC_CODE: Boolean(process.env.NEWRUN_ASSOC_CODE?.trim()),
         NEWRUN_RW_RETURNURL: Boolean(process.env.NEWRUN_RW_RETURNURL?.trim()),
+        NEWRUN_RW_ASSOCID: Boolean(process.env.NEWRUN_RW_ASSOCID?.trim()),
       },
     });
   } catch (err) {

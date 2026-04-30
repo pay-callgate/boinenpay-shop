@@ -45,8 +45,9 @@ export function getNewrunCredentialsFromEnv(): NewrunIntranetCredentials | null 
   const rw_returnurl = process.env.NEWRUN_RW_RETURNURL?.trim() ?? "";
   const rw_assoc =
     process.env.NEWRUN_ASSOC_CODE?.trim() || process.env.NEWRUN_ASSOC_INTRANET_ID?.trim() || "";
+  const rw_associd = process.env.NEWRUN_RW_ASSOCID?.trim() ?? "";
   if (!rw_rosewebid || !rw_rosewebpw || !rw_returnurl) return null;
-  return { rw_rosewebid, rw_rosewebpw, rw_assoc, rw_returnurl };
+  return { rw_rosewebid, rw_rosewebpw, rw_assoc, rw_associd, rw_returnurl };
 }
 
 function intranetPostUrl(): string {

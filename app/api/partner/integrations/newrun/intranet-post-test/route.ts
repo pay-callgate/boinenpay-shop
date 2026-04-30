@@ -46,9 +46,11 @@ function envHints() {
     NEWRUN_ASSOC_INTRANET_ID: Boolean(process.env.NEWRUN_ASSOC_INTRANET_ID?.trim()),
     NEWRUN_ROSEWEB_PW: Boolean(process.env.NEWRUN_ROSEWEB_PW?.trim()),
     NEWRUN_ASSOC_CODE: Boolean(process.env.NEWRUN_ASSOC_CODE?.trim()),
+    NEWRUN_RW_ASSOCID: Boolean(process.env.NEWRUN_RW_ASSOCID?.trim()),
     NEWRUN_RW_RETURNURL: Boolean(process.env.NEWRUN_RW_RETURNURL?.trim()),
     NEWRUN_INTRANET_POST_URL: Boolean(process.env.NEWRUN_INTRANET_POST_URL?.trim()),
     NEWRUN_INTEGRATION_TEST_SUJUID: Boolean(process.env.NEWRUN_INTEGRATION_TEST_SUJUID?.trim()),
+    NEWRUN_DEFAULT_RW_SENDPEOPLE: Boolean(process.env.NEWRUN_DEFAULT_RW_SENDPEOPLE?.trim()),
   };
 }
 
