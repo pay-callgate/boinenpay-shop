@@ -62,7 +62,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
     expect(r.fields.rw_sno).toBe("11111111-1111-1111-1111-111111111111");
     expect(r.fields.rw_bdate).toBe("2026-04-28");
     expect(r.fields.rw_price).toBe("90000");
-    expect(r.fields.rw_menucode).toBe("35");
+    expect(r.fields.rw_menucode).toBe("09");
     expect(r.fields.rw_qty).toBe("1");
     expect(r.fields.rw_sendsms).toBe("N");
     expect(r.fields.rw_sendfax).toBe("N");

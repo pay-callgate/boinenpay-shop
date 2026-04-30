@@ -11,8 +11,8 @@ import { getNewrunCredentialsFromEnv } from "@/lib/newrun/submit-order";
 /** 사전 테스트 화면·API에서 공통으로 쓰는 가짜 주문번호(실 주문 DB와 무관) */
 export const INTEGRATION_INTRANET_POST_TEST_ORDER_NO = "CALLLINK-INTRANET-TEST";
 
-/** 샘플 `rw_sujuid` — `NEWRUN_INTEGRATION_TEST_SUJUID`로 덮어쓸 수 있음 */
-export const INTEGRATION_INTRANET_POST_DEFAULT_SUJUID = "sinil275";
+/** 샘플 `rw_sujuid` — 운영 var_ret `var_sid` 기준 기본값, `NEWRUN_INTEGRATION_TEST_SUJUID`로 덮어쓸 수 있음 */
+export const INTEGRATION_INTRANET_POST_DEFAULT_SUJUID = "kot4545";
 
 function sampleOrder(overrides?: Partial<NewrunOrderSlice>): NewrunOrderSlice {
   const id = "00000000-0000-4000-8000-00000000ab7e";
@@ -45,7 +45,11 @@ function sampleDrafts(): NewrunMergedDrafts {
     process.env.NEWRUN_INTEGRATION_TEST_SUJUID?.trim() || INTEGRATION_INTRANET_POST_DEFAULT_SUJUID;
   return {
     florist: { rw_sujuid: sujuid, var_sid: sujuid },
-    product: { rw_menucode: "43" },
+    product: {
+      rw_menucode: "09",
+      var_mcode: "09",
+      var_mname: "근조화환(기본형)",
+    },
     option: null,
   };
 }

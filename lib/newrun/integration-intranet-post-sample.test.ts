@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildIntegrationIntranetPostSampleFields } from "@/lib/newrun/integration-intranet-post-sample";
+import {
+  buildIntegrationIntranetPostSampleFields,
+  INTEGRATION_INTRANET_POST_DEFAULT_SUJUID,
+} from "@/lib/newrun/integration-intranet-post-sample";
 
 describe("integration-intranet-post-sample", () => {
   const saved: Record<string, string | undefined> = {};
@@ -27,13 +30,20 @@ describe("integration-intranet-post-sample", () => {
     }
   });
 
-  it("샘플 필드에 head·rw_menucode·rw_sujuid·주문번호가 채어진다", () => {
-    process.env.NEWRUN_INTEGRATION_TEST_SUJUID = "kot4545";
+  it("샘플 필드에 head·운영 기본 rw_menucode·rw_sujuid·주문번호가 채어진다", () => {
+    delete process.env.NEWRUN_INTEGRATION_TEST_SUJUID;
     const { fields } = buildIntegrationIntranetPostSampleFields();
     expect(fields.rw_type).toBe("head");
-    expect(fields.rw_menucode).toBe("35");
-    expect(fields.rw_sujuid).toBe("kot4545");
+    expect(fields.rw_menucode).toBe("09");
+    expect(fields.rw_sujuid).toBe(INTEGRATION_INTRANET_POST_DEFAULT_SUJUID);
     expect(fields.rw_sno).toBe("00000000-0000-4000-8000-00000000ab7e");
     expect(fields.rw_aname).toContain("발주연동");
+  });
+
+  it("NEWRUN_INTEGRATION_TEST_SUJUID 가 있으면 rw_sujuid 가 env 를 따른다", () => {
+    process.env.NEWRUN_INTEGRATION_TEST_SUJUID = "custom-sid";
+    const { fields } = buildIntegrationIntranetPostSampleFields();
+    expect(fields.rw_sujuid).toBe("custom-sid");
+    expect(fields.rw_menucode).toBe("09");
   });
 });

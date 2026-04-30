@@ -33,7 +33,7 @@ const NEWRUN_DEFAULT_SENDPEOPLE =
  * 축하3단 — 상품↔뉴런 매핑 전 발주 E2E/테스트용 고정 상품 코드.
  * 실매핑 도입 시 제거하거나 env 기본값으로 대체.
  */
-export const NEWRUN_FIXED_RW_MENUCODE = "35";
+export const NEWRUN_FIXED_RW_MENUCODE = "09";
 
 /** 문자열 필드 상한(보수적). 뉴런 문서·실측에 맞춰 조정 가능. */
 export const NEWRUN_RW_STRING_LIMITS: Record<string, number> = {
@@ -260,6 +260,7 @@ function applyProductDraft(draft: Record<string, string>, target: Record<string,
     "rw_menucode",
     "menucode",
     "var_menucode",
+    "var_mcode",
     "goodcode",
     "var_goodcode",
     "var_code",
@@ -394,7 +395,12 @@ export function mapOrderToNewrunPayload(
     fields.rw_qty = "1";
   }
 
-  fields.rw_menucode = truncateField("rw_menucode", NEWRUN_FIXED_RW_MENUCODE, warnings);
+  const fromDraft = fields.rw_menucode?.trim() ?? "";
+  fields.rw_menucode = truncateField(
+    "rw_menucode",
+    fromDraft || NEWRUN_FIXED_RW_MENUCODE,
+    warnings
+  );
 
   const truncateKeys: IntranetPostRwKey[] = [
     "rw_sujuid",
