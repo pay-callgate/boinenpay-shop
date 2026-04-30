@@ -160,7 +160,9 @@ export default function AdminNewrunIntegrationsTestPage() {
         <div className="mt-4 rounded-md border border-violet-200/80 bg-white/90 p-4">
           <p className="text-xs font-semibold text-violet-950">intranet_post 인증·협회·수주 (테스트용)</p>
           <p className="mt-1 text-xs text-violet-800/85">
-            기본값은 코드와 동일합니다. 비밀번호가 바뀌면 여기서 수정 후 다시 전송하세요. 미리보기 JSON의{" "}
+            기본값은 코드와 동일합니다. 비밀번호가 바뀌면 여기서 수정 후 다시 전송하세요.{" "}
+            배달일(<code className="text-[10px]">rw_bdate</code>)은 서울 기준 테스트 당일 D+1, 배달시각(
+            <code className="text-[10px]">rw_btime</code>)은 오후 2시(14:00)로 자동 설정됩니다. 미리보기 JSON의{" "}
             <code className="text-[10px]">fields</code>에 입력값이 그대로 보입니다(파트너 관리자 전용 화면).
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

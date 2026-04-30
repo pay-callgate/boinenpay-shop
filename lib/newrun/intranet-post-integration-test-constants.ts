@@ -10,6 +10,9 @@ export const INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS = {
   rw_sujuid: "kot4545",
 } as const;
 
+/** intranet_post 사전 테스트 — 배달 시각(뉴런 연동 가이드 흔한 형식: 24시 표기 오후 2시) */
+export const INTEGRATION_INTRANET_POST_TEST_BTIME = "14:00";
+
 export const INTRANET_POST_TEST_CREDENTIAL_KEYS = [
   "rw_rosewebid",
   "rw_rosewebpw",

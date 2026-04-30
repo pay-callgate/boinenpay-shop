@@ -5,7 +5,9 @@ import {
   INTEGRATION_INTRANET_POST_DEFAULT_SUJUID,
   INTEGRATION_INTRANET_POST_FIXED_PAYLOAD_IDS,
   mergeIntranetPostTestCredentials,
+  seoulCalendarPlusDaysYmd,
 } from "@/lib/newrun/integration-intranet-post-sample";
+import { INTEGRATION_INTRANET_POST_TEST_BTIME } from "@/lib/newrun/intranet-post-integration-test-constants";
 
 describe("integration-intranet-post-sample", () => {
   const saved: Record<string, string | undefined> = {};
@@ -33,6 +35,13 @@ describe("integration-intranet-post-sample", () => {
       if (v === undefined) delete process.env[k];
       else process.env[k] = v;
     }
+  });
+
+  it("사전 테스트 배달일·시간은 서울 기준 익일 YYYY-MM-DD 및 14:00(오후 2시)로 고정된다", () => {
+    const wantDate = seoulCalendarPlusDaysYmd(1);
+    const { fields } = buildIntegrationIntranetPostSampleFields();
+    expect(fields.rw_bdate).toBe(wantDate);
+    expect(fields.rw_btime).toBe(INTEGRATION_INTRANET_POST_TEST_BTIME);
   });
 
   it("NEWRUN_ASSOC_INTRANET_ID=call0000·associd 미설정(Vercel 유사)여도 고정값으로 덮어쓴다", () => {
