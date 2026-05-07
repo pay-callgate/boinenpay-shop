@@ -41,6 +41,7 @@ export type CallCloudActivityLogger = {
 function createCallCloudActivityLogger(): CallCloudActivityLogger {
   const runId = randomUUID();
   const t0 = Date.now();
+  let lastMark = t0;
   const line = (
     level: "INFO" | "WARN" | "ERROR",
     phase: string,
@@ -48,11 +49,14 @@ function createCallCloudActivityLogger(): CallCloudActivityLogger {
     extra?: Record<string, unknown>
   ) => {
     const ts = new Date().toISOString();
-    const elapsedMs = Date.now() - t0;
-    const tail =
-      extra && Object.keys(extra).length > 0
-        ? ` | ${JSON.stringify(extra)}`
-        : "";
+    const now = Date.now();
+    const elapsedMs = now - t0;
+    const sincePrevLogMs = now - lastMark;
+    lastMark = now;
+    const timing = { elapsedMs, sincePrevLogMs };
+    const mergedExtra =
+      extra && Object.keys(extra).length > 0 ? { ...extra, timing } : { timing };
+    const tail = ` | ${JSON.stringify(mergedExtra)}`;
     return `[CallCloud][${level}][run=${runId}][${ts}][+${elapsedMs}ms][${phase}] ${message}${tail}`;
   };
   return {
@@ -68,6 +72,16 @@ function createCallCloudActivityLogger(): CallCloudActivityLogger {
     },
   };
 }
+
+/** Vercel 로그에서 Hobby(60s)·Pro(300s) 병목 비교용 — 플랜은 런타임에서 알 수 없어 고정 안내 */
+export const VERCEL_FUNCTION_DURATION_HINTS = {
+  /** 이 API 라우트의 `export const maxDuration` (초) */
+  routeConfiguredMaxDurationSec: 300,
+  /** Vercel Hobby 무료 등에서 흔한 플랫폼 상한(초). 문서 기준 변동 가능 */
+  hobbyTypicalPlatformCapSec: 60,
+  /** paid Pro 등에서 이 라우트가 쓸 수 있는 상한에 가깝게 맞출 수 있는 초 단위 */
+  proTypicalPlatformCapSec: 300,
+} as const;
 
 /** WebSocket URL 로그용(토큰·쿼리 마스킹) */
 function maskWsEndpointForLog(ws: string): string {
@@ -282,6 +296,7 @@ async function fillCompanyForm(
   input: CallCloudRegisterInput,
   log: CallCloudActivityLogger
 ): Promise<void> {
+  const formT0 = Date.now();
   const repNumber = normalize070(input.call070Number);
   const adminPhoneNorm = normalize070(input.adminPhone);
 
@@ -367,6 +382,10 @@ async function fillCompanyForm(
   } else {
     log.warn("form.industry", "업종 드롭다운 미노출 — 건너뜀");
   }
+
+  log.info("form", "폼 입력 세그먼트 전체 완료", {
+    formSegmentMs: Date.now() - formT0,
+  });
 }
 
 async function ensureServiceStatus(
@@ -421,11 +440,23 @@ export async function runCallCloudRegister(
       loginIdPrefix: loginId.length > 0 ? `${loginId.slice(0, 2)}***` : "(empty)",
       loginPwdSet: !!loginPwd,
       hasBrowserlessWs: !!process.env.BROWSERLESS_WS_ENDPOINT?.trim(),
+      vercel: process.env.VERCEL ?? "0",
+      vercelRegion: process.env.VERCEL_REGION ?? null,
+      nodeEnv: process.env.NODE_ENV ?? "(unset)",
+      vercelFunctionDurationHints: VERCEL_FUNCTION_DURATION_HINTS,
+      timingNote:
+        "각 로그의 timing.elapsedMs=자동화 시작 기준 경과, sincePrevLogMs=직전 로그 이후 간격. Hobby는 elapsedMs가 약 " +
+        String(VERCEL_FUNCTION_DURATION_HINTS.hobbyTypicalPlatformCapSec * 1000) +
+        "ms 전후에서 플랫폼 타임아웃 가능.",
     }
   );
 
+  const tBrowserAcquire = Date.now();
   try {
     browser = await acquireCallCloudBrowser(headless, log);
+    log.info("timing", "브라우저 확보 단계 경과", {
+      browserAcquireMs: Date.now() - tBrowserAcquire,
+    });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : String(err ?? "브라우저 초기화 실패");
@@ -433,10 +464,12 @@ export async function runCallCloudRegister(
     log.error("browser.acquire", "브라우저 확보 단계 실패", {
       message,
       stack: stack ?? null,
+      browserAcquireMs: Date.now() - tBrowserAcquire,
     });
     return { success: false, error: message };
   }
 
+  const tAutomationPage = Date.now();
   try {
     log.info("context", "browser.newContext + newPage", {
       ignoreHTTPSErrors: true,
@@ -464,11 +497,13 @@ export async function runCallCloudRegister(
       }
     });
 
+    const tLogin = Date.now();
     try {
       log.info("login", "1) LOGIN_URL 이동 networkidle 30s", { url: LOGIN_URL });
       await page.goto(LOGIN_URL, { waitUntil: "networkidle", timeout: 30000 });
       log.info("login", "1) 로그인 페이지 로드 완료", {
         finalUrl: page.url(),
+        loginStep1GotoMs: Date.now() - tLogin,
       });
     } catch (e) {
       log.error("login", "1) 로그인 페이지 접속 실패", {
@@ -519,7 +554,10 @@ export async function runCallCloudRegister(
     try {
       log.info("login", "5) URL /company 대기 10s");
       await page.waitForURL(/\/company/, { timeout: 10000 });
-      log.info("login", "5) /company 진입 완료", { url: page.url() });
+      log.info("login", "5) /company 진입 완료", {
+        url: page.url(),
+        loginSteps1to5WallMs: Date.now() - tLogin,
+      });
     } catch (e) {
       log.error("login", "5) /company 미진입", {
         message: e instanceof Error ? e.message : String(e),
@@ -529,6 +567,7 @@ export async function runCallCloudRegister(
       throw e;
     }
 
+    const tCompany = Date.now();
     try {
       log.info("company", "6) COMPANY_URL 이동", { url: COMPANY_URL });
       await page.goto(COMPANY_URL, { waitUntil: "domcontentloaded", timeout: 15000 });
@@ -536,7 +575,10 @@ export async function runCallCloudRegister(
         .locator(".v-btn", { hasText: "신규고객사 등록" })
         .waitFor({ state: "visible", timeout: UI_WAIT_TIMEOUT_MS })
         .catch(() => null);
-      log.info("company", "6) 고객사 목록 화면 안정화", { url: page.url() });
+      log.info("company", "6) 고객사 목록 화면 안정화", {
+        url: page.url(),
+        companyListMs: Date.now() - tCompany,
+      });
     } catch (e) {
       log.error("company", "6) 고객사 목록 대기 실패", {
         message: e instanceof Error ? e.message : String(e),
@@ -546,6 +588,7 @@ export async function runCallCloudRegister(
       throw e;
     }
 
+    const tSearch = Date.now();
     log.info("search", "검색 조건: 고객사명 → 서비스번호 전환");
     await page.locator(".v-select").filter({ hasText: "검색어: 고객사명" }).first().click();
     await page
@@ -570,7 +613,10 @@ export async function runCallCloudRegister(
 
     const rows = page.locator("tbody tr");
     const rowCount = await rows.count();
-    log.info("search", "검색 결과 테이블 행 수", { rowCount });
+    log.info("search", "검색 결과 테이블 행 수", {
+      rowCount,
+      searchAndTableMs: Date.now() - tSearch,
+    });
     const searchNumFormatted = searchValue.replace(
       /(\d{3})(\d{4})(\d{4})/,
       "$1-$2-$3"
@@ -594,6 +640,7 @@ export async function runCallCloudRegister(
       matchingRowIndex: foundRow ? matchingRowIndex : -1,
     });
 
+    const tBranch = Date.now();
     if (foundRow) {
       log.info("branch.edit", "기등록: 행 클릭 → 상세");
       await rows.nth(matchingRowIndex).click();
@@ -629,7 +676,10 @@ export async function runCallCloudRegister(
         .locator(".v-btn", { hasText: "신규고객사 등록" })
         .waitFor({ state: "visible", timeout: 5000 })
         .catch(() => null);
-      log.info("branch.edit", "수정 플로우 후속 대기 완료", { url: page.url() });
+      log.info("branch.edit", "수정 플로우 후속 대기 완료", {
+        url: page.url(),
+        branchEditTotalMs: Date.now() - tBranch,
+      });
     } else {
       log.info("branch.new", "신규: 신규고객사 등록 클릭");
       await page.locator(".v-btn", { hasText: "신규고객사 등록" }).click();
@@ -662,8 +712,15 @@ export async function runCallCloudRegister(
         .locator(".v-btn", { hasText: "신규고객사 등록" })
         .waitFor({ state: "visible", timeout: 5000 })
         .catch(() => null);
-      log.info("branch.new", "신규 플로우 후속 대기 완료", { url: page.url() });
+      log.info("branch.new", "신규 플로우 후속 대기 완료", {
+        url: page.url(),
+        branchNewTotalMs: Date.now() - tBranch,
+      });
     }
+
+    log.info("timing", "페이지 자동화(컨텍스트~분기·제출) 세그먼트", {
+      pageAutomationMs: Date.now() - tAutomationPage,
+    });
 
     try {
       log.info("context", "context.close()");
@@ -676,6 +733,7 @@ export async function runCallCloudRegister(
 
     log.info("run.done", "CallCloud 자동화 성공", {
       branch: foundRow ? "edit" : "new",
+      totalAutomationWallMs: Date.now() - tAutomationPage,
     });
     return {
       success: true,
@@ -689,6 +747,7 @@ export async function runCallCloudRegister(
       message,
       raw: caught instanceof Error ? caught.message : String(caught),
       stack: caught instanceof Error ? caught.stack : null,
+      totalAutomationWallMs: Date.now() - tAutomationPage,
     });
     return { success: false, error: message };
   } finally {

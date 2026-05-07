@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { runCallCloudRegister } from "@/lib/callcloud-playwright";
+import {
+  runCallCloudRegister,
+  VERCEL_FUNCTION_DURATION_HINTS,
+} from "@/lib/callcloud-playwright";
 import { getStorefrontUrl } from "@/lib/app-url";
 
 function mask070ForLog(num: string): string {
@@ -12,22 +15,28 @@ function mask070ForLog(num: string): string {
   return `***${d.slice(-4)}`;
 }
 
-function log070Register(
-  level: "info" | "warn" | "error",
-  runId: string,
-  t0: number,
-  phase: string,
-  message: string,
-  extra?: Record<string, unknown>
-) {
-  const ts = new Date().toISOString();
-  const ms = Date.now() - t0;
-  const tail =
-    extra && Object.keys(extra).length ? ` ${JSON.stringify(extra)}` : "";
-  const line = `[070-register][${level.toUpperCase()}][run=${runId}][${ts}][+${ms}ms][${phase}] ${message}${tail}`;
-  if (level === "error") console.error(line);
-  else if (level === "warn") console.warn(line);
-  else console.log(line);
+function createLog070Register(runId: string, t0: number) {
+  let lastMark = t0;
+  return function log070Register(
+    level: "info" | "warn" | "error",
+    phase: string,
+    message: string,
+    extra?: Record<string, unknown>
+  ): void {
+    const ts = new Date().toISOString();
+    const now = Date.now();
+    const totalElapsedMs = now - t0;
+    const sincePrevLogMs = now - lastMark;
+    lastMark = now;
+    const timing = { totalElapsedMs, sincePrevLogMs };
+    const mergedExtra =
+      extra && Object.keys(extra).length > 0 ? { ...extra, timing } : { timing };
+    const tail = ` ${JSON.stringify(mergedExtra)}`;
+    const line = `[070-register][${level.toUpperCase()}][run=${runId}][${ts}][+${totalElapsedMs}ms][${phase}] ${message}${tail}`;
+    if (level === "error") console.error(line);
+    else if (level === "warn") console.warn(line);
+    else console.log(line);
+  };
 }
 
 /**
@@ -52,21 +61,33 @@ export async function POST(
 ) {
   const runId = randomUUID();
   const t0 = Date.now();
+  const log070Register = createLog070Register(runId, t0);
 
   try {
-    log070Register("info", runId, t0, "request", "POST 수신", {
+    log070Register("info", "request", "POST 수신", {
       vercel: process.env.VERCEL ?? "0",
       nodeEnv: process.env.NODE_ENV ?? "(unset)",
       region: process.env.VERCEL_REGION ?? null,
     });
 
+    log070Register(
+      "info",
+      "timing.vercel",
+      "함수 실행 시간 비교용(플랜·문서 기준 안내). Pro 전환 시 플랫폼 상한이 올라가도 CallCloud/Browserless 장애·UI변경 등으로 실패할 수 있음",
+      {
+        ...VERCEL_FUNCTION_DURATION_HINTS,
+        logHint:
+          "[070-register]의 +Nms는 요청 시작 기준; [CallCloud] 로그의 timing은 해당 자동화 run 기준",
+      }
+    );
+
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      log070Register("warn", runId, t0, "auth", "비로그인 — 401");
+      log070Register("warn", "auth", "비로그인 — 401");
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    log070Register("info", runId, t0, "auth", "세션 확인됨", {
+    log070Register("info", "auth", "세션 확인됨", {
       userId: session.user?.email ?? session.user?.name ?? "(no id)",
     });
 
@@ -82,7 +103,7 @@ export async function POST(
       smsTextTemplate,
     } = body;
 
-    log070Register("info", runId, t0, "payload", "본문 파싱 완료(민감 일부만)", {
+    log070Register("info", "payload", "본문 파싱 완료(민감 일부만)", {
       clientId,
       call070: call070Number
         ? mask070ForLog(String(call070Number))
@@ -96,7 +117,7 @@ export async function POST(
     });
 
     if (!call070Number || !String(call070Number).trim()) {
-      log070Register("warn", runId, t0, "validate", "070 번호 누락 — 400");
+      log070Register("warn", "validate", "070 번호 누락 — 400");
       return NextResponse.json(
         { error: "서비스 번호(070)는 필수입니다." },
         { status: 400 }
@@ -113,7 +134,7 @@ export async function POST(
       .single();
 
     if (clientError || !client) {
-      log070Register("error", runId, t0, "db.client", "거래처 조회 실패", {
+      log070Register("error", "db.client", "거래처 조회 실패", {
         clientId,
         supabaseError: clientError?.message ?? String(clientError),
       });
@@ -123,7 +144,7 @@ export async function POST(
       );
     }
 
-    log070Register("info", runId, t0, "db.client", "거래처 로드", {
+    log070Register("info", "db.client", "거래처 로드", {
       clientName: client.name,
       slug: client.slug,
       partnerId: client.partner_id,
@@ -136,7 +157,7 @@ export async function POST(
       .single();
 
     if (partnerError || !partner?.subdomain) {
-      log070Register("error", runId, t0, "db.partner", "파트너 조회 실패", {
+      log070Register("error", "db.partner", "파트너 조회 실패", {
         partnerError: partnerError?.message ?? String(partnerError),
       });
       return NextResponse.json(
@@ -146,18 +167,20 @@ export async function POST(
     }
 
     const serviceUrl = getStorefrontUrl(partner.subdomain, client.slug);
-    log070Register("info", runId, t0, "url", "serviceUrl 계산 완료", {
+    log070Register("info", "url", "serviceUrl 계산 완료", {
       subdomain: partner.subdomain,
       clientSlug: client.slug,
       serviceUrl,
     });
 
     // ——— 1. 봇 선(先) 실행 ——— 실패 시 즉시 반환, DB 미접근
-    log070Register("info", runId, t0, "bot", "runCallCloudRegister 호출 직전", {
+    log070Register("info", "bot", "runCallCloudRegister 호출 직전", {
       hasBrowserlessWs: !!process.env.BROWSERLESS_WS_ENDPOINT?.trim(),
       call070Headless: process.env.CALLCLOUD_HEADLESS ?? "(unset)",
+      atRequestMsSinceStart: Date.now() - t0,
     });
 
+    const botT0 = Date.now();
     const result = await runCallCloudRegister(
       {
         clientName: client.name,
@@ -174,17 +197,19 @@ export async function POST(
       { apiRunId: runId }
     );
 
-    log070Register("info", runId, t0, "bot", "runCallCloudRegister 반환", {
+    log070Register("info", "bot", "runCallCloudRegister 반환", {
       success: result.success,
       messagePreview: result.message?.slice(0, 120) ?? null,
       errorPreview: result.error?.slice(0, 300) ?? null,
+      botWallClockMs: Date.now() - botT0,
+      atRequestMsSinceStart: Date.now() - t0,
     });
 
     if (!result.success) {
       const isClosed =
         result.error?.includes("브라우저가 종료") ||
         result.error?.includes("has been closed");
-      log070Register("error", runId, t0, "bot", "봇 실패 — DB 스킵, 500", {
+      log070Register("error", "bot", "봇 실패 — DB 스킵, 500", {
         isClosed,
         details: result.error,
       });
@@ -200,7 +225,7 @@ export async function POST(
     }
 
     // ——— 2. 봇 성공 시에만 DB 확정 저장 (Commit) ———
-    log070Register("info", runId, t0, "db.commit", "client_call_070_configs upsert 시작");
+    log070Register("info", "db.commit", "client_call_070_configs upsert 시작");
     await supabase.from("client_call_070_configs").upsert(
       {
         client_id: clientId,
@@ -217,13 +242,13 @@ export async function POST(
       { onConflict: "client_id" }
     );
 
-    log070Register("info", runId, t0, "db.commit", "clients.call_070_connected = true");
+    log070Register("info", "db.commit", "clients.call_070_connected = true");
     await supabase
       .from("clients")
       .update({ call_070_connected: true })
       .eq("id", clientId);
 
-    log070Register("info", runId, t0, "response", "전체 성공", {
+    log070Register("info", "response", "전체 성공", {
       totalMs: Date.now() - t0,
     });
     return NextResponse.json({
@@ -233,7 +258,7 @@ export async function POST(
       alreadyRegistered: false,
     });
   } catch (err) {
-    log070Register("error", runId, t0, "fatal", "예외 처리", {
+    log070Register("error", "fatal", "예외 처리", {
       message: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : null,
       totalMs: Date.now() - t0,
