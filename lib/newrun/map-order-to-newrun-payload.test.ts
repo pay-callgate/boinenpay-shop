@@ -22,7 +22,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
     else process.env.NEWRUN_RW_RETURNURL = prev.ret;
   });
 
-  it("rw_type·rw_method·rw_sno(주문 id)·rw_bdate YYYY-MM-DD·수주화원/상품코드 없이 strict 통과", () => {
+  it("rw_type·rw_method·rw_sno(주문 id)·rw_bdate YYYY-MM-DD·본부발주 시 draft 의 rw_menucode 필수·수주화원 검증 생략", () => {
     const r = mapOrderToNewrunPayload(
       {
         id: "11111111-1111-1111-1111-111111111111",
@@ -38,7 +38,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         desired_delivery_date: "2026-04-28",
       },
       [{ quantity: 1, product_name: "화환" }],
-      { florist: null, product: null, option: null },
+      { florist: null, product: { rw_menucode: "09" }, option: null },
       {
         rw_rosewebid: "ignored",
         rw_rosewebpw: "secret",
@@ -93,7 +93,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         venue_detail: "DB장소상세",
       },
       [],
-      { florist: null, product: { rw_menucode: "SHOULD_BE_OVERRIDDEN" }, option: null },
+      { florist: null, product: { rw_menucode: "33" }, option: null },
       {
         rw_rosewebid: "u",
         rw_rosewebpw: "p",
@@ -107,6 +107,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
     expect(r.fields.rw_sendpeople).toBe("리본보냄");
     expect(r.fields.rw_kyungjo).toBe("축하");
     expect(r.fields.rw_jname).toBe("주문자희");
+    expect(r.fields.rw_menucode).toBe("33");
   });
 
   it("ribbon_message_kind=card 이면 rw_card에만 ribbon_message", () => {
@@ -126,7 +127,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         ribbon_message_kind: "card",
       },
       [],
-      { florist: null, product: null, option: null },
+      { florist: null, product: { rw_menucode: "08" }, option: null },
       {
         rw_rosewebid: "u",
         rw_rosewebpw: "p",
@@ -158,7 +159,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         ribbon_card_message: "삼가 고인의 명복을 빕니다",
       },
       [],
-      { florist: null, product: null, option: null },
+      { florist: null, product: { rw_menucode: "35" }, option: null },
       {
         rw_rosewebid: "u",
         rw_rosewebpw: "p",
@@ -186,7 +187,7 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
         desired_delivery_date: null,
       },
       [],
-      { florist: null, product: null, option: null },
+      { florist: null, product: { rw_menucode: "09" }, option: null },
       {
         rw_rosewebid: "u",
         rw_rosewebpw: "p",
@@ -197,5 +198,33 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
       { strict: true, headquartersBonbalju: true, rw_method: "1" }
     );
     expect(r.fields.rw_bdate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("strict 모드에서 병합 draft 에 rw_menucode 없으면 검증 실패", () => {
+    expect(() =>
+      mapOrderToNewrunPayload(
+        {
+          id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          order_no: "ORD-X",
+          payment_status: "paid",
+          total_amount: 1,
+          shipping_name: "수취",
+          shipping_phone: "01000000000",
+          shipping_address: "서울",
+          created_at: "2026-04-01T12:00:00.000Z",
+          desired_delivery_date: "2026-04-02",
+        },
+        [],
+        { florist: null, product: null, option: null },
+        {
+          rw_rosewebid: "u",
+          rw_rosewebpw: "p",
+          rw_assoc: "a",
+          rw_associd: "",
+          rw_returnurl: "https://x/po-return",
+        },
+        { strict: true, headquartersBonbalju: true, rw_method: "1" }
+      )
+    ).toThrow(/rw_menucode/);
   });
 });

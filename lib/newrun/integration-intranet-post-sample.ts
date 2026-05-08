@@ -79,7 +79,6 @@ function sampleDrafts(): NewrunMergedDrafts {
     product: {
       rw_menucode: "09",
       var_mcode: "09",
-      var_mname: "근조화환(기본형)",
     },
     option: null,
   };

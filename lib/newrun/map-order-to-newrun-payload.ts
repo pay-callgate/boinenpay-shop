@@ -30,10 +30,9 @@ const NEWRUN_DEFAULT_SENDPEOPLE =
   process.env.NEWRUN_DEFAULT_RW_SENDPEOPLE?.trim() ?? "주식회사 콜게이트 대표이사 아무개";
 
 /**
- * 축하3단 — 상품↔뉴런 매핑 전 발주 E2E/테스트용 고정 상품 코드.
- * 실매핑 도입 시 제거하거나 env 기본값으로 대체.
+ * `rw_menucode`는 오직 병합된 `newrun_*_product_draft` 등에서 온 값만 사용한다.
+ * 쇼핑몰 상품명(`product.name`)이나 품목 스냅샷의 `product_name`으로 매핑하지 않는다.
  */
-export const NEWRUN_FIXED_RW_MENUCODE = "09";
 
 /** 문자열 필드 상한(보수적). 뉴런 문서·실측에 맞춰 조정 가능. */
 export const NEWRUN_RW_STRING_LIMITS: Record<string, number> = {
@@ -115,6 +114,7 @@ export type NewrunOrderSlice = {
 
 export type NewrunOrderItemSlice = {
   quantity: number;
+  /** 주문 스냅샷용 표시명 — Neuron `rw_menucode` 매핑에 사용하지 않음 */
   product_name: string;
 };
 
@@ -423,12 +423,10 @@ export function mapOrderToNewrunPayload(
     fields.rw_qty = "1";
   }
 
-  const fromDraft = fields.rw_menucode?.trim() ?? "";
-  fields.rw_menucode = truncateField(
-    "rw_menucode",
-    fromDraft || NEWRUN_FIXED_RW_MENUCODE,
-    warnings
-  );
+  const menuFromDraft = fields.rw_menucode?.trim() ?? "";
+  fields.rw_menucode = menuFromDraft
+    ? truncateField("rw_menucode", menuFromDraft, warnings)
+    : "";
 
   const truncateKeys: IntranetPostRwKey[] = [
     "rw_sujuid",
@@ -463,12 +461,14 @@ export function mapOrderToNewrunPayload(
   if (!fields.rw_assoc.trim()) issues.push("rw_assoc 비어 있음");
   if (!fields.rw_returnurl.trim()) issues.push("rw_returnurl 비어 있음 — NEWRUN_RW_RETURNURL 필수");
   if (strict) {
+    if (!fields.rw_menucode?.trim()) {
+      issues.push(
+        "상품코드(rw_menucode) 없음 — 상품 newrun_default_product_draft(또는 주문 병합 draft)에 rw_menucode 필수"
+      );
+    }
     if (!hq) {
       if (!fields.rw_sujuid?.trim()) {
         issues.push("수주화원(rw_sujuid) 없음 — 협회 검색 또는 거래처 기본 필요");
-      }
-      if (!fields.rw_menucode?.trim()) {
-        issues.push("상품코드(rw_menucode) 없음 — 상품 검색·기본 또는 rw_menucode 필요");
       }
     }
     if (order.payment_status !== "paid") {
