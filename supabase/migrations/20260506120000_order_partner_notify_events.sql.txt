@@ -1,0 +1,20 @@
+-- Phase 1: 파트너 어드민용 주문 알림 이벤트 (결제완료·취소)
+-- 서버(Service Role)에서만 INSERT. Phase 2에서 조회·ack·RLS 정책 확장.
+
+CREATE TYPE order_partner_notify_event_kind AS ENUM ('order_paid', 'order_cancelled');
+
+CREATE TABLE order_partner_notify_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_id UUID NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
+  partner_id UUID NOT NULL REFERENCES partners (id) ON DELETE CASCADE,
+  kind order_partner_notify_event_kind NOT NULL,
+  source VARCHAR(80),
+  payload JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_order_partner_notify_order_kind UNIQUE (order_id, kind)
+);
+
+CREATE INDEX idx_opne_partner_created ON order_partner_notify_events (partner_id, created_at DESC);
+CREATE INDEX idx_opne_order_id ON order_partner_notify_events (order_id);
+
+COMMENT ON TABLE order_partner_notify_events IS '파트너 운영자 알림용 이벤트(결제완료 1회·취소 1회/주문).';

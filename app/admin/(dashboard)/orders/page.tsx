@@ -55,6 +55,8 @@ interface Order {
   delivery_request_memo?: string | null;
   ribbon_sender?: string | null;
   ribbon_message?: string | null;
+  /** Phase 2: /api/orders?withNotify=1 */
+  notify_unread_for_me?: boolean;
 }
 
 const NEWRUN_SUBMIT_FILTER_OPTIONS: { value: NewrunSubmitListFilter; label: string }[] = [
@@ -144,6 +146,7 @@ export default function OrdersPage() {
       if (endDate) url += `&endDate=${endDate}`;
       if (desiredDeliveryFrom) url += `&desiredDeliveryFrom=${desiredDeliveryFrom}`;
       if (desiredDeliveryTo) url += `&desiredDeliveryTo=${desiredDeliveryTo}`;
+      url += "&withNotify=1";
 
       const res = await adminFetch(url);
       if (res.ok) {
@@ -460,7 +463,14 @@ export default function OrdersPage() {
                         }}
                         className="text-left font-medium text-blue-600 underline hover:no-underline"
                       >
-                        {order.order_no}
+                        <span className="inline-flex items-center gap-1.5 flex-wrap">
+                          {order.notify_unread_for_me ? (
+                            <span className="rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white no-underline">
+                              NEW
+                            </span>
+                          ) : null}
+                          <span>{order.order_no}</span>
+                        </span>
                       </button>
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-700">

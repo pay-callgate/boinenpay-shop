@@ -13,6 +13,7 @@ import {
   effectiveMemberUnitPrice,
 } from "@/lib/product-pricing";
 import { floristFieldsFromOrderBody } from "@/lib/orders/florist-order-payload";
+import { getUnreadNotifyOrderIdsForPartnerUser } from "@/lib/order-partner-notify-events";
 
 /**
  * T4-5 & T5-1: 주문 API
@@ -144,8 +145,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "주문 조회 실패" }, { status: 500 });
     }
 
+    let list = orders || [];
+    if (searchParams.get("withNotify") === "1" && list.length > 0) {
+      const unreadSet = await getUnreadNotifyOrderIdsForPartnerUser(
+        supabase,
+        partnerId,
+        session.user.id,
+        list.map((o) => String((o as { id: string }).id))
+      );
+      list = list.map((o) => ({
+        ...o,
+        notify_unread_for_me: unreadSet.has(String((o as { id: string }).id)),
+      }));
+    }
+
     return NextResponse.json({
-      orders: orders || [],
+      orders: list,
       total: count || 0,
       limit,
       offset,

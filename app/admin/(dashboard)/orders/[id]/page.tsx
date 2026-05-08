@@ -79,6 +79,7 @@ interface StatusHistory {
 
 interface Order {
   id: string;
+  partner_id?: string;
   order_no: string;
   status: string;
   payment_status: string;
@@ -424,6 +425,18 @@ export default function OrderDetailPage() {
 
     fetchOrder();
   }, [orderId]);
+
+  useEffect(() => {
+    if (!order?.id || !order.partner_id) return;
+    void adminFetch("/api/partner/order-notifications/ack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        partnerId: order.partner_id,
+        orderId: order.id,
+      }),
+    });
+  }, [order?.id, order?.partner_id]);
 
   const handleStatusUpdate = async (e: React.FormEvent) => {
     e.preventDefault();

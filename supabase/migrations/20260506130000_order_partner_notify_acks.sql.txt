@@ -1,0 +1,33 @@
+-- Phase 2: 운영자별 알림 확인(ack)
+
+CREATE TABLE order_partner_notify_acks (
+  user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  event_id UUID NOT NULL REFERENCES order_partner_notify_events (id) ON DELETE CASCADE,
+  acked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, event_id)
+);
+
+CREATE INDEX idx_opena_user ON order_partner_notify_acks (user_id);
+CREATE INDEX idx_opena_event ON order_partner_notify_acks (event_id);
+
+COMMENT ON TABLE order_partner_notify_acks IS '파트너 주문 알림 이벤트별 운영자 확인(다중 운영자 독립).';
+
+-- 미확인 건수 (파트너·사용자 스코프) — 서버에서 rpc 호출
+CREATE OR REPLACE FUNCTION count_unread_partner_order_notifications(
+  p_partner_id UUID,
+  p_user_id UUID
+)
+RETURNS BIGINT
+LANGUAGE SQL
+STABLE
+AS $$
+  SELECT COUNT(*)::BIGINT
+  FROM order_partner_notify_events e
+  WHERE e.partner_id = p_partner_id
+    AND NOT EXISTS (
+      SELECT 1
+      FROM order_partner_notify_acks a
+      WHERE a.event_id = e.id
+        AND a.user_id = p_user_id
+    );
+$$;

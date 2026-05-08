@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { viewpayPost, clearViewpayTokenCache } from "@/lib/viewpay";
 import { submitNewrunOrder } from "@/lib/newrun/submit-order";
+import { recordOrderPartnerNotifyEventSafe } from "@/lib/order-partner-notify-events";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const LOG = "[ViewPay:Finalize]";
@@ -132,19 +133,21 @@ export async function finalizeViewpayOrderPaid(
     throw err;
   }
 
-  const { error: updateOrderError } = await supabase
+  const { error: updateOrderError, data: orderAfterPay } = await supabase
     .from("orders")
     .update({
       payment_status: "paid",
       cg_tid: cgTid,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .select("partner_id")
+    .single();
 
-  if (updateOrderError) {
+  if (updateOrderError || !orderAfterPay?.partner_id) {
     logger.error(`${LOG} orders 업데이트 실패`, {
       action: "viewpay_finalize_order_update_failed",
-      data: { orderId, error: String(updateOrderError.message) },
+      data: { orderId, error: String(updateOrderError?.message ?? "no row") },
     });
     throw new Error("주문 상태 반영에 실패했습니다.");
   }
@@ -153,6 +156,14 @@ export async function finalizeViewpayOrderPaid(
     order_id: orderId,
     status: "received",
     memo: "결제 완료 (ViewPay)",
+  });
+
+  await recordOrderPartnerNotifyEventSafe(supabase, {
+    orderId,
+    partnerId: orderAfterPay.partner_id,
+    kind: "order_paid",
+    source: "viewpay_finalize",
+    payload: { orderNo, cgTid },
   });
 
   const { error: paymentInsertError } = await supabase.from("payments").insert({

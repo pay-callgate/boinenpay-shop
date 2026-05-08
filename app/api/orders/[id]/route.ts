@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { recordOrderPartnerNotifyEventSafe } from "@/lib/order-partner-notify-events";
 import { verifyGuestCheckout } from "@/lib/guest-checkout-signature";
 import { sanitizeOrderRowForCustomer } from "@/lib/orders/sanitize-customer-order";
 
@@ -249,6 +250,16 @@ export async function PATCH(
       status,
       memo: memo || null,
     });
+
+    if (status === "cancelled" && existingOrder.status !== "cancelled") {
+      await recordOrderPartnerNotifyEventSafe(supabase, {
+        orderId: id,
+        partnerId: existingOrder.partner_id as string,
+        kind: "order_cancelled",
+        source: "customer_orders_patch",
+        payload: { previousStatus: existingOrder.status },
+      });
+    }
 
     return NextResponse.json({
       order: updatedOrder,

@@ -55,6 +55,7 @@ interface Order {
   delivery_time_slot?: string | null;
   client: Client;
   user: User | null;
+  notify_unread_for_me?: boolean;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -141,6 +142,7 @@ export default function OrdersShippingPage() {
       if (endDate) url += `&endDate=${endDate}`;
       if (desiredDeliveryFrom) url += `&desiredDeliveryFrom=${desiredDeliveryFrom}`;
       if (desiredDeliveryTo) url += `&desiredDeliveryTo=${desiredDeliveryTo}`;
+      url += "&withNotify=1";
 
       const res = await adminFetch(url);
       if (res.ok) {
@@ -470,7 +472,14 @@ export default function OrdersShippingPage() {
                         onClick={() => router.push(`/admin/orders/${order.id}`)}
                         className="text-left font-medium text-blue-600 underline hover:no-underline"
                       >
-                        {order.order_no}
+                        <span className="inline-flex items-center gap-1.5 flex-wrap">
+                          {order.notify_unread_for_me ? (
+                            <span className="rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white no-underline">
+                              NEW
+                            </span>
+                          ) : null}
+                          <span>{order.order_no}</span>
+                        </span>
                       </button>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">

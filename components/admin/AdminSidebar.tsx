@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, LayoutDashboard, Package, Building2, ClipboardList, BarChart3, MessageSquare, User } from "lucide-react";
+import { adminFetch } from "@/lib/admin-fetch";
+import { useToast } from "@/components/shop/ToastContext";
 
 const BRAND_BLUE = "#2B78C5"; // 로그인 화면 신뢰감 파란색
 
@@ -21,6 +23,54 @@ export function AdminSidebar({
 }) {
   const base = "/admin";
   const pathname = usePathname();
+  const { toast } = useToast();
+  const [unreadOrderNotify, setUnreadOrderNotify] = useState<number | null>(null);
+  const partnerIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    async function ensurePartner(): Promise<string | null> {
+      if (partnerIdRef.current) return partnerIdRef.current;
+      try {
+        const res = await adminFetch("/api/partner");
+        if (!res.ok) return null;
+        const j = await res.json();
+        const id = j.success && j.data?.id ? String(j.data.id) : null;
+        if (id) partnerIdRef.current = id;
+        return id;
+      } catch {
+        return null;
+      }
+    }
+    async function poll() {
+      const pid = await ensurePartner();
+      if (!alive || !pid) return;
+      try {
+        const res = await adminFetch(
+          `/api/partner/order-notifications?partnerId=${encodeURIComponent(pid)}`
+        );
+        if (!res.ok || !alive) return;
+        const j = await res.json();
+        const n = typeof j.unreadCount === "number" ? j.unreadCount : 0;
+        setUnreadOrderNotify((prev) => {
+          if (prev !== null && n > prev) {
+            toast(`미확인 주문 알림이 ${n - prev}건 늘었습니다.`, "default");
+          }
+          return n;
+        });
+      } catch {
+        /* adminFetch가 401 시 리다이렉트 */
+      }
+    }
+    void poll();
+    const intervalId = window.setInterval(() => {
+      void poll();
+    }, 45000);
+    return () => {
+      alive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [toast]);
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     products: false,
@@ -167,6 +217,14 @@ export function AdminSidebar({
                   <div className="flex items-center gap-3 min-w-0">
                     {icon}
                     <span className="truncate">{label}</span>
+                    {key === "orders" && unreadOrderNotify !== null && unreadOrderNotify > 0 ? (
+                      <span
+                        className="shrink-0 rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white"
+                        title="미확인 주문 알림"
+                      >
+                        {unreadOrderNotify > 99 ? "99+" : unreadOrderNotify}
+                      </span>
+                    ) : null}
                   </div>
                   <ChevronDown
                     className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
@@ -182,7 +240,7 @@ export function AdminSidebar({
                         <li key={item.href}>
                           <Link
                             href={item.href}
-                            className={`block rounded-lg border-l-2 py-2.5 pl-4 pr-4 text-[14px] font-medium transition-colors ${
+                            className={`flex items-center justify-between gap-2 rounded-lg border-l-2 py-2.5 pl-4 pr-4 text-[14px] font-medium transition-colors ${
                               active
                                 ? "text-blue-400 bg-slate-800/60"
                                 : "border-transparent text-slate-400 hover:border-slate-600 hover:bg-blue-500/10 hover:text-slate-200"
@@ -193,7 +251,14 @@ export function AdminSidebar({
                                 : undefined
                             }
                           >
-                            {item.label}
+                            <span>{item.label}</span>
+                            {item.href === `${base}/orders` &&
+                            unreadOrderNotify !== null &&
+                            unreadOrderNotify > 0 ? (
+                              <span className="shrink-0 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                                {unreadOrderNotify > 99 ? "99+" : unreadOrderNotify}
+                              </span>
+                            ) : null}
                           </Link>
                         </li>
                       );
