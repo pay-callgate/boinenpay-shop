@@ -13,6 +13,32 @@ import { normalizeDeliveryMethodsForDb } from "@/lib/product-delivery-methods";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+/** 상품 관리 목록: 판매중 → 품절 → 임시저장 → 비활성 → 기타 */
+const PRODUCT_LIST_STATUS_RANK: Record<string, number> = {
+  active: 0,
+  sold_out: 1,
+  draft: 2,
+  inactive: 3,
+};
+
+function productListStatusRank(status: string | null | undefined): number {
+  if (status == null || status === "") return 999;
+  return PRODUCT_LIST_STATUS_RANK[status] ?? 4;
+}
+
+function sortProductIdsByAdminListOrder<
+  T extends { id: string; status: string | null; created_at: string | null }
+>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const r = productListStatusRank(a.status) - productListStatusRank(b.status);
+    if (r !== 0) return r;
+    const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    if (cb !== ca) return cb - ca;
+    return String(b.id).localeCompare(String(a.id));
+  });
+}
+
 // GET: 상품 목록 조회
 export async function GET(request: NextRequest) {
   try {
@@ -57,45 +83,64 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let query = supabase
+    let listQuery = supabase
       .from("products")
-      .select(
-        `
-        *,
-        product_category_mappings(
-          category_id,
-          product_categories(id, name)
-        )
-      `,
-        { count: "exact" }
-      )
+      .select("id, status, created_at", { count: "exact" })
       .eq("partner_id", partnerId);
 
     if (productIdsInCategory) {
-      query = query.in("id", productIdsInCategory);
+      listQuery = listQuery.in("id", productIdsInCategory);
     }
 
     if (search) {
-      query = query.or(`name.ilike.%${search}%,slug.ilike.%${search}%`);
+      listQuery = listQuery.or(`name.ilike.%${search}%,slug.ilike.%${search}%`);
     }
 
     if (status) {
-      query = query.eq("status", status);
+      listQuery = listQuery.eq("status", status);
     }
 
-    // 정렬을 .range() 이전에 명시적으로 적용 (페이징 시 누락/중복 방지)
-    query = query
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(from, to);
+    const { data: idRows, error: listError, count } = await listQuery;
 
-    const { data: products, error, count } = await query;
-
-    if (error) {
-      console.error("Products fetch error:", error);
+    if (listError) {
+      console.error("Products list id fetch error:", listError);
       return NextResponse.json(
         { error: "상품 조회 실패" },
         { status: 500 }
+      );
+    }
+
+    const sortedRows = sortProductIdsByAdminListOrder(idRows ?? []);
+    const pageSlice = sortedRows.slice(from, from + limit);
+    const pageIds = pageSlice.map((r) => r.id);
+
+    let products: unknown[] = [];
+    if (pageIds.length > 0) {
+      const { data: productsRaw, error: detailError } = await supabase
+        .from("products")
+        .select(
+          `
+          *,
+          product_category_mappings(
+            category_id,
+            product_categories(id, name)
+          )
+        `
+        )
+        .in("id", pageIds);
+
+      if (detailError) {
+        console.error("Products fetch error:", detailError);
+        return NextResponse.json(
+          { error: "상품 조회 실패" },
+          { status: 500 }
+        );
+      }
+
+      const orderIndex = new Map(pageIds.map((id, i) => [id, i]));
+      products = [...(productsRaw ?? [])].sort(
+        (a: { id: string }, b: { id: string }) =>
+          (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0)
       );
     }
 
@@ -104,7 +149,7 @@ export async function GET(request: NextRequest) {
     console.log("[API /api/products] GET", { partnerId, total, page, limit });
 
     return NextResponse.json({
-      products: products ?? [],
+      products,
       pagination: {
         page,
         limit,
