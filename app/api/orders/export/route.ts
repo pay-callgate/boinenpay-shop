@@ -66,6 +66,8 @@ export async function GET(request: NextRequest) {
         delivery_request_memo,
         ribbon_sender,
         ribbon_message,
+        ribbon_message_kind,
+        ribbon_card_message,
         tracking_number,
         created_at,
         newrun_submit_status,
@@ -161,7 +163,9 @@ export async function GET(request: NextRequest) {
         배송방식: order.delivery_method || "",
         배송요청메모: order.delivery_request_memo || "",
         리본보내는분: order.ribbon_sender || "",
+        메시지종류: order.ribbon_message_kind || "ribbon",
         리본문구: order.ribbon_message || "",
+        카드문구: order.ribbon_card_message || "",
         수령인: order.shipping_name,
         수령인전화번호: order.shipping_phone,
         우편번호: order.shipping_postcode || "",
@@ -195,7 +199,9 @@ export async function GET(request: NextRequest) {
       { wch: 10 }, // 배송방식
       { wch: 28 }, // 배송요청메모
       { wch: 12 }, // 리본보내는분
+      { wch: 10 }, // 메시지종류
       { wch: 28 }, // 리본문구
+      { wch: 28 }, // 카드문구
       { wch: 10 }, // 수령인
       { wch: 15 }, // 수령인전화번호
       { wch: 10 }, // 우편번호

@@ -323,6 +323,10 @@ export async function submitNewrunOrder(
         orderer_name: (order as { orderer_name?: string | null }).orderer_name ?? null,
         ribbon_sender: (order as { ribbon_sender?: string | null }).ribbon_sender ?? null,
         ribbon_message: (order as { ribbon_message?: string | null }).ribbon_message ?? null,
+        ribbon_message_kind:
+          (order as { ribbon_message_kind?: string | null }).ribbon_message_kind ?? null,
+        ribbon_card_message:
+          (order as { ribbon_card_message?: string | null }).ribbon_card_message ?? null,
         venue_detail: (order as { venue_detail?: string | null }).venue_detail ?? null,
       },
       itemSlices,

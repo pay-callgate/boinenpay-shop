@@ -17,12 +17,15 @@ import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { toast } from "@/components/shop/ToastContext";
 import { AddressSelectModal, type Address } from "@/components/shop/AddressSelectModal";
+import { RibbonMessageSection } from "@/components/shop/RibbonMessageSection";
 import { openDaumPostcode } from "@/lib/daum-postcode";
 import {
   TIME_SLOTS,
   RIBBON_MESSAGE_PRESETS,
   digitsOnlyPhone,
   buildFloristShippingDetailText,
+  resolveRibbonPhrase,
+  type RibbonMessageKind,
 } from "@/lib/checkout-florist-fields";
 import {
   effectiveGuestUnitPrice,
@@ -130,10 +133,13 @@ export default function CheckoutPage() {
   const [venueDetail, setVenueDetail] = useState("");
 
   const [ribbonSender, setRibbonSender] = useState("");
+  const [ribbonMessageKind, setRibbonMessageKind] = useState<RibbonMessageKind>("ribbon");
   const [ribbonPreset, setRibbonPreset] = useState(
     RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__"
   );
   const [ribbonMessageCustom, setRibbonMessageCustom] = useState("");
+  const [cardPreset, setCardPreset] = useState(RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__");
+  const [cardMessageCustom, setCardMessageCustom] = useState("");
   const [ribbonSameAsOrderer, setRibbonSameAsOrderer] = useState(false);
 
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -177,8 +183,11 @@ export default function CheckoutPage() {
     setShippingAddress(d.shippingAddress);
     setVenueDetail(d.venueDetail);
     setRibbonSender(d.ribbonSender);
+    setRibbonMessageKind("ribbon");
     setRibbonPreset(d.ribbonPreset);
     setRibbonMessageCustom("");
+    setCardPreset(RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__");
+    setCardMessageCustom("");
   }, [isGuestCheckout, session?.user?.id, sessionStatus]);
 
   // Phase D3: ViewPay 결제창에서 취소 후 cancelUrl로 돌아온 경우
@@ -355,8 +364,8 @@ export default function CheckoutPage() {
     const postcode = shippingPostcode.trim();
     const address = shippingAddress.trim();
 
-    const resolvedRibbonMessage =
-      ribbonPreset === "__custom__" ? ribbonMessageCustom.trim() : ribbonPreset;
+    const resolvedRibbonMessage = resolveRibbonPhrase(ribbonPreset, ribbonMessageCustom);
+    const resolvedCardMessage = resolveRibbonPhrase(cardPreset, cardMessageCustom);
 
     const on = ordererName.trim();
     const op = digitsOnlyPhone(ordererPhone);
@@ -385,7 +394,15 @@ export default function CheckoutPage() {
       return;
     }
     if (!resolvedRibbonMessage) {
-      toast("리본 메시지를 선택하거나 입력해 주세요.");
+      toast(
+        ribbonMessageKind === "card"
+          ? "카드 문구를 선택하거나 입력해 주세요."
+          : "리본 경조사어를 선택하거나 입력해 주세요."
+      );
+      return;
+    }
+    if (ribbonMessageKind === "both" && !resolvedCardMessage) {
+      toast("카드 문구를 선택하거나 입력해 주세요.");
       return;
     }
 
@@ -397,6 +414,8 @@ export default function CheckoutPage() {
       ordererPhone: op,
       ribbonSender: ribbonSender.trim(),
       ribbonMessage: resolvedRibbonMessage,
+      ribbonMessageKind,
+      ribbonCardMessage: ribbonMessageKind === "both" ? resolvedCardMessage : undefined,
     });
 
     const isGuestOrder = isGuestCheckout && !session?.user?.id;
@@ -508,7 +527,9 @@ export default function CheckoutPage() {
         deliveryMethod,
         deliveryFee,
         ribbonSender: ribbonSender.trim(),
+        ribbonMessageKind,
         ribbonMessage: resolvedRibbonMessage,
+        ribbonCardMessage: ribbonMessageKind === "both" ? resolvedCardMessage : undefined,
         paymentMethod,
       };
       if (on) {
@@ -869,78 +890,29 @@ export default function CheckoutPage() {
       <section className="py-4">
         <section className={sectionCardClass}>
           <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
-            3. 리본 문구 정보
+            3. 리본·카드 메시지
           </h2>
-          <div className="flex flex-col gap-5">
-            <div>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <label className={`${labelClass} mb-0`} style={{ color: TEXT_MUTED }}>
-                  보내는 분 <span className="text-rose-500">*</span>
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                  <input
-                    type="checkbox"
-                    checked={ribbonSameAsOrderer}
-                    onChange={(e) => {
-                      const c = e.target.checked;
-                      setRibbonSameAsOrderer(c);
-                      if (c) setRibbonSender(ordererName.trim());
-                    }}
-                    className="accent-[#D6A8E0]"
-                  />
-                  주문자와 동일
-                </label>
-              </div>
-              <input
-                type="text"
-                inputMode="text"
-                enterKeyHint="next"
-                value={ribbonSender}
-                onChange={(e) => {
-                  setRibbonSameAsOrderer(false);
-                  setRibbonSender(e.target.value);
-                }}
-                onFocus={checkoutFieldFocusScroll}
-                onKeyDown={checkoutInputEnterGoNext}
-                className={inputClass}
-                placeholder="예: 주식회사 ○○○ 대표이사 홍길동"
-              />
-            </div>
-            <div>
-              <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                메시지 (근조/축하) <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={ribbonPreset}
-                onChange={(e) => {
-                  setRibbonPreset(e.target.value);
-                  if (e.target.value !== "__custom__") setRibbonMessageCustom("");
-                }}
-                onFocus={checkoutFieldFocusScroll}
-                onKeyDown={checkoutInputEnterGoNext}
-                enterKeyHint="next"
-                className={inputClass}
-                style={{ color: TEXT }}
-              >
-                {RIBBON_MESSAGE_PRESETS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-              {ribbonPreset === "__custom__" && (
-                <textarea
-                  value={ribbonMessageCustom}
-                  onChange={(e) => setRibbonMessageCustom(e.target.value)}
-                  onFocus={checkoutFieldFocusScroll}
-                  rows={3}
-                  enterKeyHint="done"
-                  className={`${inputClass} mt-3 min-h-[88px] resize-y`}
-                  placeholder="리본에 들어갈 문구를 입력해 주세요."
-                />
-              )}
-            </div>
-          </div>
+          <RibbonMessageSection
+            inputClass={inputClass}
+            labelClass={labelClass}
+            textColor={TEXT}
+            textMutedColor={TEXT_MUTED}
+            ribbonSender={ribbonSender}
+            onRibbonSenderChange={setRibbonSender}
+            ribbonSameAsOrderer={ribbonSameAsOrderer}
+            onRibbonSameAsOrdererChange={setRibbonSameAsOrderer}
+            ordererNameForSame={ordererName}
+            messageKind={ribbonMessageKind}
+            onMessageKindChange={setRibbonMessageKind}
+            ribbonPreset={ribbonPreset}
+            onRibbonPresetChange={setRibbonPreset}
+            ribbonMessageCustom={ribbonMessageCustom}
+            onRibbonMessageCustomChange={setRibbonMessageCustom}
+            cardPreset={cardPreset}
+            onCardPresetChange={setCardPreset}
+            cardMessageCustom={cardMessageCustom}
+            onCardMessageCustomChange={setCardMessageCustom}
+          />
         </section>
       </section>
 

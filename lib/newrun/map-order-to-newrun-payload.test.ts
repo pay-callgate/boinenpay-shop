@@ -109,6 +109,69 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
     expect(r.fields.rw_jname).toBe("주문자희");
   });
 
+  it("ribbon_message_kind=card 이면 rw_card에만 ribbon_message", () => {
+    const r = mapOrderToNewrunPayload(
+      {
+        id: "44444444-4444-4444-4444-444444444444",
+        order_no: "ORD-4",
+        payment_status: "paid",
+        total_amount: 1,
+        shipping_name: "수취",
+        shipping_phone: "01000000000",
+        shipping_address: "서울",
+        created_at: "2026-04-01T12:00:00.000Z",
+        desired_delivery_date: "2026-04-02",
+        ribbon_sender: "보냄",
+        ribbon_message: "축하합니다",
+        ribbon_message_kind: "card",
+      },
+      [],
+      { florist: null, product: null, option: null },
+      {
+        rw_rosewebid: "u",
+        rw_rosewebpw: "p",
+        rw_assoc: "a",
+        rw_associd: "",
+        rw_returnurl: "https://x/po-return",
+      },
+      { headquartersBonbalju: true, rw_method: "1" }
+    );
+    expect(r.fields.rw_kyungjo).toBe("");
+    expect(r.fields.rw_card).toBe("축하합니다");
+  });
+
+  it("ribbon_message_kind=both 이면 rw_kyungjo·rw_card 분리", () => {
+    const r = mapOrderToNewrunPayload(
+      {
+        id: "55555555-5555-5555-5555-555555555555",
+        order_no: "ORD-5",
+        payment_status: "paid",
+        total_amount: 1,
+        shipping_name: "수취",
+        shipping_phone: "01000000000",
+        shipping_address: "서울",
+        created_at: "2026-04-01T12:00:00.000Z",
+        desired_delivery_date: "2026-04-02",
+        ribbon_sender: "보냄",
+        ribbon_message: "근조",
+        ribbon_message_kind: "both",
+        ribbon_card_message: "삼가 고인의 명복을 빕니다",
+      },
+      [],
+      { florist: null, product: null, option: null },
+      {
+        rw_rosewebid: "u",
+        rw_rosewebpw: "p",
+        rw_assoc: "a",
+        rw_associd: "",
+        rw_returnurl: "https://x/po-return",
+      },
+      { headquartersBonbalju: true, rw_method: "1" }
+    );
+    expect(r.fields.rw_kyungjo).toBe("근조");
+    expect(r.fields.rw_card).toBe("삼가 고인의 명복을 빕니다");
+  });
+
   it("희망배송일 없으면 created_at 기준 YYYY-MM-DD", () => {
     const r = mapOrderToNewrunPayload(
       {

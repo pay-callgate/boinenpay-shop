@@ -15,8 +15,19 @@ export type FloristOrderDbFields = {
   delivery_request_memo: string | null;
   ribbon_sender: string | null;
   ribbon_message: string | null;
+  /** ribbon | card | both — 리본 경조사(rw_kyungjo) / 카드 문구(rw_card) / 동시 */
+  ribbon_message_kind: string;
+  /** both 일 때 카드 쪽 문구(rw_card에 추가, 리본 문구는 ribbon_message) */
+  ribbon_card_message: string | null;
   venue_detail: string | null;
 };
+
+function normalizeRibbonMessageKind(raw: unknown): string {
+  const s = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (s === "card" || s === "card_only") return "card";
+  if (s === "both" || s === "ribbon_and_card") return "both";
+  return "ribbon";
+}
 
 function clampText(raw: unknown, max: number): string | null {
   if (typeof raw !== "string") return null;
@@ -46,6 +57,13 @@ export function floristFieldsFromOrderBody(body: Record<string, unknown>): Flori
   const ribbonRawMessage = body.ribbonMessage ?? body.ribbon_message;
   const ribbon_message = clampText(ribbonRawMessage, MAX_MEMO);
 
+  const ribbon_message_kind = normalizeRibbonMessageKind(
+    body.ribbonMessageKind ?? body.ribbon_message_kind
+  );
+
+  const cardRaw = body.ribbonCardMessage ?? body.ribbon_card_message;
+  const ribbon_card_message = clampText(cardRaw, MAX_MEMO);
+
   const detailPlaceRaw = body.detailPlace ?? body.venueDetail ?? body.venue_detail;
   const venue_detail = clampText(detailPlaceRaw, MAX_MEMO);
 
@@ -56,6 +74,8 @@ export function floristFieldsFromOrderBody(body: Record<string, unknown>): Flori
     delivery_request_memo,
     ribbon_sender,
     ribbon_message,
+    ribbon_message_kind,
+    ribbon_card_message,
     venue_detail,
   };
 }

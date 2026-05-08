@@ -106,6 +106,10 @@ export type NewrunOrderSlice = {
   orderer_name?: string | null;
   ribbon_sender?: string | null;
   ribbon_message?: string | null;
+  /** ribbon | card | both */
+  ribbon_message_kind?: string | null;
+  /** both 일 때 카드 문구 */
+  ribbon_card_message?: string | null;
   venue_detail?: string | null;
 };
 
@@ -167,6 +171,13 @@ function toIntWon(v: number | string): number {
 
 function normalizePhone(s: string): string {
   return String(s).replace(/\s/g, "").slice(0, 30);
+}
+
+function normalizeOrderRibbonKind(raw: string | null | undefined): "ribbon" | "card" | "both" {
+  const s = (raw ?? "").trim().toLowerCase();
+  if (s === "card" || s === "card_only") return "card";
+  if (s === "both" || s === "ribbon_and_card") return "both";
+  return "ribbon";
 }
 
 function formatBdateFromIso(iso: string | undefined): string {
@@ -377,12 +388,29 @@ export function mapOrderToNewrunPayload(
 
   const rs = (order.ribbon_sender ?? "").trim();
   const rm = (order.ribbon_message ?? "").trim();
+  const cm = (order.ribbon_card_message ?? "").trim();
+  const msgKind = normalizeOrderRibbonKind(order.ribbon_message_kind);
+
   fields.rw_sendpeople = truncateField(
     "rw_sendpeople",
     rs || NEWRUN_DEFAULT_SENDPEOPLE,
     warnings
   );
-  if (rm) fields.rw_kyungjo = truncateField("rw_kyungjo", rm, warnings);
+
+  if (msgKind === "ribbon") {
+    fields.rw_kyungjo = "";
+    fields.rw_card = "";
+    if (rm) fields.rw_kyungjo = truncateField("rw_kyungjo", rm, warnings);
+  } else if (msgKind === "card") {
+    fields.rw_kyungjo = "";
+    fields.rw_card = "";
+    if (rm) fields.rw_card = truncateField("rw_card", rm, warnings);
+  } else {
+    fields.rw_kyungjo = "";
+    fields.rw_card = "";
+    if (rm) fields.rw_kyungjo = truncateField("rw_kyungjo", rm, warnings);
+    if (cm) fields.rw_card = truncateField("rw_card", cm, warnings);
+  }
 
   const jn = (order.orderer_name ?? "").trim();
   if (jn) fields.rw_jname = truncateField("rw_jname", jn, warnings);

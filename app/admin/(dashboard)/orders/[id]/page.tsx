@@ -115,6 +115,8 @@ interface Order {
   delivery_request_memo?: string | null;
   ribbon_sender?: string | null;
   ribbon_message?: string | null;
+  ribbon_message_kind?: string | null;
+  ribbon_card_message?: string | null;
 }
 
 function coerceStringMapFromJson(v: unknown): Record<string, string> | null {
@@ -601,28 +603,54 @@ export default function OrderDetailPage() {
               </div>
             </div>
             <div className="mt-6 border-t border-rose-200/60 pt-5">
-              <p className="text-sm font-semibold text-rose-900">리본 문구</p>
+              <p className="text-sm font-semibold text-rose-900">리본·카드 메시지</p>
               <p className="mt-1 text-xs text-slate-600">
-                화환 리본을 좌·우로 나누어 표시합니다. (좌: 경조사어 · 우: 보내는 분)
+                메시지 종류에 따라 뉴런 필드{" "}
+                <span className="font-mono">rw_kyungjo</span> / <span className="font-mono">rw_card</span>로
+                매핑됩니다.
               </p>
-              <div className="mt-3 flex flex-col overflow-hidden rounded-xl border-2 border-rose-300 bg-white shadow-inner sm:flex-row">
-                <div className="flex min-h-[5rem] flex-1 flex-col justify-center border-rose-200 px-4 py-3 sm:border-r">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-600">
-                    경조사어
-                  </span>
-                  <span className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-wrap break-words">
-                    {order.ribbon_message?.trim() || "—"}
-                  </span>
-                </div>
-                <div className="flex min-h-[5rem] flex-1 flex-col justify-center bg-rose-50/60 px-4 py-3">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-600">
-                    보내는 분
-                  </span>
-                  <span className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-wrap break-words">
-                    {order.ribbon_sender?.trim() || "—"}
-                  </span>
-                </div>
-              </div>
+              {(() => {
+                const k = (order.ribbon_message_kind ?? "ribbon").trim().toLowerCase();
+                const kindLabel =
+                  k === "card" ? "카드만" : k === "both" || k === "ribbon_and_card" ? "카드+리본" : "리본만";
+                const leftTitle =
+                  k === "card" ? "카드 문구" : k === "both" ? "리본 경조사어" : "경조사어";
+                return (
+                  <>
+                    <p className="mt-3 text-xs font-medium text-slate-600">
+                      메시지 종류: <span className="text-slate-900">{kindLabel}</span>
+                    </p>
+                    <div className="mt-3 flex flex-col overflow-hidden rounded-xl border-2 border-rose-300 bg-white shadow-inner sm:flex-row">
+                      <div className="flex min-h-[5rem] flex-1 flex-col justify-center border-rose-200 px-4 py-3 sm:border-r">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-600">
+                          {leftTitle}
+                        </span>
+                        <span className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-wrap break-words">
+                          {order.ribbon_message?.trim() || "—"}
+                        </span>
+                      </div>
+                      <div className="flex min-h-[5rem] flex-1 flex-col justify-center bg-rose-50/60 px-4 py-3">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-600">
+                          보내는 분
+                        </span>
+                        <span className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-wrap break-words">
+                          {order.ribbon_sender?.trim() || "—"}
+                        </span>
+                      </div>
+                    </div>
+                    {k === "both" || k === "ribbon_and_card" ? (
+                      <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50/40 px-4 py-3">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-600">
+                          카드 문구
+                        </span>
+                        <p className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-wrap break-words">
+                          {order.ribbon_card_message?.trim() || "—"}
+                        </p>
+                      </div>
+                    ) : null}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
