@@ -23,6 +23,7 @@ import {
   getAdminLocalTodayYmd,
   isDesiredDeliveryToday,
 } from "@/lib/admin-florist-order-display";
+import { NEWRUN_BUILTIN_DEFAULT_RW_SUJUID } from "@/lib/newrun/map-order-to-newrun-payload";
 
 /**
  * T5-2 & T5-3: 주문 상세 및 상태 변경 페이지 (파트너 어드민)
@@ -264,7 +265,7 @@ export default function OrderDetailPage() {
       f?.rw_sujuid?.trim() ||
       f?.var_sid?.trim() ||
       f?.sujuid?.trim() ||
-      "";
+      NEWRUN_BUILTIN_DEFAULT_RW_SUJUID;
     const menucode =
       p?.rw_menucode?.trim() ||
       p?.var_menucode?.trim() ||
@@ -275,7 +276,7 @@ export default function OrderDetailPage() {
   }, [effectiveNewrunFlorist, effectiveNewrunProduct]);
 
   const persistNewrunDraft = React.useCallback(
-    async (kind: "florist" | "product" | "option", payload: Record<string, string>) => {
+    async (kind: "florist" | "product" | "option", payload: Record<string, string> | null) => {
       if (!orderId) return;
       const res = await adminFetch(`/api/partner/orders/${orderId}/newrun-draft`, {
         method: "PATCH",
@@ -285,10 +286,24 @@ export default function OrderDetailPage() {
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         alert(err.error || "뉴런 선택값 저장에 실패했습니다. 다시 시도해 주세요.");
+        return false;
       }
+      return true;
     },
     [orderId]
   );
+
+  const resetNewrunFloristOrderDraft = React.useCallback(async () => {
+    if (!orderId || !order) return;
+    const ok = window.confirm(
+      `주문에만 저장된 수주화원 선택을 지웁니다. 거래처 기본 draft가 없으면 발주 시 ${NEWRUN_BUILTIN_DEFAULT_RW_SUJUID}(기본)이 쓰입니다. 계속할까요?`
+    );
+    if (!ok) return;
+    const saved = await persistNewrunDraft("florist", null);
+    if (!saved) return;
+    setNewrunFloristPayload(null);
+    setOrder((prev) => (prev ? { ...prev, newrun_florist_draft: null } : null));
+  }, [orderId, order, persistNewrunDraft]);
 
   useEffect(() => {
     const onMessage = (ev: MessageEvent) => {
@@ -766,6 +781,23 @@ export default function OrderDetailPage() {
                 className="h-9 px-4 rounded-lg text-sm font-medium text-white bg-violet-700 hover:bg-violet-800 disabled:opacity-50"
               >
                 {newrunOpening === "florist" ? "열는 중…" : "수주화원 검색"}
+              </button>
+              <button
+                type="button"
+                disabled={(() => {
+                  const orderKeys =
+                    order?.newrun_florist_draft != null &&
+                    typeof order.newrun_florist_draft === "object" &&
+                    !Array.isArray(order.newrun_florist_draft)
+                      ? Object.keys(order.newrun_florist_draft as Record<string, unknown>).length
+                      : 0;
+                  const localKeys = newrunFloristPayload ? Object.keys(newrunFloristPayload).length : 0;
+                  return newrunSubmitLoading || (orderKeys === 0 && localKeys === 0);
+                })()}
+                onClick={() => void resetNewrunFloristOrderDraft()}
+                className="h-9 px-4 rounded-lg text-sm font-medium text-violet-900 bg-slate-100 border border-slate-200 hover:bg-slate-200 disabled:opacity-50"
+              >
+                수주화원(주문) 저장 초기화
               </button>
               <button
                 type="button"

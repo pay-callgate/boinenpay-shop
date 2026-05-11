@@ -150,6 +150,8 @@ export async function GET(
         NEWRUN_ASSOC_CODE: Boolean(process.env.NEWRUN_ASSOC_CODE?.trim()),
         NEWRUN_RW_RETURNURL: Boolean(process.env.NEWRUN_RW_RETURNURL?.trim()),
         NEWRUN_RW_ASSOCID: Boolean(process.env.NEWRUN_RW_ASSOCID?.trim()),
+        NEWRUN_DEFAULT_RW_BTIME: Boolean(process.env.NEWRUN_DEFAULT_RW_BTIME?.trim()),
+        NEWRUN_DEFAULT_RW_SUJUID: Boolean(process.env.NEWRUN_DEFAULT_RW_SUJUID?.trim()),
       },
     });
   } catch (err) {

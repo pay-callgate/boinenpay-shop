@@ -34,8 +34,9 @@ export async function PATCH(
     if (!isKind(kind)) {
       return NextResponse.json({ error: "유효한 kind가 필요합니다." }, { status: 400 });
     }
-    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
-      return NextResponse.json({ error: "payload는 객체여야 합니다." }, { status: 400 });
+    const clearing = payload === null;
+    if (!clearing && (typeof payload !== "object" || payload === null || Array.isArray(payload))) {
+      return NextResponse.json({ error: "payload는 객체이거나 null(초기화)이어야 합니다." }, { status: 400 });
     }
 
     const supabase = createServerSupabase();
@@ -65,7 +66,7 @@ export async function PATCH(
     const { data: updated, error: updateError } = await supabase
       .from("orders")
       .update({
-        [column]: payload,
+        [column]: clearing ? null : (payload as Record<string, unknown>),
         updated_at: new Date().toISOString(),
       })
       .eq("id", orderId)

@@ -232,12 +232,69 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
     expect(r.fields.rw_bdate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("strict 에서 rw_sujuid 없으면 검증 실패", () => {
-    expect(() =>
-      mapOrderToNewrunPayload(
+  it("florist draft 없을 때 기본 rw_sujuid kot4545", () => {
+    const r = mapOrderToNewrunPayload(
+      {
+        id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        order_no: "ORD-Y",
+        payment_status: "paid",
+        total_amount: 1,
+        shipping_name: "수취",
+        shipping_phone: "01000000000",
+        shipping_address: "서울",
+        created_at: "2026-04-01T12:00:00.000Z",
+        desired_delivery_date: "2026-04-02",
+      },
+      [],
+      { florist: null, product: { rw_menucode: "09" }, option: null },
+      {
+        rw_rosewebid: "u",
+        rw_rosewebpw: "p",
+        rw_assoc: "a",
+        rw_associd: "",
+        rw_returnurl: "https://x/po-return",
+      },
+      { strict: true, headquartersBonbalju: true, rw_method: "1" }
+    );
+    expect(r.fields.rw_sujuid).toBe("kot4545");
+    expect(r.fields.rw_menucode).toBe("09");
+  });
+
+  it("florist draft 에 rw_sujuid 있으면 기본값 대신 사용", () => {
+    const r = mapOrderToNewrunPayload(
+      {
+        id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        order_no: "ORD-Z",
+        payment_status: "paid",
+        total_amount: 1,
+        shipping_name: "수취",
+        shipping_phone: "01000000000",
+        shipping_address: "서울",
+        created_at: "2026-04-01T12:00:00.000Z",
+        desired_delivery_date: "2026-04-02",
+      },
+      [],
+      { florist: { rw_sujuid: "OTHER" }, product: { rw_menucode: "09" }, option: null },
+      {
+        rw_rosewebid: "u",
+        rw_rosewebpw: "p",
+        rw_assoc: "a",
+        rw_associd: "",
+        rw_returnurl: "https://x/po-return",
+      },
+      { strict: true, headquartersBonbalju: true, rw_method: "1" }
+    );
+    expect(r.fields.rw_sujuid).toBe("OTHER");
+  });
+
+  it("NEWRUN_DEFAULT_RW_SUJUID 환경값이 있으면 내장 기본 대신 사용", () => {
+    const prev = process.env.NEWRUN_DEFAULT_RW_SUJUID;
+    process.env.NEWRUN_DEFAULT_RW_SUJUID = "env_sid";
+    try {
+      const r = mapOrderToNewrunPayload(
         {
-          id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-          order_no: "ORD-Y",
+          id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+          order_no: "ORD-E",
           payment_status: "paid",
           total_amount: 1,
           shipping_name: "수취",
@@ -256,44 +313,13 @@ describe("mapOrderToNewrunPayload (본부발주 head)", () => {
           rw_returnurl: "https://x/po-return",
         },
         { strict: true, headquartersBonbalju: true, rw_method: "1" }
-      )
-    ).toThrow(/rw_sujuid/);
-  });
-
-  it("NEWRUN_DEFAULT_RW_SUJUID 가 설정되면 draft 수주화원보다 우선", () => {
-    const prev = process.env.NEWRUN_DEFAULT_RW_SUJUID;
-    process.env.NEWRUN_DEFAULT_RW_SUJUID = "kot4545";
-    try {
-      const r = mapOrderToNewrunPayload(
-        {
-          id: "77777777-7777-7777-7777-777777777777",
-          order_no: "ORD-7",
-          payment_status: "paid",
-          total_amount: 1,
-          shipping_name: "수취",
-          shipping_phone: "01000000000",
-          shipping_address: "서울",
-          created_at: "2026-04-01T12:00:00.000Z",
-          desired_delivery_date: "2026-04-02",
-        },
-        [],
-        { florist: { rw_sujuid: "OLD", var_sid: "OLD" }, product: { rw_menucode: "09" }, option: null },
-        {
-          rw_rosewebid: "u",
-          rw_rosewebpw: "p",
-          rw_assoc: "a",
-          rw_associd: "",
-          rw_returnurl: "https://x/po-return",
-        },
-        { strict: true, headquartersBonbalju: true, rw_method: "1" }
       );
-      expect(r.fields.rw_sujuid).toBe("kot4545");
+      expect(r.fields.rw_sujuid).toBe("env_sid");
     } finally {
       if (prev === undefined) delete process.env.NEWRUN_DEFAULT_RW_SUJUID;
       else process.env.NEWRUN_DEFAULT_RW_SUJUID = prev;
     }
   });
-
   it("strict 모드에서 병합 draft 에 rw_menucode 없으면 검증 실패", () => {
     expect(() =>
       mapOrderToNewrunPayload(

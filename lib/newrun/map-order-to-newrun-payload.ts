@@ -29,6 +29,15 @@ const RW_FAX_DEFAULT = "N";
 const NEWRUN_DEFAULT_SENDPEOPLE =
   process.env.NEWRUN_DEFAULT_RW_SENDPEOPLE?.trim() ?? "주식회사 콜게이트 대표이사 아무개";
 
+/** 거래처/주문 draft에 수주 ID가 없을 때 폼에 넣는 기본값. `NEWRUN_DEFAULT_RW_SUJUID`로 배포별 덮어쓰기 가능. */
+export const NEWRUN_BUILTIN_DEFAULT_RW_SUJUID = "kot4545";
+
+export function resolveDefaultRwSujuid(): string {
+  const fromEnv = process.env.NEWRUN_DEFAULT_RW_SUJUID?.trim();
+  if (fromEnv) return fromEnv;
+  return NEWRUN_BUILTIN_DEFAULT_RW_SUJUID;
+}
+
 /**
  * `rw_menucode`는 오직 병합된 `newrun_*_product_draft` 등에서 온 값만 사용한다.
  * 쇼핑몰 상품명(`product.name`)이나 품목 스냅샷의 `product_name`으로 매핑하지 않는다.
@@ -381,14 +390,11 @@ export function mapOrderToNewrunPayload(
   if (drafts.florist && Object.keys(drafts.florist).length > 0) {
     applyFloristDraft(drafts.florist, fields);
   }
+  if (!fields.rw_sujuid?.trim()) {
+    fields.rw_sujuid = truncateField("rw_sujuid", resolveDefaultRwSujuid(), warnings);
+  }
   if (drafts.product && Object.keys(drafts.product).length > 0) {
     applyProductDraft(drafts.product, fields);
-  }
-
-  /** 운영 고정 수주화원 — 설정 시 협회 draft보다 우선(예: NEWRUN_DEFAULT_RW_SUJUID=kot4545) */
-  const forcedSujuid = (process.env.NEWRUN_DEFAULT_RW_SUJUID ?? "").trim();
-  if (forcedSujuid) {
-    fields.rw_sujuid = truncateField("rw_sujuid", forcedSujuid, warnings);
   }
 
   const slotBtimeAfterDrafts = pickRwBtimeFromDeliverySlot(order.delivery_time_slot);
@@ -481,9 +487,7 @@ export function mapOrderToNewrunPayload(
       );
     }
     if (!fields.rw_sujuid?.trim()) {
-      issues.push(
-        "수주화원(rw_sujuid) 없음 — 거래처 clients.newrun_default_florist_draft 또는 주문 newrun_florist_draft에 rw_sujuid/var_sid 필요"
-      );
+      issues.push("수주화원(rw_sujuid) 없음 — 내장 기본값 적용 실패(비정상)");
     }
     if (order.payment_status !== "paid") {
       issues.push(`결제완료(payment_status=paid)만 발주 권장 — 현재: ${order.payment_status}`);
