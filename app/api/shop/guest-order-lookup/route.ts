@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const { data: orders, error: oErr } = await supabase
       .from("orders")
       .select(
-        "id, order_no, shipping_name, guest_password_hash, guest_checkout_token, is_guest, client_id"
+        "id, order_no, shipping_name, orderer_name, guest_password_hash, guest_checkout_token, is_guest, client_id"
       )
       .eq("partner_id", partner.id)
       .eq("client_id", client.id)
@@ -78,8 +78,10 @@ export async function POST(request: Request) {
 
     const row = (orders ?? []).find((o) => {
       const no = normalizeOrderNo(o.order_no ?? "");
-      const nameMatch =
-        String(o.shipping_name ?? "").trim() === ordererName;
+      /** 폼 라벨은「주문자명」— DB의 orderer_name(주문자) 우선, 과거 호환용 shipping_name(받는 분)도 허용 */
+      const on = String(o.orderer_name ?? "").trim();
+      const ship = String(o.shipping_name ?? "").trim();
+      const nameMatch = on === ordererName || ship === ordererName;
       return no === wantNo && nameMatch;
     });
 
