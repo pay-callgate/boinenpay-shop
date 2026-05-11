@@ -558,8 +558,13 @@ export default function CheckoutPage() {
         console.debug("[Order:Checkout] 주문 생성 실패", {
           status: res.status,
           error: err.error,
+          details: err.details,
         });
-        toast(err.error || "주문에 실패했습니다.", "error");
+        const detail = typeof err.details === "string" ? err.details : "";
+        toast(
+          detail ? `${err.error || "주문에 실패했습니다."} (${detail})` : err.error || "주문에 실패했습니다.",
+          "error"
+        );
         return;
       }
 

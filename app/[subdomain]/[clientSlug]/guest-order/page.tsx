@@ -428,6 +428,7 @@ export default function GuestOrderPage() {
         paymentMethod,
         isGuest: true,
         guestPassword: pw,
+        guestOrdererEmail: em,
       };
 
       const res = await shopFetch("/api/orders", {
@@ -437,7 +438,13 @@ export default function GuestOrderPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        toast((err as { error?: string }).error || "주문에 실패했습니다.", "error");
+        const detail = typeof (err as { details?: string }).details === "string" ? (err as { details: string }).details : "";
+        toast(
+          detail
+            ? `${(err as { error?: string }).error || "주문에 실패했습니다."} (${detail})`
+            : (err as { error?: string }).error || "주문에 실패했습니다.",
+          "error"
+        );
         return;
       }
       const data = await res.json();

@@ -181,6 +181,14 @@ const PRODUCT_SELECT = `
   stock_qty
 `;
 
+/** DB orders.shipping_postcode NOT NULL 대응 — 빈 값이면 대체값 */
+function normalizeOrderPostcode(raw: unknown): string {
+  if (raw == null) return "00000";
+  const s = String(raw).trim();
+  if (!s) return "00000";
+  return s.length > 10 ? s.slice(0, 10) : s;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -396,7 +404,7 @@ export async function POST(request: NextRequest) {
         payment_status: "pending",
         shipping_name: shippingName,
         shipping_phone: shippingPhone,
-        shipping_postcode: shippingPostcode || null,
+        shipping_postcode: normalizeOrderPostcode(shippingPostcode),
         shipping_address: shippingAddress,
         shipping_detail: shippingDetail || null,
         is_guest: isGuestFlow,
@@ -411,7 +419,11 @@ export async function POST(request: NextRequest) {
 
     if (orderError || !order) {
       console.error("[Order:Create] 주문 생성 실패", orderError);
-      return NextResponse.json({ error: "주문 생성에 실패했습니다." }, { status: 500 });
+      const errBody: Record<string, unknown> = { error: "주문 생성에 실패했습니다." };
+      if (orderError?.message) errBody.details = orderError.message;
+      if (orderError && "hint" in orderError && orderError.hint) errBody.hint = orderError.hint;
+      if (orderError && "code" in orderError && orderError.code) errBody.code = orderError.code;
+      return NextResponse.json(errBody, { status: 500 });
     }
 
     console.debug("[Order:Create] 주문 생성 완료", {
