@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Menu, Search, ShoppingBag } from "lucide-react";
 import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
@@ -109,6 +109,7 @@ function SmartHeader({
   onSearchClick?: () => void;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const base = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
 
   const homeHref = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;
@@ -120,14 +121,21 @@ function SmartHeader({
 
   const refreshCartCount = useCallback(() => {
     if (!client?.id) return;
-    fetch(`/api/cart?clientId=${client.id}&countOnly=1`, { credentials: "include" })
+    const useGuestCart =
+      pathname.includes("/guest-order") ||
+      (pathname.includes("/checkout") && searchParams.get("guest") === "1");
+    const itemsParam = searchParams.get("items")?.trim();
+    const onlyIdsPart =
+      itemsParam && itemsParam.length > 0 ? `&onlyIds=${encodeURIComponent(itemsParam)}` : "";
+    const url = `/api/cart?clientId=${encodeURIComponent(client.id)}&countOnly=1${useGuestCart ? "&guestCart=1" : ""}${onlyIdsPart}`;
+    fetch(url, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : { count: 0 }))
       .then((data) => {
         const count = data?.count ?? data?.items?.length ?? 0;
         setCartCount(count);
       })
       .catch(() => setCartCount(0));
-  }, [client?.id]);
+  }, [client?.id, pathname, searchParams]);
 
   // 로그인/로그아웃 전환 시 회원 장바구니 ↔ 게스트 장바구니 기준이 바뀌므로 즉시 재조회
   useEffect(() => {

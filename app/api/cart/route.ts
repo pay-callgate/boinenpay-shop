@@ -24,12 +24,21 @@ function appendCartCookie(res: NextResponse, sessionId: string) {
   });
 }
 
+/** 주문서 `?items=cartItemId,...` 와 헤더 뱃지 일치용 — 지정 시 해당 행만 카운트 */
+function parseOnlyItemIds(searchParams: URLSearchParams): string[] | null {
+  const raw = searchParams.get("onlyIds")?.trim();
+  if (!raw) return null;
+  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 100);
+  return ids.length > 0 ? ids : null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get("clientId");
     const countOnly = searchParams.get("countOnly") === "1";
+    const onlyItemIds = parseOnlyItemIds(searchParams);
     /** 비회원 주문 등: 로그인 중이어도 쿠키 기반 게스트 장바구니만 사용 */
     const guestCart = searchParams.get("guestCart") === "1";
 
@@ -60,10 +69,15 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ count: 0 });
         }
 
-        const { count, error: countError } = await supabase
+        let countQuery = supabase
           .from("cart_items")
           .select("*", { count: "exact", head: true })
           .eq("cart_id", cart.id);
+        if (onlyItemIds) {
+          countQuery = countQuery.in("id", onlyItemIds);
+        }
+
+        const { count, error: countError } = await countQuery;
 
         if (countError) {
           return NextResponse.json({ count: 0 });
@@ -146,10 +160,14 @@ export async function GET(request: NextRequest) {
 
       let cnt = 0;
       if (cart) {
-        const { count, error: countError } = await supabase
+        let countQuery = supabase
           .from("cart_items")
           .select("*", { count: "exact", head: true })
           .eq("cart_id", cart.id);
+        if (onlyItemIds) {
+          countQuery = countQuery.in("id", onlyItemIds);
+        }
+        const { count, error: countError } = await countQuery;
         if (!countError) cnt = count ?? 0;
       }
       const r = NextResponse.json({ count: cnt });

@@ -189,6 +189,16 @@ function normalizeOrderPostcode(raw: unknown): string {
   return s.length > 10 ? s.slice(0, 10) : s;
 }
 
+/** 이미 `request.json()`으로 파싱한 본문만 사용 — 본문 소비 후 `clone().json()` 호출 시 TypeError: unusable */
+function orderBodyForApiLog(body: unknown): Record<string, unknown> | undefined {
+  if (body == null || typeof body !== "object" || Array.isArray(body)) return undefined;
+  const b = { ...(body as Record<string, unknown>) };
+  if ("guestPassword" in b && b.guestPassword != null) {
+    b.guestPassword = "[redacted]";
+  }
+  return b;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -245,7 +255,7 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         userEmail: session.user.email ?? undefined,
         action: "orders_create",
-        data: { bodyPreview: await request.clone().json().catch(() => undefined) },
+        data: { bodyPreview: orderBodyForApiLog(body) },
       });
     }
 
