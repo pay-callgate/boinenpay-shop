@@ -512,14 +512,12 @@ export default function CheckoutPage() {
         deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
         deliveryMethod,
         deliveryFee,
+        ordererName: on,
         ribbonSender: ribbonSender.trim(),
         ribbonMessage: resolvedRibbonMessage,
         ribbonCardMessage: trimmedCardExtra || undefined,
         paymentMethod,
       };
-      if (on) {
-        orderPayload.ordererName = on;
-      }
       if (isGuestOrder) {
         orderPayload.isGuest = true;
         orderPayload.guestPassword = guestPassword.trim();

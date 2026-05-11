@@ -383,6 +383,9 @@ export async function POST(request: NextRequest) {
 
     const ordererNameTrim =
       typeof rawOrdererName === "string" ? rawOrdererName.trim() : "";
+    const ordererNameFinal =
+      ordererNameTrim ||
+      (!isGuestFlow && session?.user?.name ? String(session.user.name).trim() : "");
     const guestEmailTrim =
       isGuestFlow && typeof rawGuestOrdererEmail === "string"
         ? rawGuestOrdererEmail.trim()
@@ -410,7 +413,7 @@ export async function POST(request: NextRequest) {
         is_guest: isGuestFlow,
         guest_checkout_token: guestCheckoutToken,
         guest_password_hash: guestPasswordHash,
-        orderer_name: ordererNameTrim || null,
+        orderer_name: ordererNameFinal || null,
         guest_orderer_email: guestEmailTrim || null,
         ...floristPayload,
       })

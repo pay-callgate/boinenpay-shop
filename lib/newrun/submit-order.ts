@@ -320,6 +320,7 @@ export async function submitNewrunOrder(
         shipping_detail: (order.shipping_detail as string | null) ?? null,
         created_at: order.created_at as string | undefined,
         desired_delivery_date: (order as { desired_delivery_date?: string | null }).desired_delivery_date ?? null,
+        delivery_time_slot: (order as { delivery_time_slot?: string | null }).delivery_time_slot ?? null,
         orderer_name: (order as { orderer_name?: string | null }).orderer_name ?? null,
         ribbon_sender: (order as { ribbon_sender?: string | null }).ribbon_sender ?? null,
         ribbon_message: (order as { ribbon_message?: string | null }).ribbon_message ?? null,

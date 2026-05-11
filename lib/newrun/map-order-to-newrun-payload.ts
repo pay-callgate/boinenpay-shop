@@ -102,6 +102,8 @@ export type NewrunOrderSlice = {
   created_at?: string;
   /** 희망 배송일 (DB DATE → 보통 YYYY-MM-DD) */
   desired_delivery_date?: string | null;
+  /** 희망 배송 시간대(쇼핑몰) — 예: 14:00~16:00 → rw_btime 보조 */
+  delivery_time_slot?: string | null;
   orderer_name?: string | null;
   ribbon_sender?: string | null;
   ribbon_message?: string | null;
@@ -245,6 +247,14 @@ export function splitShippingDetailForRw(
   return { rw_memo: memo, rw_custreq: cust };
 }
 
+/** 슬롯 문자열에서 첫 `HH:MM` 추출 (예: 14:00~16:00 → 14:00) */
+function pickRwBtimeFromDeliverySlot(slot: string | null | undefined): string {
+  const s = (slot ?? "").trim();
+  if (!s) return "";
+  const m = s.match(/(\d{1,2}:\d{2})/);
+  return m ? m[1]! : "";
+}
+
 function mergeRwPrefixedFromDraft(draft: Record<string, string>, target: Record<string, string>) {
   for (const [k, v] of Object.entries(draft)) {
     if (!k.startsWith("rw_") || v === "") continue;
@@ -355,6 +365,9 @@ export function mapOrderToNewrunPayload(
   fields.rw_bdate = hq
     ? formatRwBdateYmdDash(order.desired_delivery_date, order.created_at)
     : options.rw_bdate?.trim() || formatBdateFromIso(order.created_at);
+  const slotBtime = pickRwBtimeFromDeliverySlot(order.delivery_time_slot);
+  const envDefaultBtime = (process.env.NEWRUN_DEFAULT_RW_BTIME ?? "").trim();
+  fields.rw_btime = (fields.rw_btime?.trim() || slotBtime || envDefaultBtime || "").trim();
   fields.rw_memo = truncateField("rw_memo", memoFromDetail, warnings);
   fields.rw_custreq = truncateField("rw_custreq", custFromDetail, warnings);
 
@@ -370,6 +383,18 @@ export function mapOrderToNewrunPayload(
   }
   if (drafts.product && Object.keys(drafts.product).length > 0) {
     applyProductDraft(drafts.product, fields);
+  }
+
+  /** 운영 고정 수주화원 — 설정 시 협회 draft보다 우선(예: NEWRUN_DEFAULT_RW_SUJUID=kot4545) */
+  const forcedSujuid = (process.env.NEWRUN_DEFAULT_RW_SUJUID ?? "").trim();
+  if (forcedSujuid) {
+    fields.rw_sujuid = truncateField("rw_sujuid", forcedSujuid, warnings);
+  }
+
+  const slotBtimeAfterDrafts = pickRwBtimeFromDeliverySlot(order.delivery_time_slot);
+  const envDefaultBtimeAfter = (process.env.NEWRUN_DEFAULT_RW_BTIME ?? "").trim();
+  if (!fields.rw_btime.trim()) {
+    fields.rw_btime = (slotBtimeAfterDrafts || envDefaultBtimeAfter || "").trim();
   }
 
   const detailPlaceSource =
@@ -455,10 +480,10 @@ export function mapOrderToNewrunPayload(
         "상품코드(rw_menucode) 없음 — 상품 newrun_default_product_draft(또는 주문 병합 draft)에 rw_menucode 필수"
       );
     }
-    if (!hq) {
-      if (!fields.rw_sujuid?.trim()) {
-        issues.push("수주화원(rw_sujuid) 없음 — 협회 검색 또는 거래처 기본 필요");
-      }
+    if (!fields.rw_sujuid?.trim()) {
+      issues.push(
+        "수주화원(rw_sujuid) 없음 — 거래처 clients.newrun_default_florist_draft 또는 주문 newrun_florist_draft에 rw_sujuid/var_sid 필요"
+      );
     }
     if (order.payment_status !== "paid") {
       issues.push(`결제완료(payment_status=paid)만 발주 권장 — 현재: ${order.payment_status}`);
