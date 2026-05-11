@@ -26,7 +26,6 @@ import {
   digitsOnlyPhone,
   buildFloristShippingDetailText,
   resolveRibbonPhrase,
-  type RibbonMessageKind,
 } from "@/lib/checkout-florist-fields";
 
 /**
@@ -126,13 +125,11 @@ export default function GuestOrderPage() {
   const [venueDetail, setVenueDetail] = useState("");
 
   const [ribbonSender, setRibbonSender] = useState("");
-  const [ribbonMessageKind, setRibbonMessageKind] = useState<RibbonMessageKind>("ribbon");
   const [ribbonPreset, setRibbonPreset] = useState(
     RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__"
   );
   const [ribbonMessageCustom, setRibbonMessageCustom] = useState("");
-  const [cardPreset, setCardPreset] = useState(RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__");
-  const [cardMessageCustom, setCardMessageCustom] = useState("");
+  const [ribbonCardExtra, setRibbonCardExtra] = useState("");
 
   /** 배송 방식 선택 UI 제거 — API/주문 레코드 호환용 기본값 */
   const deliveryMethod = "parcel" as const;
@@ -163,11 +160,9 @@ export default function GuestOrderPage() {
     setShippingAddress(d.shippingAddress);
     setVenueDetail(d.venueDetail);
     setRibbonSender(d.ribbonSender);
-    setRibbonMessageKind("ribbon");
     setRibbonPreset(d.ribbonPreset);
     setRibbonMessageCustom("");
-    setCardPreset(RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__");
-    setCardMessageCustom("");
+    setRibbonCardExtra("");
   }, []);
 
   /**
@@ -250,7 +245,6 @@ export default function GuestOrderPage() {
   // + deliveryFee (배송비 계산 비활성화)
 
   const resolvedRibbonMessage = resolveRibbonPhrase(ribbonPreset, ribbonMessageCustom);
-  const resolvedCardMessage = resolveRibbonPhrase(cardPreset, cardMessageCustom);
 
   const openPostcodeSearch = () => {
     openDaumPostcode(({ zonecode, address }) => {
@@ -320,15 +314,7 @@ export default function GuestOrderPage() {
       return;
     }
     if (!resolvedRibbonMessage) {
-      toast(
-        ribbonMessageKind === "card"
-          ? "카드 문구를 선택하거나 입력해 주세요."
-          : "리본 경조사어를 선택하거나 입력해 주세요."
-      );
-      return;
-    }
-    if (ribbonMessageKind === "both" && !resolvedCardMessage) {
-      toast("카드 문구를 선택하거나 입력해 주세요.");
+      toast("리본 경조사어를 선택하거나 입력해 주세요.");
       return;
     }
 
@@ -340,8 +326,7 @@ export default function GuestOrderPage() {
       ordererPhone: op,
       ribbonSender,
       ribbonMessage: resolvedRibbonMessage,
-      ribbonMessageKind,
-      ribbonCardMessage: ribbonMessageKind === "both" ? resolvedCardMessage : undefined,
+      ribbonCardMessage: ribbonCardExtra.trim() || undefined,
     });
 
     setSubmitting(true);
@@ -422,9 +407,8 @@ export default function GuestOrderPage() {
         deliveryMethod,
         deliveryFee,
         ribbonSender: ribbonSender.trim(),
-        ribbonMessageKind,
         ribbonMessage: resolvedRibbonMessage,
-        ribbonCardMessage: ribbonMessageKind === "both" ? resolvedCardMessage : undefined,
+        ribbonCardMessage: ribbonCardExtra.trim() || undefined,
         paymentMethod,
         isGuest: true,
         guestPassword: pw,
@@ -839,16 +823,12 @@ export default function GuestOrderPage() {
               textMutedColor={TEXT_MUTED}
               ribbonSender={ribbonSender}
               onRibbonSenderChange={setRibbonSender}
-              messageKind={ribbonMessageKind}
-              onMessageKindChange={setRibbonMessageKind}
               ribbonPreset={ribbonPreset}
               onRibbonPresetChange={setRibbonPreset}
               ribbonMessageCustom={ribbonMessageCustom}
               onRibbonMessageCustomChange={setRibbonMessageCustom}
-              cardPreset={cardPreset}
-              onCardPresetChange={setCardPreset}
-              cardMessageCustom={cardMessageCustom}
-              onCardMessageCustomChange={setCardMessageCustom}
+              ribbonCardExtra={ribbonCardExtra}
+              onRibbonCardExtraChange={setRibbonCardExtra}
             />
           </section>
 

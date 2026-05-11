@@ -15,9 +15,8 @@ describe("floristFieldsFromOrderBody", () => {
     expect(f.delivery_time_slot).toBe("14:00~16:00");
     expect(f.delivery_method).toBe("parcel");
     expect(f.delivery_request_memo).toBe("문 앞");
-    expect(f.ribbon_sender).toBe("홍길동");    
+    expect(f.ribbon_sender).toBe("홍길동");
     expect(f.ribbon_message).toBe("근조");
-    expect(f.ribbon_message_kind).toBe("ribbon");
     expect(f.ribbon_card_message).toBeNull();
   });
 
@@ -43,21 +42,13 @@ describe("floristFieldsFromOrderBody", () => {
     expect(f.delivery_time_slot).toBe("오전");
   });
 
-  it("parses ribbon message kind and card message", () => {
+  it("parses optional ribbon card message", () => {
     const f = floristFieldsFromOrderBody({
-      ribbonMessageKind: "both",
       ribbonMessage: "근조",
       ribbonCardMessage: "삼가 고인의 명복을 빕니다",
     });
-    expect(f.ribbon_message_kind).toBe("both");
     expect(f.ribbon_message).toBe("근조");
     expect(f.ribbon_card_message).toBe("삼가 고인의 명복을 빕니다");
-    const cardOnly = floristFieldsFromOrderBody({
-      ribbon_message_kind: "card",
-      ribbon_message: "축하합니다",
-    });
-    expect(cardOnly.ribbon_message_kind).toBe("card");
-    expect(cardOnly.ribbon_message).toBe("축하합니다");
   });
 
   it("accepts snake_case aliases", () => {

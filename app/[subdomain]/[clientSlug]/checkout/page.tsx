@@ -25,7 +25,6 @@ import {
   digitsOnlyPhone,
   buildFloristShippingDetailText,
   resolveRibbonPhrase,
-  type RibbonMessageKind,
 } from "@/lib/checkout-florist-fields";
 import {
   effectiveGuestUnitPrice,
@@ -133,13 +132,11 @@ export default function CheckoutPage() {
   const [venueDetail, setVenueDetail] = useState("");
 
   const [ribbonSender, setRibbonSender] = useState("");
-  const [ribbonMessageKind, setRibbonMessageKind] = useState<RibbonMessageKind>("ribbon");
   const [ribbonPreset, setRibbonPreset] = useState(
     RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__"
   );
   const [ribbonMessageCustom, setRibbonMessageCustom] = useState("");
-  const [cardPreset, setCardPreset] = useState(RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__");
-  const [cardMessageCustom, setCardMessageCustom] = useState("");
+  const [ribbonCardExtra, setRibbonCardExtra] = useState("");
   const [ribbonSameAsOrderer, setRibbonSameAsOrderer] = useState(false);
 
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -183,11 +180,9 @@ export default function CheckoutPage() {
     setShippingAddress(d.shippingAddress);
     setVenueDetail(d.venueDetail);
     setRibbonSender(d.ribbonSender);
-    setRibbonMessageKind("ribbon");
     setRibbonPreset(d.ribbonPreset);
     setRibbonMessageCustom("");
-    setCardPreset(RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__");
-    setCardMessageCustom("");
+    setRibbonCardExtra("");
   }, [isGuestCheckout, session?.user?.id, sessionStatus]);
 
   // Phase D3: ViewPay 결제창에서 취소 후 cancelUrl로 돌아온 경우
@@ -365,7 +360,7 @@ export default function CheckoutPage() {
     const address = shippingAddress.trim();
 
     const resolvedRibbonMessage = resolveRibbonPhrase(ribbonPreset, ribbonMessageCustom);
-    const resolvedCardMessage = resolveRibbonPhrase(cardPreset, cardMessageCustom);
+    const trimmedCardExtra = ribbonCardExtra.trim();
 
     const on = ordererName.trim();
     const op = digitsOnlyPhone(ordererPhone);
@@ -394,15 +389,7 @@ export default function CheckoutPage() {
       return;
     }
     if (!resolvedRibbonMessage) {
-      toast(
-        ribbonMessageKind === "card"
-          ? "카드 문구를 선택하거나 입력해 주세요."
-          : "리본 경조사어를 선택하거나 입력해 주세요."
-      );
-      return;
-    }
-    if (ribbonMessageKind === "both" && !resolvedCardMessage) {
-      toast("카드 문구를 선택하거나 입력해 주세요.");
+      toast("리본 경조사어를 선택하거나 입력해 주세요.");
       return;
     }
 
@@ -414,8 +401,7 @@ export default function CheckoutPage() {
       ordererPhone: op,
       ribbonSender: ribbonSender.trim(),
       ribbonMessage: resolvedRibbonMessage,
-      ribbonMessageKind,
-      ribbonCardMessage: ribbonMessageKind === "both" ? resolvedCardMessage : undefined,
+      ribbonCardMessage: trimmedCardExtra || undefined,
     });
 
     const isGuestOrder = isGuestCheckout && !session?.user?.id;
@@ -527,9 +513,8 @@ export default function CheckoutPage() {
         deliveryMethod,
         deliveryFee,
         ribbonSender: ribbonSender.trim(),
-        ribbonMessageKind,
         ribbonMessage: resolvedRibbonMessage,
-        ribbonCardMessage: ribbonMessageKind === "both" ? resolvedCardMessage : undefined,
+        ribbonCardMessage: trimmedCardExtra || undefined,
         paymentMethod,
       };
       if (on) {
@@ -907,16 +892,12 @@ export default function CheckoutPage() {
             ribbonSameAsOrderer={ribbonSameAsOrderer}
             onRibbonSameAsOrdererChange={setRibbonSameAsOrderer}
             ordererNameForSame={ordererName}
-            messageKind={ribbonMessageKind}
-            onMessageKindChange={setRibbonMessageKind}
             ribbonPreset={ribbonPreset}
             onRibbonPresetChange={setRibbonPreset}
             ribbonMessageCustom={ribbonMessageCustom}
             onRibbonMessageCustomChange={setRibbonMessageCustom}
-            cardPreset={cardPreset}
-            onCardPresetChange={setCardPreset}
-            cardMessageCustom={cardMessageCustom}
-            onCardMessageCustomChange={setCardMessageCustom}
+            ribbonCardExtra={ribbonCardExtra}
+            onRibbonCardExtraChange={setRibbonCardExtra}
           />
         </section>
       </section>
