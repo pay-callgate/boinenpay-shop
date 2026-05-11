@@ -1,13 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { ChevronRight, Package, User, Heart, MapPin, CreditCard, Truck, PackageCheck, LogOut } from "lucide-react";
+import {
+  ChevronRight,
+  Package,
+  User,
+  Heart,
+  MapPin,
+  Truck,
+  LogOut,
+  Wallet,
+  Flower2,
+  CircleCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
+import type { ShopFulfillmentStageKey } from "@/lib/shop/customer-order-fulfillment";
 
 /**
  * T6-1: 마이페이지 홈
@@ -17,11 +30,72 @@ import { shopFetch } from "@/lib/shop-fetch";
 
 const PRIMARY = "#D6A8E0";
 
-interface Stats {
-  pending_payment: number;
-  preparing: number;
-  shipping: number;
-  delivered: number;
+type MypageOrderStats = Record<ShopFulfillmentStageKey, number>;
+
+const EMPTY_STATS: MypageOrderStats = {
+  payment_done: 0,
+  crafting: 0,
+  departure: 0,
+  complete: 0,
+};
+
+const ORDER_DASHBOARD_STEPS: readonly {
+  stage: ShopFulfillmentStageKey;
+  label: string;
+  shortHint: string;
+  icon: LucideIcon;
+  highlightWhenPositive: boolean;
+}[] = [
+  {
+    stage: "payment_done",
+    label: "결제 완료",
+    shortHint: "접수·결제 완료",
+    icon: Wallet,
+    highlightWhenPositive: false,
+  },
+  {
+    stage: "crafting",
+    label: "화환 제작중",
+    shortHint: "제작 진행",
+    icon: Flower2,
+    highlightWhenPositive: true,
+  },
+  {
+    stage: "departure",
+    label: "배송 출발",
+    shortHint: "현장 이동 중",
+    icon: Truck,
+    highlightWhenPositive: true,
+  },
+  {
+    stage: "complete",
+    label: "배송 완료",
+    shortHint: "배송 완료된 주문",
+    icon: CircleCheck,
+    highlightWhenPositive: false,
+  },
+] as const;
+
+function resolveDashboardCountClass(
+  stage: ShopFulfillmentStageKey,
+  n: number,
+  highlightWhenPositive: boolean
+): string {
+  if (n < 1) {
+    return "text-[15px] font-semibold tabular-nums text-gray-300 sm:text-base";
+  }
+  if (highlightWhenPositive) {
+    if (stage === "crafting") {
+      return "text-lg font-bold tabular-nums text-orange-600 sm:text-xl";
+    }
+    if (stage === "departure") {
+      return "text-lg font-bold tabular-nums text-indigo-600 sm:text-xl";
+    }
+  }
+  if (stage === "payment_done") {
+    return "text-[15px] font-bold tabular-nums text-sky-600 sm:text-lg";
+  }
+  return "text-[15px] font-bold tabular-nums text-gray-900 sm:text-lg";
 }
 
 const MENU_ITEMS = [
@@ -29,13 +103,6 @@ const MENU_ITEMS = [
   { label: "회원 정보", path: "/mypage/profile", icon: User },
   { label: "관심상품", path: "/mypage/wishlist", icon: Heart },
   { label: "배송 주소록 관리", path: "/mypage/addresses", icon: MapPin },
-] as const;
-
-const ORDER_STATUS_ITEMS = [
-  { key: "pending_payment", label: "입금전", icon: CreditCard },
-  { key: "preparing", label: "배송준비중", icon: Package },
-  { key: "shipping", label: "배송중", icon: Truck },
-  { key: "delivered", label: "배송완료", icon: PackageCheck },
 ] as const;
 
 export default function MyPage() {
@@ -49,7 +116,7 @@ export default function MyPage() {
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
 
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<MypageOrderStats | null>(null);
 
   // 주문 현황 통계 — 세션 확정 후에만 요청, 401 시 전역 signOut 금지(Silent Fail)
   useEffect(() => {
@@ -69,7 +136,15 @@ export default function MyPage() {
       })
       .then((data) => {
         if (!cancelled) {
-          setStats(data?.stats ?? null);
+          const s = data?.stats as Partial<MypageOrderStats> | undefined;
+          setStats(
+            s
+              ? {
+                  ...EMPTY_STATS,
+                  ...s,
+                }
+              : null
+          );
           if (typeof window !== "undefined" && data?.stats) {
             console.log("[MyPage] stats loaded", { clientId: client.id });
           }
@@ -170,41 +245,63 @@ export default function MyPage() {
           </div>
         </section>
 
-        {/* 2. 나의 주문처리 현황 */}
+        {/* 2. 나의 주문 현황 — 주문 목록 `shopStage`와 동일 4단계 */}
         <section className="rounded-2xl bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-gray-800">
+          <h2 className="mb-1 text-sm font-semibold text-gray-800">
             나의 주문 현황
           </h2>
-          <div className="grid grid-cols-4 gap-2">
-            {ORDER_STATUS_ITEMS.map((item) => {
-              const count = stats?.[item.key as keyof Stats] ?? 0;
-              const Icon = item.icon;
+          <p className="mb-3 text-[11px] leading-snug text-gray-500">
+            결제가 완료된 주문만 집계합니다. 각 단계를 누르면 해당 탭으로 이동합니다.
+          </p>
+
+          <div className="flex w-full items-stretch gap-0.5">
+            {ORDER_DASHBOARD_STEPS.map((step, i) => {
+              const Icon = step.icon;
+              const count = (stats ?? EMPTY_STATS)[step.stage];
+              const countCls = resolveDashboardCountClass(
+                step.stage,
+                count,
+                step.highlightWhenPositive
+              );
+              const iconMuted = count < 1 ? "text-gray-300" : "text-gray-500";
+
               return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() =>
-                    router.push(`${base}/mypage/orders?status=${item.key}`)
-                  }
-                  className="flex flex-col items-center justify-center rounded-xl py-3 transition-colors hover:bg-gray-50"
-                >
-                  <Icon
-                    className="mb-1 h-5 w-5 text-gray-400"
-                    strokeWidth={1.5}
-                  />
-                  <span className="text-[10px] text-gray-500">{item.label}</span>
-                  <span
-                    className="mt-0.5 text-lg font-bold"
-                    style={{ color: PRIMARY }}
+                <Fragment key={step.stage}>
+                  {i > 0 ? (
+                    <ChevronRight
+                      className="h-3.5 w-3.5 shrink-0 self-center text-gray-200"
+                      strokeWidth={2}
+                      aria-hidden
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    title={step.shortHint}
+                    onClick={() =>
+                      router.push(
+                        `${base}/mypage/orders?shopStage=${encodeURIComponent(step.stage)}`
+                      )
+                    }
+                    className="min-w-0 flex-1 rounded-xl py-2 transition-colors hover:bg-gray-50 active:bg-gray-100"
                   >
-                    {count}
-                  </span>
-                </button>
+                    <div className="flex flex-col items-center gap-1 px-0.5">
+                      <Icon
+                        className={`h-5 w-5 sm:h-6 sm:w-6 ${iconMuted}`}
+                        strokeWidth={1.75}
+                        aria-hidden
+                      />
+                      <span className="max-w-[4.25rem] text-center text-[9px] font-medium leading-tight text-gray-600 sm:max-w-none sm:text-[10px]">
+                        {step.label}
+                      </span>
+                      <span className={countCls}>{count}</span>
+                    </div>
+                  </button>
+                </Fragment>
               );
             })}
           </div>
-          <p className="mt-3 border-t border-gray-100 pt-3 text-center text-xs text-gray-400">
-            취소 0건 · 교환 0건 · 반품 0건
+          <p className="mt-3 border-t border-gray-100 pt-3 text-center text-[11px] text-gray-400">
+            전체 목록은「주문 조회」에서 확인할 수 있어요.
           </p>
         </section>
 

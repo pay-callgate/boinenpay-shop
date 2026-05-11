@@ -33,6 +33,37 @@ export const ORDER_PROGRESS_STEP_LABELS: readonly string[] = [
 
 const PAYMENT_DONE_DB_STATUSES = new Set(["received", "confirmed", "paid"]);
 
+/**
+ * 주문 목록 API `shopStage` 필터와 동일한 DB `status` 집합 (Single Source of Truth).
+ * `payment_status = paid` 와 함께 사용.
+ */
+export const SHOP_FULFILLMENT_STAGE_DB_STATUSES: Record<
+  ShopFulfillmentStageKey,
+  readonly string[]
+> = {
+  payment_done: ["received", "confirmed", "paid"],
+  crafting: ["preparing"],
+  departure: ["shipping"],
+  complete: ["delivered", "confirmed_purchase"],
+} as const;
+
+/** `resolveShopFulfillmentStage`와 동일 규칙으로 단계별 건수 집계 (미결제·취소 등은 제외) */
+export function countOrdersByShopFulfillmentStage(
+  orders: { status: string; payment_status?: string | null }[]
+): Record<ShopFulfillmentStageKey, number> {
+  const out: Record<ShopFulfillmentStageKey, number> = {
+    payment_done: 0,
+    crafting: 0,
+    departure: 0,
+    complete: 0,
+  };
+  for (const o of orders) {
+    const r = resolveShopFulfillmentStage(o);
+    if (r.kind === "stage") out[r.stage] += 1;
+  }
+  return out;
+}
+
 /** 배지 배경 / 글자 — 회색 배지 사용 안 함 */
 export const SHOP_FULFILLMENT_BADGE: Record<
   ShopFulfillmentStageKey,

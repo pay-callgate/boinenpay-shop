@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  countOrdersByShopFulfillmentStage,
   resolveShopFulfillmentStage,
   shopOrderCustomerBadge,
   shopOrderProgressStepIndex,
@@ -39,5 +40,23 @@ describe("customer-order-fulfillment", () => {
       kind: "pending",
     });
     expect(shopOrderProgressStepIndex({ status: "received", payment_status: "pending" })).toBe(-1);
+  });
+
+  it("countOrdersByShopFulfillmentStage: 결제 완료만 집계·목록 규칙과 동일", () => {
+    const rows = [
+      { status: "received", payment_status: "paid" },
+      { status: "preparing", payment_status: "paid" },
+      { status: "shipping", payment_status: "paid" },
+      { status: "delivered", payment_status: "paid" },
+      { status: "confirmed_purchase", payment_status: "paid" },
+      { status: "received", payment_status: "pending" },
+      { status: "cancelled", payment_status: "paid" },
+    ];
+    expect(countOrdersByShopFulfillmentStage(rows)).toEqual({
+      payment_done: 1,
+      crafting: 1,
+      departure: 1,
+      complete: 2,
+    });
   });
 });

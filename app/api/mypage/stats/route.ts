@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { countOrdersByShopFulfillmentStage } from "@/lib/shop/customer-order-fulfillment";
 
 /**
  * T6-1: 마이페이지 통계 API
@@ -30,34 +31,18 @@ export async function GET(request: NextRequest) {
 
     const { data: orders, error } = await supabase
       .from("orders")
-      .select("id, status, payment_status")
+      .select("status, payment_status")
       .eq("user_id", session.user.id)
-      .eq("client_id", clientId);
+      .eq("client_id", clientId)
+      .eq("payment_status", "paid");
 
     if (error) {
       console.error("My stats fetch error:", error);
       return NextResponse.json({ error: "통계 조회 실패" }, { status: 500 });
     }
 
-    // 상태별 집계
-    const stats = {
-      pending_payment: 0,
-      preparing: 0,
-      shipping: 0,
-      delivered: 0,
-    };
-
-    (orders || []).forEach((order: { status: string }) => {
-      if (order.status === "pending_payment") {
-        stats.pending_payment += 1;
-      } else if (order.status === "paid" || order.status === "preparing") {
-        stats.preparing += 1;
-      } else if (order.status === "shipping") {
-        stats.shipping += 1;
-      } else if (order.status === "delivered") {
-        stats.delivered += 1;
-      }
-    });
+    /** 주문 목록(`/api/mypage/orders`)과 동일: 결제 완료 건만, 4단계는 `resolveShopFulfillmentStage` 기준 */
+    const stats = countOrdersByShopFulfillmentStage(orders || []);
 
     return NextResponse.json({ stats });
   } catch (err) {

@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { sanitizeOrderRowForCustomer } from "@/lib/orders/sanitize-customer-order";
+import {
+  SHOP_FULFILLMENT_STAGE_DB_STATUSES,
+  type ShopFulfillmentStageKey,
+} from "@/lib/shop/customer-order-fulfillment";
 
 /**
  * T6-2: 사용자 주문 목록 조회 API
@@ -64,21 +68,10 @@ export async function GET(request: NextRequest) {
     query = query.eq("payment_status", "paid");
 
     if (shopStage && shopStage !== "all") {
-      switch (shopStage) {
-        case "payment_done":
-          query = query.in("status", ["received", "confirmed", "paid"]);
-          break;
-        case "crafting":
-          query = query.eq("status", "preparing");
-          break;
-        case "departure":
-          query = query.eq("status", "shipping");
-          break;
-        case "complete":
-          query = query.in("status", ["delivered", "confirmed_purchase"]);
-          break;
-        default:
-          break;
+      const statusGroup =
+        SHOP_FULFILLMENT_STAGE_DB_STATUSES[shopStage as ShopFulfillmentStageKey];
+      if (statusGroup?.length) {
+        query = query.in("status", [...statusGroup]);
       }
     } else if (status && status !== "all") {
       query = query.eq("status", status);
