@@ -6,10 +6,10 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import {
-  shopOrderStatusColor,
-  shopOrderStatusLabel,
-  SHOP_ORDER_STATUS_LABELS,
-} from "@/lib/shop/order-status-labels";
+  SHOP_ORDER_FULFILLMENT_TABS,
+  shopOrderCustomerBadge,
+  type ShopOrderTabKey,
+} from "@/lib/shop/customer-order-fulfillment";
 import {
   formatDesiredDeliveryDateTimeLine,
   getAdminLocalTodayYmd,
@@ -67,25 +67,19 @@ export default function MyOrdersPage() {
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
-  const statusFilter = searchParams?.get("status") ?? null;
+  const statusFilter = searchParams?.get("shopStage") ?? null;
 
-  const ORDER_TABS = [
-    { key: "all", label: "전체" },
-    { key: "pending_payment", label: "입금대기" },
-    { key: "confirmed", label: "주문확정" },
-    { key: "preparing", label: "배송준비중" },
-    { key: "shipping", label: "배송중" },
-    { key: "delivered", label: "배송완료" },
-  ] as const;
+  const activeTabKey: ShopOrderTabKey =
+    statusFilter && SHOP_ORDER_FULFILLMENT_TABS.some((t) => t.key === statusFilter)
+      ? (statusFilter as ShopOrderTabKey)
+      : "all";
 
-  const activeTabKey = statusFilter && ORDER_TABS.some((t) => t.key === statusFilter) ? statusFilter : "all";
-
-  const handleTabClick = (key: string) => {
+  const handleTabClick = (key: ShopOrderTabKey) => {
     const base = `/${subdomain}/${clientSlug}/mypage/orders`;
     if (key === "all") {
       router.push(base);
     } else {
-      router.push(`${base}?status=${key}`);
+      router.push(`${base}?shopStage=${encodeURIComponent(key)}`);
     }
   };
 
@@ -101,7 +95,9 @@ export default function MyOrdersPage() {
     (async () => {
       try {
         let url = `/api/mypage/orders?clientId=${encodeURIComponent(client.id)}&limit=50`;
-        if (statusFilter && statusFilter !== "all") url += `&status=${encodeURIComponent(statusFilter)}`;
+        if (statusFilter && statusFilter !== "all") {
+          url += `&shopStage=${encodeURIComponent(statusFilter)}`;
+        }
         const res = await shopFetch(url);
         if (cancelled) return;
         if (res.ok) {
@@ -171,30 +167,42 @@ export default function MyOrdersPage() {
           <h1 className="text-lg font-bold flex-1">주문 조회</h1>
         </header>
 
-        {/* 상태별 탭 네비게이션 - 모바일 가로 스와이프, 스크롤바 숨김 */}
-        <div
-          className="sticky top-[57px] z-[9] w-full max-w-full overflow-x-auto overflow-y-hidden border-b border-gray-200 bg-white [&::-webkit-scrollbar]:hidden"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          <div className="flex min-w-max shrink-0 items-stretch gap-0 px-4 py-3">
-            {ORDER_TABS.map((tab) => {
-              const isActive = activeTabKey === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => handleTabClick(tab.key)}
-                  className="shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors"
-                  style={{
-                    color: isActive ? "#D6A8E0" : "#6B7280",
-                    borderBottom: isActive ? "2px solid #D6A8E0" : "2px solid transparent",
-                    fontWeight: isActive ? 700 : 500,
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+        {/* 상태별 탭 — 가로 스크롤, 스크롤바 숨김, 스크롤 가능 힌트(그라데이션) */}
+        <div className="sticky top-[57px] z-[9] w-full border-b border-gray-200 bg-white">
+          <div className="relative max-w-full">
+            <div
+              className="pointer-events-none absolute left-0 top-0 z-[2] h-full w-7 bg-gradient-to-r from-white via-white/95 to-transparent"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute right-0 top-0 z-[2] h-full w-7 bg-gradient-to-l from-white via-white/95 to-transparent"
+              aria-hidden
+            />
+            <div
+              className="scrollbar-none flex max-w-full snap-x snap-mandatory gap-0 overflow-x-auto scroll-smooth overscroll-x-contain px-3 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              <div className="flex min-w-max shrink-0 items-stretch gap-0">
+                {SHOP_ORDER_FULFILLMENT_TABS.map((tab) => {
+                  const isActive = activeTabKey === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => handleTabClick(tab.key)}
+                      className="snap-start shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors"
+                      style={{
+                        color: isActive ? "#0284C7" : "#6B7280",
+                        borderBottom: isActive ? "2px solid #0284C7" : "2px solid transparent",
+                        fontWeight: isActive ? 700 : 500,
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -228,8 +236,8 @@ export default function MyOrdersPage() {
             </svg>
             <p style={{ fontSize: "1rem", color: "#666", marginBottom: "24px" }}>
               {activeTabKey !== "all"
-                ? `${SHOP_ORDER_STATUS_LABELS[activeTabKey] ?? shopOrderStatusLabel(activeTabKey)} 상태의 주문이 없습니다`
-                : "주문 내역이 없습니다"}
+                ? `${SHOP_ORDER_FULFILLMENT_TABS.find((t) => t.key === activeTabKey)?.label ?? ""} 단계 주문이 없습니다`
+                : "결제가 완료된 주문이 없습니다"}
             </p>
             <button
               onClick={() => router.push(`/${subdomain}/${clientSlug}/products`)}
@@ -249,7 +257,9 @@ export default function MyOrdersPage() {
           </div>
         ) : (
           <div style={{ padding: "16px" }}>
-            {orders.map((order) => (
+            {orders.map((order) => {
+              const badge = shopOrderCustomerBadge(order);
+              return (
               <div
                 key={order.id}
                 onClick={() =>
@@ -302,11 +312,11 @@ export default function MyOrdersPage() {
                       borderRadius: "12px",
                       fontSize: "0.75rem",
                       fontWeight: 600,
-                      backgroundColor: `${shopOrderStatusColor(order.status)}20`,
-                      color: shopOrderStatusColor(order.status),
+                      backgroundColor: badge.background,
+                      color: badge.color,
                     }}
                   >
-                    {shopOrderStatusLabel(order.status)}
+                    {badge.label}
                   </span>
                 </div>
 
@@ -377,7 +387,8 @@ export default function MyOrdersPage() {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
         </main>

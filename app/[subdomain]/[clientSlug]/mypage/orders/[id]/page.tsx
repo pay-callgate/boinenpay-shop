@@ -8,12 +8,12 @@ import { shopFetch } from "@/lib/shop-fetch";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
 import { toast } from "@/components/shop/ToastContext";
 import { formatTrackingDisplay } from "@/lib/courier";
+import { OrderProgressStepper } from "@/components/shop/OrderProgressStepper";
 import {
-  shopOrderDetailBadgeStatus,
-  shopOrderStatusColor,
-  shopOrderStatusLabel,
-  shopPaymentStatusLabel,
-} from "@/lib/shop/order-status-labels";
+  shopOrderCustomerBadge,
+  shopOrderProgressStepIndex,
+} from "@/lib/shop/customer-order-fulfillment";
+import { shopOrderDetailBadgeStatus, shopPaymentStatusLabel } from "@/lib/shop/order-status-labels";
 import {
   formatAdminDeliveryMethod,
   formatDesiredDeliveryDateTimeLine,
@@ -287,6 +287,14 @@ export default function MyOrderDetailPage() {
     status: order.status,
     payment_status: order.payment_status,
   });
+  const customerBadge = shopOrderCustomerBadge({
+    status: order.status,
+    payment_status: order.payment_status,
+  });
+  const progressStepIndex = shopOrderProgressStepIndex({
+    status: order.status,
+    payment_status: order.payment_status,
+  });
 
   return (
     <OrderGuard
@@ -340,28 +348,29 @@ export default function MyOrderDetailPage() {
           </h1>
         </header>
 
-        {/* 주문 상태 */}
+        {/* 주문 진행 Stepper + 상태 뱃지 (탭·목록과 동일 라벨) */}
         <div
           style={{
             backgroundColor: "#fff",
-            padding: "20px 16px",
+            padding: "20px 14px",
             marginBottom: "12px",
             textAlign: "center",
           }}
         >
+          <OrderProgressStepper activeIndex={progressStepIndex} />
           <span
             style={{
               display: "inline-block",
+              marginTop: progressStepIndex >= 0 ? "16px" : 0,
               padding: "8px 20px",
               borderRadius: "20px",
-              fontSize: "1rem",
+              fontSize: "0.9375rem",
               fontWeight: 700,
-              backgroundColor: `${shopOrderStatusColor(detailBadge.statusKey)}20`,
-              color: shopOrderStatusColor(detailBadge.statusKey),
-              marginBottom: "12px",
+              backgroundColor: customerBadge.background,
+              color: customerBadge.color,
             }}
           >
-            {shopOrderStatusLabel(detailBadge.statusKey)}
+            {customerBadge.label}
           </span>
           {detailBadge.showPaymentBeforeFulfillmentNote ? (
             <p
@@ -372,6 +381,7 @@ export default function MyOrderDetailPage() {
                 border: "1px solid #FDE68A",
                 borderRadius: "8px",
                 padding: "10px 12px",
+                marginTop: "12px",
                 marginBottom: "12px",
                 lineHeight: 1.5,
                 textAlign: "left",

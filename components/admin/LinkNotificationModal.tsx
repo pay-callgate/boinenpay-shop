@@ -74,9 +74,6 @@ function maskPhoneDisplay(digits: string): string {
   return formatPhoneDisplay(digits);
 }
 
-/** 건수 요약 배지용 (100명/회 기준 구간 수) */
-const BULK_CHUNK = 100;
-
 function getByteCount(text: string): number {
   return new TextEncoder().encode(text).length;
 }
@@ -573,7 +570,7 @@ export function LinkNotificationModal({
                           </p>
                           <p className="mt-1.5 text-xs leading-relaxed text-[#5c6473]">
                             브랜드용 발송 도구에서 흔히 쓰는 방식: 업로드 직후
-                            건수 요약 + 미리보기 테이블로 검증합니다.
+                            건수 요약 + 전체 목록 테이블로 검증합니다.
                           </p>
                           <div
                             className="mx-auto mt-3 flex max-w-lg items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left"
@@ -605,15 +602,13 @@ export function LinkNotificationModal({
                               명
                             </span>
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef2f7] px-3 py-1.5 text-[0.8125rem] font-medium text-[#5c6473]">
-                              예상 API 호출{" "}
+                              발송 API 호출(예상){" "}
                               <strong className="text-base text-gray-800">
-                                {Math.ceil(
-                                  bulkRecipients.length / BULK_CHUNK
-                                ) || 0}
+                                {bulkRecipients.length}
                               </strong>
                               회{" "}
                               <span className="text-xs text-[#5c6473]">
-                                (100명/회)
+                                (수신자 1명당 1회 · 브라우저→서버는 1회)
                               </span>
                             </span>
                           </div>
@@ -621,7 +616,7 @@ export function LinkNotificationModal({
                           <div className="overflow-hidden rounded-lg border border-[#d8dee8] bg-white">
                             <div className="flex items-center justify-between border-b border-[#d8dee8] bg-[#f4f6f9] px-3 py-2">
                               <span className="text-xs text-[#5c6473]">
-                                미리보기 (최대 15행)
+                                수신자 목록 전체 ({bulkRecipients.length}명 · 스크롤)
                               </span>
                               <button
                                 type="button"
@@ -631,7 +626,7 @@ export function LinkNotificationModal({
                                 목록 비우기
                               </button>
                             </div>
-                            <div className="max-h-80 overflow-y-auto">
+                            <div className="max-h-[min(55vh,24rem)] overflow-y-auto overscroll-contain">
                               <table className="w-full border-collapse text-[0.8125rem]">
                                 <thead>
                                   <tr className="sticky top-0 border-b border-[#d8dee8] bg-[#fafbfc]">
@@ -647,9 +642,9 @@ export function LinkNotificationModal({
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {bulkRecipients.slice(0, 15).map((r, i) => (
+                                  {bulkRecipients.map((r, i) => (
                                     <tr
-                                      key={`${r.phone}-${i}`}
+                                      key={`bulk-row-${i}-${r.phone}`}
                                       className="border-b border-[#d8dee8] last:border-b-0"
                                     >
                                       <td className="px-3 py-2 text-gray-700">

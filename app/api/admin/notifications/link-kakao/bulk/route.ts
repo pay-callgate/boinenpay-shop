@@ -16,7 +16,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const MAX_RECIPIENTS = 500;
+/** 업로드 1회에 허용하는 최대 수신자 수 (브라우저→이 API 1요청 후 서버에서 수신자별 순차 발송) */
+const MAX_RECIPIENTS = 2000;
 
 function maskKoreanPhone(digits: string): string {
   const d = digits.replace(/\D/g, "");

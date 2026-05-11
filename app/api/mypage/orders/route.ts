@@ -23,7 +23,10 @@ export async function GET(request: NextRequest) {
       typeof rawClientId === "string" && rawClientId.trim() && rawClientId !== "undefined" && rawClientId !== "null"
         ? rawClientId.trim()
         : null;
+    /** 기존 `status`(DB raw) 호환 — `shopStage`가 없을 때만 사용 */
     const status = searchParams.get("status");
+    /** 고객 4단계 탭: all | payment_done | crafting | departure | complete */
+    const shopStage = searchParams.get("shopStage");
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -57,8 +60,27 @@ export async function GET(request: NextRequest) {
       .eq("user_id", session.user.id)
       .eq("client_id", clientId);
 
-    // 상태 필터: status가 없거나 'all'이면 전체 조회, 그 외에는 정확히 .eq('status', status)
-    if (status && status !== "all") {
+    // 결제 완료 주문만 목록 (입금대기 등 제외)
+    query = query.eq("payment_status", "paid");
+
+    if (shopStage && shopStage !== "all") {
+      switch (shopStage) {
+        case "payment_done":
+          query = query.in("status", ["received", "confirmed", "paid"]);
+          break;
+        case "crafting":
+          query = query.eq("status", "preparing");
+          break;
+        case "departure":
+          query = query.eq("status", "shipping");
+          break;
+        case "complete":
+          query = query.in("status", ["delivered", "confirmed_purchase"]);
+          break;
+        default:
+          break;
+      }
+    } else if (status && status !== "all") {
       query = query.eq("status", status);
     }
 
