@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
+import { PRODUCT_IMAGE_UPLOAD_NOTICE } from "@/lib/product-image-guidance";
 
 /**
  * T2-3: 상품 수정 페이지
@@ -339,9 +340,10 @@ export default function ProductEditPage() {
                 src={formData.thumbnailUrl}
                 alt="썸네일"
                 style={{
-                  width: "120px",
+                  width: "90px",
                   height: "120px",
                   objectFit: "cover",
+                  objectPosition: "center",
                   borderRadius: "8px",
                   border: "1px solid #E5E7EB",
                 }}
@@ -349,7 +351,7 @@ export default function ProductEditPage() {
             ) : (
               <div
                 style={{
-                  width: "120px",
+                  width: "90px",
                   height: "120px",
                   backgroundColor: "#F3F4F6",
                   borderRadius: "8px",
@@ -358,6 +360,8 @@ export default function ProductEditPage() {
                   justifyContent: "center",
                   color: "#9CA3AF",
                   fontSize: "12px",
+                  textAlign: "center",
+                  padding: "4px",
                 }}
               >
                 이미지 없음
@@ -370,8 +374,16 @@ export default function ProductEditPage() {
                 onChange={handleImageUpload}
                 style={{ marginBottom: "8px" }}
               />
-              <p style={{ fontSize: "12px", color: "#666" }}>
-                JPG, PNG, GIF, WebP (최대 10MB)
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#666",
+                  whiteSpace: "pre-line",
+                  lineHeight: 1.55,
+                  maxWidth: "420px",
+                }}
+              >
+                {PRODUCT_IMAGE_UPLOAD_NOTICE}
               </p>
             </div>
           </div>

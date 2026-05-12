@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminToastWrapper } from "@/components/admin/AdminToastWrapper";
 
 /**
  * 온보딩 페이지 레이아웃 (중앙 집중형).
@@ -21,17 +22,19 @@ export default async function OnboardingLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F5F7FA]">
-      <AdminHeader />
-      <div className="flex flex-1">
-        <AdminSidebar partnerDisplayName="파트너 등록" userName={session.user.name ?? undefined} />
-        <main className="flex-1 overflow-auto p-6">
-          <div className="text-center py-20 text-gray-400">
-            <p className="text-lg">사업장 정보 등록을 진행해주세요.</p>
-          </div>
-          {children}
-        </main>
+    <AdminToastWrapper>
+      <div className="flex min-h-screen flex-col bg-[#F5F7FA]">
+        <AdminHeader />
+        <div className="flex flex-1">
+          <AdminSidebar partnerDisplayName="파트너 등록" userName={session.user.name ?? undefined} />
+          <main className="flex-1 overflow-auto p-6">
+            <div className="text-center py-20 text-gray-400">
+              <p className="text-lg">사업장 정보 등록을 진행해주세요.</p>
+            </div>
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </AdminToastWrapper>
   );
 }

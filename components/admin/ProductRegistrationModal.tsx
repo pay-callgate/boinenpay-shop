@@ -19,6 +19,7 @@ import {
   DEFAULT_PRODUCT_DELIVERY_METHODS,
   normalizeDeliveryMethodsForDb,
 } from "@/lib/product-delivery-methods";
+import { PRODUCT_IMAGE_UPLOAD_NOTICE } from "@/lib/product-image-guidance";
 
 /** 노출 순서: 당일배송 → 새벽배송 → 퀵서비스 → 택배 → 매장픽업 */
 const deliveryOptions = [
@@ -281,13 +282,16 @@ export function ProductRegistrationModal({
               {/* 좌측: 미디어 전용 - 갤러리 형태 (메인 크게, 추가 이미지 하단) */}
               <div className="col-span-5 flex flex-col gap-4">
                 <p className="text-sm font-semibold text-slate-700">미디어</p>
-                {/* 메인 이미지: 큰 정사각형 (1:1), 좌측 컬럼 전체 너비 */}
-                <label className="flex w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/50 transition-colors hover:bg-slate-100/50 aspect-square">
+                <p className="text-xs leading-relaxed text-slate-500 whitespace-pre-line">
+                  {PRODUCT_IMAGE_UPLOAD_NOTICE}
+                </p>
+                {/* 메인 이미지: 쇼핑몰 상세와 동일 3:4 + cover 미리보기 */}
+                <label className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/50 transition-colors hover:bg-slate-100/50">
                   {imagePreview || thumbnailUrl ? (
                     <img
                       src={imagePreview || thumbnailUrl}
                       alt="대표 이미지 미리보기"
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-center"
                     />
                   ) : (
                     <>

@@ -587,14 +587,14 @@ export default function ProductDetailPage() {
       blockAffiliationMismatch={false}
     >
       <div className="mx-auto max-w-[430px] min-h-screen bg-white tracking-tight">
-        {/* Hero 이미지: 뷰포트 기반 높이(45vh, max 400px), 모바일 Above the Fold 최적화 */}
-        <div className="relative h-[45vh] max-h-[400px] w-full bg-gray-100">
+        {/* Hero: 고정 3:4 + object-cover (업로드 가이드와 동일 비율 권장) */}
+        <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
           {images.length > 0 ? (
             <>
               <img
                 src={images[currentImageIndex]}
                 alt={product.name}
-                className="h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover object-center"
               />
               {isSoldOut && (
                 <div
@@ -633,7 +633,7 @@ export default function ProductDetailPage() {
               )}
             </>
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-gray-400">
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
               No Image
             </div>
           )}

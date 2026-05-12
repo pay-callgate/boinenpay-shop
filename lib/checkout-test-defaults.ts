@@ -9,23 +9,18 @@ export function isCheckoutTestDefaultsEnabled(): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
-/** 테스트 전용 — 오픈 시 env 로 비활성화 */
+/** 로컬·스테이징 연습용만. 운영에서는 env 비활성화 권장. */
 export const CHECKOUT_TEST_DEFAULTS = {
-  /** 우리부고 협의: 뉴런 rw_jname */
-  ordererName: "홍길동(테스트)",
-  ordererPhone: "01012341234",
-  guestEmail: "aa@gmail.com",
-  guestPassword: "1111",
-  /** 받는 분 / 배송 — 우리부고 협의: 뉴런 rw_aname */
-  recipientName: "곽두팔(테스트)",
-  recipientPhone: "01085209630",
-  shippingPostcode: "06236",
-  shippingAddress: "서울 강남구 테헤란로 152",
-  shippingDetail: "지하 1층 로비 (테스트 배송지)",
-  /** 화환/꽃 배달 상세 */
-  venueDetail: "테스트용 장소 — 본관 1층 로비",
-  /** 리본: 보내는 분란에 전체 표기(양식 예시와 동일) */
-  ribbonSender: "주식회사 콜게이트 대표이사 곽두팔",
-  /** 프리셋 메시지(보내는 분에 상세를 둔 경우 보조 문구) */
+  ordererName: "",
+  ordererPhone: "",
+  guestEmail: "",
+  guestPassword: "",
+  recipientName: "",
+  recipientPhone: "",
+  shippingPostcode: "",
+  shippingAddress: "",
+  shippingDetail: "",
+  venueDetail: "",
+  ribbonSender: "",
   ribbonPreset: "축하합니다",
 } as const;
