@@ -1,10 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  isCheckoutTestDefaultsEnabled,
-  CHECKOUT_TEST_DEFAULTS,
-} from "@/lib/checkout-test-defaults";
 import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronUp, Calendar, ChevronRight } from "lucide-react";
@@ -18,6 +14,7 @@ import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checko
 import { toast } from "@/components/shop/ToastContext";
 import { AddressSelectModal, type Address } from "@/components/shop/AddressSelectModal";
 import { RibbonMessageSection } from "@/components/shop/RibbonMessageSection";
+import { CheckoutPaymentMethodSegment } from "@/components/shop/CheckoutPaymentMethodSegment";
 import { openDaumPostcode } from "@/lib/daum-postcode";
 import {
   TIME_SLOTS,
@@ -41,9 +38,6 @@ const PRIMARY_LIGHT = "#F3E8F5";
 const TEXT = "#333333";
 const TEXT_MUTED = "#6B7280";
 const BORDER = "#E5E7EB";
-const CARD_RADIUS = "12px";
-const PAYMENT_BG = "#F5F0F8";
-const ACCENT_DARK = "#5B21B6";
 
 const inputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
@@ -99,6 +93,8 @@ export default function CheckoutPage() {
   const pathname = usePathname();
   const stickyAboveNav = isShopPaymentTunnelPath(pathname) ? 0 : BOTTOM_NAV_HEIGHT;
   const isGuestCheckout = searchParams?.get("guest") === "1";
+  /** guest=1 이면서 비로그인 — 주문자 UI를 아코디언 없이 전체 표시 */
+  const guestModeUi = isGuestCheckout && !session?.user?.id;
   const itemsQuery = searchParams?.get("items") ?? "";
   const selectedItemIds = useMemo(
     () => (itemsQuery ? itemsQuery.split(",").filter(Boolean) : []),
@@ -161,29 +157,6 @@ export default function CheckoutPage() {
 
   const addressSectionRef = useRef<HTMLDivElement>(null);
   const addressesLoadedRef = useRef(false);
-  const checkoutTestDefaultsAppliedRef = useRef(false);
-
-  useEffect(() => {
-    const guest = isGuestCheckout && !session?.user?.id;
-    if (!guest || !isCheckoutTestDefaultsEnabled() || checkoutTestDefaultsAppliedRef.current) return;
-    if (sessionStatus === "loading") return;
-    checkoutTestDefaultsAppliedRef.current = true;
-    const d = CHECKOUT_TEST_DEFAULTS;
-    setOrdererName(d.ordererName);
-    setOrdererPhone(d.ordererPhone);
-    setGuestEmail(d.guestEmail);
-    setGuestPassword(d.guestPassword);
-    setGuestPasswordConfirm(d.guestPassword);
-    setShippingName(d.recipientName);
-    setShippingPhone(d.recipientPhone);
-    setShippingPostcode(d.shippingPostcode);
-    setShippingAddress(d.shippingAddress);
-    setVenueDetail(d.venueDetail);
-    setRibbonSender(d.ribbonSender);
-    setRibbonPreset(d.ribbonPreset);
-    setRibbonMessageCustom("");
-    setRibbonCardExtra("");
-  }, [isGuestCheckout, session?.user?.id, sessionStatus]);
 
   // Phase D3: ViewPay 결제창에서 취소 후 cancelUrl로 돌아온 경우
   useEffect(() => {
@@ -340,6 +313,10 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (!privacyAgreed) {
       toast("개인정보 수집 및 이용에 동의해주세요.");
+      return;
+    }
+    if (paymentMethod !== "card") {
+      toast("현재 신용카드 결제만 가능합니다. 무통장 입금은 추후 지원 예정입니다.");
       return;
     }
     if (!template?.orderAllowed) {
@@ -628,85 +605,233 @@ export default function CheckoutPage() {
 
   const SectionDivider = () => <div className="h-2 bg-gray-100" aria-hidden />;
 
-  const LeftColumn = (
+  const CheckoutMainSections = (
     <div className="space-y-0">
-      {/* (1) 주문자 정보 - DB 연동형 스마트 아코디언 */}
-      <section className="py-4">
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-          <button
-            type="button"
-            onClick={() => setOrdererAccordionOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
-          >
-            <span className="text-sm" style={{ color: TEXT_MUTED }}>
-              주문자 정보
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="text-base font-bold" style={{ color: TEXT }}>
-                {ordererName || ""}
-              </span>
-              {ordererAccordionOpen ? (
-                <ChevronUp size={20} style={{ color: TEXT_MUTED }} />
-              ) : (
-                <ChevronDown size={20} style={{ color: TEXT_MUTED }} />
-              )}
-            </span>
-          </button>
-          {ordererAccordionOpen && (
-            <div className="border-t border-gray-200 bg-gray-50 px-5 pb-5 pt-4">
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                    이름
-                  </label>
-                  <span className="block text-sm font-semibold" style={{ color: TEXT }}>
-                    {ordererName || "-"}
-                  </span>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                    휴대폰 번호
-                  </label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    enterKeyHint="next"
-                    value={ordererPhone}
-                    onChange={(e) => setOrdererPhone(e.target.value)}
-                    onFocus={checkoutFieldFocusScroll}
-                    onKeyDown={checkoutInputEnterGoNext}
-                    placeholder="010-0000-0000"
-                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30"
+      {/* 1. 주문상품 — 비회원 주문서와 동일 레이아웃 */}
+      <section className={sectionCardClass}>
+        <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
+          1. 주문상품
+        </h2>
+        <ul className="space-y-2">
+          {items.length === 0 && pendingPrepareSnapshot ? (
+            <li
+              className="rounded-lg border border-gray-200 bg-white p-3 text-sm"
+              style={{ color: TEXT_MUTED }}
+            >
+              장바구니는 비어 있지만, 접수된 주문 금액({formatPrice(displayPayTotal)}원)으로 결제를
+              이어갈 수 있습니다.
+            </li>
+          ) : null}
+          {items.map((item) => (
+            <li
+              key={item.id}
+              className="flex gap-2.5 rounded-lg border border-gray-200 bg-white p-3"
+            >
+              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-20 sm:w-20">
+                {item.product.thumbnail_url ? (
+                  <img
+                    src={item.product.thumbnail_url}
+                    alt={item.product.name}
+                    className="h-full w-full object-cover"
                   />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-                    이메일
-                  </label>
-                  <span className="block truncate text-sm" style={{ color: TEXT }}>
-                    {ordererEmail || "-"}
-                  </span>
-                </div>
+                ) : (
+                  <div className="h-full w-full bg-gray-200" />
+                )}
               </div>
-            </div>
-          )}
-        </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium leading-snug" style={{ color: TEXT }}>
+                  {item.product.name}
+                </p>
+                {item.option_json && (
+                  <p className="mt-0.5 text-xs" style={{ color: TEXT_MUTED }}>
+                    {Object.entries(item.option_json)
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .join(", ")}
+                  </p>
+                )}
+                <p className="mt-1 text-xs sm:text-sm" style={{ color: TEXT_MUTED }}>
+                  {formatPrice(getItemUnit(item))}원 × {item.quantity}개
+                </p>
+                <p className="mt-0.5 text-sm font-bold" style={{ color: TEXT }}>
+                  {formatPrice(getItemPrice(item))}원
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <SectionDivider />
 
+      {/* 2. 주문자 */}
+      {guestModeUi ? (
+        <section className="py-4">
+          <div
+            className={`${sectionCardClass} border-amber-200/80 bg-amber-50/80`}
+            aria-label="비회원 주문자 정보"
+          >
+            <h2 className="mb-3 text-base font-bold text-amber-900">2. 주문자 정보</h2>
+            <p className="mb-3 text-xs leading-snug text-amber-900/75">
+              받으시는 분과 동일하면 아래 배달지에도 같은 이름·연락처를 입력해 주세요.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-amber-900/80">이름</label>
+                <input
+                  type="text"
+                  inputMode="text"
+                  enterKeyHint="next"
+                  value={ordererName}
+                  onChange={(e) => setOrdererName(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  placeholder="주문하시는 분 성함"
+                  autoComplete="name"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-amber-900/80">휴대폰 번호</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  enterKeyHint="next"
+                  value={ordererPhone}
+                  onChange={(e) => setOrdererPhone(digitsOnlyPhone(e.target.value))}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  placeholder="01012345678 (숫자만)"
+                  autoComplete="tel"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-amber-900/80">이메일 (결제 안내)</label>
+                <input
+                  type="email"
+                  enterKeyHint="next"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  placeholder="example@email.com"
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-amber-900/80">주문 조회 비밀번호</label>
+                <input
+                  type="password"
+                  enterKeyHint="next"
+                  value={guestPassword}
+                  onChange={(e) => setGuestPassword(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  placeholder="4자 이상"
+                  autoComplete="new-password"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-amber-900/80">비밀번호 확인</label>
+                <input
+                  type="password"
+                  enterKeyHint="done"
+                  value={guestPasswordConfirm}
+                  onChange={(e) => setGuestPasswordConfirm(e.target.value)}
+                  onFocus={checkoutFieldFocusScroll}
+                  onKeyDown={checkoutInputEnterGoNext}
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="py-4">
+          <div className={sectionCardClass}>
+            <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
+              2. 주문자 정보
+            </h2>
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setOrdererAccordionOpen((v) => !v)}
+                className="flex w-full min-h-[48px] items-center justify-between px-5 py-4 text-left"
+              >
+                <span className="text-sm" style={{ color: TEXT_MUTED }}>
+                  주문하시는 분
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-base font-bold" style={{ color: TEXT }}>
+                    {ordererName || "정보 입력"}
+                  </span>
+                  {ordererAccordionOpen ? (
+                    <ChevronUp size={20} style={{ color: TEXT_MUTED }} />
+                  ) : (
+                    <ChevronDown size={20} style={{ color: TEXT_MUTED }} />
+                  )}
+                </span>
+              </button>
+              {ordererAccordionOpen && (
+                <div className="border-t border-gray-200 bg-gray-50 px-5 pb-5 pt-4">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
+                        이름
+                      </label>
+                      <span className="block text-sm font-semibold" style={{ color: TEXT }}>
+                        {ordererName || "-"}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
+                        휴대폰 번호
+                      </label>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        enterKeyHint="next"
+                        value={ordererPhone}
+                        onChange={(e) => setOrdererPhone(digitsOnlyPhone(e.target.value))}
+                        onFocus={checkoutFieldFocusScroll}
+                        onKeyDown={checkoutInputEnterGoNext}
+                        placeholder="01012345678 (숫자만)"
+                        className="w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
+                        이메일
+                      </label>
+                      <span className="block truncate text-sm" style={{ color: TEXT }}>
+                        {ordererEmail || "-"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <SectionDivider />
+
       <section ref={addressSectionRef} className="py-4">
-        <section className={sectionCardClass}>
+        <div className={sectionCardClass}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-bold" style={{ color: TEXT }}>
-              2. 받으시는 분 (배송지)
+              3. 받으시는 분
             </h2>
             {session?.user?.id && addresses.length > 0 ? (
               <button
                 type="button"
                 onClick={() => setShowAddressModal(true)}
-                className="flex items-center gap-0.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/80"
-                style={{ borderColor: BORDER, color: PRIMARY }}
+                className="flex items-center gap-0.5 rounded-lg border px-3 py-1.5 text-xs font-semibold text-gray-900 transition-colors hover:bg-white/80"
+                style={{ borderColor: BORDER }}
               >
                 저장된 배송지
                 <ChevronRight size={14} className="opacity-70" aria-hidden />
@@ -761,7 +886,7 @@ export default function CheckoutPage() {
                     onFocus={checkoutFieldFocusScroll}
                     onKeyDown={checkoutInputEnterGoNext}
                     min={new Date().toISOString().split("T")[0]}
-                    className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
+                    className="min-h-[52px] min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-3 text-base"
                     style={{ color: TEXT }}
                   />
                 </div>
@@ -769,7 +894,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setOpenTimeAccordion((v) => !v)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-left"
+                    className="flex min-h-[52px] w-full items-center justify-between px-4 py-3 text-left"
                   >
                     <span className="text-sm" style={{ color: TEXT }}>
                       희망 시간대
@@ -790,7 +915,7 @@ export default function CheckoutPage() {
                               setDeliveryTimeSlot(slot);
                               setOpenTimeAccordion(false);
                             }}
-                            className="rounded-lg border px-2 py-2.5 text-xs font-medium transition-colors"
+                            className="rounded-lg border px-2 py-3 text-sm font-medium transition-colors"
                             style={{
                               borderColor: deliveryTimeSlot === slot ? PRIMARY : BORDER,
                               backgroundColor: deliveryTimeSlot === slot ? PRIMARY_LIGHT : "white",
@@ -810,22 +935,21 @@ export default function CheckoutPage() {
               <label className={labelClass} style={{ color: TEXT_MUTED }}>
                 배달지 주소 <span className="text-rose-500">*</span>
               </label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
                   readOnly
                   value={shippingPostcode}
                   placeholder="우편번호"
                   onFocus={checkoutFieldFocusScroll}
-                  className={`${inputClass} w-24 shrink-0 bg-gray-50`}
+                  className={`${inputClass} min-w-0 bg-gray-50`}
                 />
                 <button
                   type="button"
                   onClick={openPostcodeSearch}
-                  className="shrink-0 rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm font-bold"
-                  style={{ color: PRIMARY }}
+                  className="min-h-[48px] rounded-lg border border-gray-200 bg-gray-100 px-3 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-200"
                 >
-                  주소 검색
+                  우편번호 검색
                 </button>
               </div>
               <input
@@ -846,13 +970,15 @@ export default function CheckoutPage() {
               <p className="mb-2 text-xs leading-snug" style={{ color: TEXT_MUTED }}>
                 빈소·예식장 호실, 층수, 홀 이름 등 배달 기사님이 찾으실 수 있게 적어 주세요.
               </p>
-              <textarea
+              <input
+                type="text"
+                inputMode="text"
+                enterKeyHint="done"
                 value={venueDetail}
                 onChange={(e) => setVenueDetail(e.target.value)}
                 onFocus={checkoutFieldFocusScroll}
-                rows={4}
-                enterKeyHint="done"
-                className={`${inputClass} min-h-[112px] resize-y ring-2 ring-[#D6A8E0]/25`}
+                onKeyDown={checkoutInputEnterGoNext}
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-300/50"
                 placeholder="예) 아산병원 장례식장 201호, 3층 그랜드홀"
               />
             </div>
@@ -870,15 +996,15 @@ export default function CheckoutPage() {
               </label>
             ) : null}
           </div>
-        </section>
+        </div>
       </section>
 
       <SectionDivider />
 
       <section className="py-4">
-        <section className={sectionCardClass}>
+        <div className={sectionCardClass}>
           <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
-            3. 리본·카드 메시지
+            4. 리본·카드 메시지
           </h2>
           <RibbonMessageSection
             inputClass={inputClass}
@@ -897,136 +1023,46 @@ export default function CheckoutPage() {
             ribbonCardExtra={ribbonCardExtra}
             onRibbonCardExtraChange={setRibbonCardExtra}
           />
-        </section>
-      </section>
-
-      <SectionDivider />
-
-      {/* (3) 주문 상품 목록 */}
-      <section className="py-4">
-        <h2 className="mb-3 text-base font-bold" style={{ color: TEXT }}>
-          주문 상품 ({items.length}개)
-        </h2>
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-5">
-          <ul className="space-y-3">
-            {items.length === 0 && pendingPrepareSnapshot ? (
-              <li
-                className="rounded-lg border border-gray-200 bg-white p-4 text-sm"
-                style={{ color: TEXT_MUTED }}
-              >
-                장바구니는 비어 있지만, 접수된 주문 금액({formatPrice(displayPayTotal)}원)으로 결제를
-                이어갈 수 있습니다.
-              </li>
-            ) : null}
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex gap-3 rounded-lg border border-gray-200 bg-white p-4"
-              >
-              <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                {item.product.thumbnail_url ? (
-                  <img
-                    src={item.product.thumbnail_url}
-                    alt={item.product.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full bg-gray-200" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium" style={{ color: TEXT }}>
-                  {item.product.name}
-                </p>
-                {item.option_json && (
-                  <p className="mt-0.5 text-xs" style={{ color: TEXT_MUTED }}>
-                    {Object.entries(item.option_json)
-                      .map(([k, v]) => `${k}: ${v}`)
-                      .join(", ")}
-                  </p>
-                )}
-                <p className="mt-1 text-sm" style={{ color: TEXT_MUTED }}>
-                  {formatPrice(item.product.sale_price || item.product.base_price)}원 × {item.quantity}개
-                </p>
-                <p className="mt-0.5 text-sm font-bold" style={{ color: TEXT }}>
-                  {formatPrice(getItemPrice(item))}원
-                </p>
-              </div>
-            </li>
-          ))}
-          </ul>
         </div>
       </section>
 
       <SectionDivider />
 
-      {/* (4) 결제 수단 선택 섹션 - 주문상품 다음 배치 */}
       <section className="py-4">
-        <h2 className="mb-3 text-base font-bold" style={{ color: TEXT }}>
-          결제 수단
-        </h2>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { value: "card", label: "카드결제" },
-            { value: "transfer", label: "무통장입금" },
-          ].map((opt) => (
-            <label
-              key={opt.value}
-              className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border py-3 transition-colors ${
-                paymentMethod === opt.value ? "ring-2" : ""
-              }`}
-              style={{
-                borderColor: paymentMethod === opt.value ? PRIMARY : BORDER,
-                backgroundColor: paymentMethod === opt.value ? PRIMARY_LIGHT : "white",
-              }}
+        <div className={sectionCardClass}>
+          <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
+            5. 결제 수단·금액
+          </h2>
+          <CheckoutPaymentMethodSegment
+            paymentMethod={paymentMethod}
+            onSelectCard={() => setPaymentMethod("card")}
+            primaryColor={PRIMARY}
+            primaryLight={PRIMARY_LIGHT}
+            borderColor={BORDER}
+            textColor={TEXT}
+            mutedColor={TEXT_MUTED}
+          />
+          <div className="mt-5 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span style={{ color: TEXT_MUTED }}>상품 합계</span>
+              <span style={{ color: TEXT }}>{formatPrice(paymentLineProductSum)}원</span>
+            </div>
+            <div
+              className="mt-4 flex items-center justify-between gap-4 border-t pt-4"
+              style={{ borderColor: BORDER }}
             >
-              <input
-                type="radio"
-                name="paymentMethod"
-                value={opt.value}
-                checked={paymentMethod === opt.value}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="accent-[#D6A8E0]"
-              />
-              <span className="text-sm font-medium" style={{ color: TEXT }}>
-                {opt.label}
+              <span className="text-base font-bold" style={{ color: TEXT }}>
+                총 결제금액
               </span>
-            </label>
-          ))}
+              <span className="shrink-0 text-2xl font-extrabold" style={{ color: TEXT }}>
+                {formatPrice(displayPayTotal)}원
+              </span>
+            </div>
+          </div>
         </div>
       </section>
     </div>
   );
-
-  const PaymentSummary = (
-    <section
-      className="rounded-2xl p-5 lg:sticky lg:top-24"
-      style={{ backgroundColor: PAYMENT_BG, borderRadius: CARD_RADIUS }}
-    >
-      <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
-        결제 금액
-      </h2>
-      <div className="space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span style={{ color: TEXT_MUTED }}>상품 합계</span>
-          <span style={{ color: TEXT }}>{formatPrice(paymentLineProductSum)}원</span>
-        </div>
-        <div
-          className="flex items-center justify-between gap-4 border-t pt-4 mt-4"
-          style={{ borderColor: BORDER }}
-        >
-          <span className="text-base font-bold" style={{ color: TEXT }}>
-            총 결제금액
-          </span>
-          <span className="text-2xl font-extrabold shrink-0" style={{ color: ACCENT_DARK }}>
-            {formatPrice(displayPayTotal)}원
-          </span>
-        </div>
-      </div>
-    </section>
-  );
-
-  const guestModeUi = isGuestCheckout && !session?.user?.id;
 
   return (
     <OrderGuard
@@ -1047,103 +1083,7 @@ export default function CheckoutPage() {
               <strong>결제하기</strong>를 다시 눌러 주세요.
             </div>
           )}
-          {isCheckoutTestDefaultsEnabled() && guestModeUi && (
-            <div
-              className="mb-4 rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950"
-              role="status"
-            >
-              테스트 모드: 결제 연습용 기본값이 채워져 있습니다. 오픈 전
-              NEXT_PUBLIC_ENABLE_CHECKOUT_TEST_DEFAULTS 를 제거(또는 0)하고 재배포하세요.
-            </div>
-          )}
-          {guestModeUi && (
-            <section
-              className="mb-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4"
-              aria-label="비회원 주문 정보"
-            >
-              <h2 className="mb-3 text-sm font-bold text-amber-900">비회원 주문 정보</h2>
-              <p className="mb-3 text-xs text-amber-900/70">
-                수령인 정보는 아래 배송지와 동일하게 입력해 주세요.
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-amber-900/80">이름</label>
-                  <input
-                    type="text"
-                    inputMode="text"
-                    enterKeyHint="next"
-                    value={shippingName}
-                    onChange={(e) => setShippingName(e.target.value)}
-                    onFocus={checkoutFieldFocusScroll}
-                    onKeyDown={checkoutInputEnterGoNext}
-                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
-                    placeholder="수령인 이름"
-                    autoComplete="name"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-amber-900/80">휴대폰 번호</label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    enterKeyHint="next"
-                    value={shippingPhone}
-                    onChange={(e) => setShippingPhone(e.target.value)}
-                    onFocus={checkoutFieldFocusScroll}
-                    onKeyDown={checkoutInputEnterGoNext}
-                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
-                    placeholder="010-0000-0000"
-                    autoComplete="tel"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-amber-900/80">이메일 (결제 안내)</label>
-                  <input
-                    type="email"
-                    enterKeyHint="next"
-                    value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
-                    onFocus={checkoutFieldFocusScroll}
-                    onKeyDown={checkoutInputEnterGoNext}
-                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
-                    placeholder="example@email.com"
-                    autoComplete="email"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-amber-900/80">주문 조회 비밀번호</label>
-                  <input
-                    type="password"
-                    enterKeyHint="next"
-                    value={guestPassword}
-                    onChange={(e) => setGuestPassword(e.target.value)}
-                    onFocus={checkoutFieldFocusScroll}
-                    onKeyDown={checkoutInputEnterGoNext}
-                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
-                    placeholder="4자 이상"
-                    autoComplete="new-password"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-amber-900/80">비밀번호 확인</label>
-                  <input
-                    type="password"
-                    enterKeyHint="done"
-                    value={guestPasswordConfirm}
-                    onChange={(e) => setGuestPasswordConfirm(e.target.value)}
-                    onFocus={checkoutFieldFocusScroll}
-                    onKeyDown={checkoutInputEnterGoNext}
-                    className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
-                    autoComplete="new-password"
-                  />
-                </div>
-              </div>
-            </section>
-          )}
-          <div className="lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
-            <div className="lg:col-span-2">{LeftColumn}</div>
-            <div className="mt-6 lg:mt-0 lg:col-span-1">{PaymentSummary}</div>
-          </div>
+          {CheckoutMainSections}
         </div>
 
         {/* Sticky Footer - 개인정보 동의 + [총 결제금액] 결제하기 */}
