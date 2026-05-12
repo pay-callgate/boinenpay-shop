@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ChevronDown, Heart, ShoppingBag } from "lucide-react";
@@ -154,7 +154,7 @@ function ShopBusinessInfoAccordion() {
   );
 }
 
-export function ShopMainHome({
+function ShopMainHomeWithCategoryUrl({
   partner,
   client,
   subdomain,
@@ -165,6 +165,8 @@ export function ShopMainHome({
   loadMore,
 }: ShopMainHomeProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlCategorySlug = searchParams.get("category");
   const { data: session, status: sessionStatus } = useSession();
   const shop = useShopTemplate();
   const clientId = shop?.client?.id ?? null;
@@ -214,9 +216,41 @@ export function ShopMainHome({
     categories.map((c) => c.parent_id).filter(Boolean) as string[]
   );
   const displayCategories = categories.filter((cat) => !parentIds.has(cat.id));
-  const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(
-    displayCategories[0]?.slug ?? null
-  );
+  const basePath = clientSlug
+    ? `/${subdomain}/${clientSlug}`
+    : `/${subdomain}/${PREVIEW_SLUG}`;
+  const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
+
+  /** URL ?category=slug ↔ 활성 탭 동기화 (모바일 뒤로가기 시에도 마지막 본 카테고리 유지) */
+  useEffect(() => {
+    if (!displayCategories.length) {
+      setActiveCategorySlug(null);
+      return;
+    }
+    const fromUrl = urlCategorySlug?.trim() ?? "";
+    const matchSlug =
+      fromUrl && displayCategories.some((c) => c.slug === fromUrl) ? fromUrl : null;
+    if (fromUrl && !matchSlug) {
+      router.replace(basePath, { scroll: false });
+      setActiveCategorySlug(displayCategories[0].slug);
+      return;
+    }
+    setActiveCategorySlug(matchSlug ?? displayCategories[0].slug);
+  }, [displayCategories, urlCategorySlug, basePath, router]);
+
+  /** 히스토리 복원(bfcache/뒤로가기) 시 선택 카테고리 섹션으로 스크롤 */
+  useEffect(() => {
+    if (loading) return;
+    if (!activeCategorySlug || !urlCategorySlug || urlCategorySlug !== activeCategorySlug) return;
+    if (!displayCategories.length) return;
+    const cat = displayCategories.find((c) => c.slug === activeCategorySlug);
+    if (!cat) return;
+    const el = document.getElementById(cat.id);
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ block: "start", behavior: "auto" });
+    });
+  }, [loading, activeCategorySlug, urlCategorySlug, displayCategories]);
 
   // 데스크톱 마우스 드래그 투 스크롤 (useRef로 즉각 반응, 렌더링 딜레이 없음)
   const categoryTabsRef = useRef<HTMLDivElement>(null);
@@ -384,7 +418,6 @@ export function ShopMainHome({
 
   if (!shop) return null;
 
-  const basePath = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
   const regClient = userClients[0]?.clients;
 
   const handleMoreView = (categorySlug: string) => {
@@ -442,6 +475,10 @@ export function ShopMainHome({
                         return;
                       }
                       setActiveCategorySlug(cat.slug);
+                      router.replace(
+                        `${basePath}?category=${encodeURIComponent(cat.slug)}`,
+                        { scroll: false }
+                      );
                       const el = document.getElementById(cat.id);
                       if (el) {
                         const y =
@@ -663,5 +700,22 @@ export function ShopMainHome({
         userEmail={session?.user?.email ?? null}
       />
     </>
+  );
+}
+
+/** useSearchParams → Suspense 경계 필요 (Next App Router) */
+export function ShopMainHome(props: ShopMainHomeProps) {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="min-h-[50vh] w-full bg-slate-50"
+          style={{ paddingBottom: BOTTOM_NAV_HEIGHT }}
+          aria-hidden
+        />
+      }
+    >
+      <ShopMainHomeWithCategoryUrl {...props} />
+    </Suspense>
   );
 }
