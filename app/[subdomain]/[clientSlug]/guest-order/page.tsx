@@ -34,6 +34,9 @@ const PRIMARY_LIGHT = "#F3E8F5";
 const TEXT = "#333333";
 const TEXT_MUTED = "#6B7280";
 const BORDER = "#E5E7EB";
+const CARD_RADIUS = "12px";
+const PAYMENT_BG = "#F5F0F8";
+const ACCENT_DARK = "#5B21B6";
 // 배송 방식 UI 제거 — 이전 옵션별 배송비 (복구 시 참고)
 // const DELIVERY_OPTIONS = [
 //   { value: "parcel", label: "택배 배송", fee: 4000 },
@@ -588,8 +591,8 @@ export default function GuestOrderPage() {
               <strong>결제하기</strong>를 다시 눌러 주세요.
             </div>
           )}
-          <header className="mb-5">
-            <p className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: PRIMARY }}>
+          <header className="mb-4">
+            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: PRIMARY }}>
               비회원 주문
             </p>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
@@ -599,51 +602,54 @@ export default function GuestOrderPage() {
 
           <SectionDivider />
 
-          {/* 1. 주문상품 */}
-          <section className={sectionCardClass}>
+          {/* 1. 주문상품 — 구분선과 상품 카드 사이 */}
+          
+            <section className={sectionCardClass}>
             <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
-              1. 주문상품
+              1. 주문 상품
             </h2>
-            <ul className="space-y-2">
-              {items.length === 0 && pendingPrepareSnapshot ? (
-                <li
-                  className="rounded-lg border border-gray-200 bg-white p-3 text-sm"
-                  style={{ color: TEXT_MUTED }}
-                >
-                  장바구니는 비어 있지만, 접수된 주문 금액({formatPrice(displayPayTotal)}원)으로 결제를
-                  이어갈 수 있습니다.
-                </li>
-              ) : null}
-              {items.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex gap-2.5 rounded-lg border border-gray-200 bg-white p-3"
-                >
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-20 sm:w-20">
-                    {item.product.thumbnail_url ? (
-                      <img
-                        src={item.product.thumbnail_url}
-                        alt={item.product.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-gray-200" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-snug" style={{ color: TEXT }}>
-                      {item.product.name}
-                    </p>
-                    <p className="mt-1 text-xs sm:text-sm" style={{ color: TEXT_MUTED }}>
-                      비회원 판매가 {formatPrice(getItemUnit(item))}원 × {item.quantity}개
-                    </p>
-                    <p className="mt-0.5 text-sm font-bold" style={{ color: TEXT }}>
-                      {formatPrice(getItemPrice(item))}원
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-3 sm:p-4">
+              <ul className="space-y-2">
+                {items.length === 0 && pendingPrepareSnapshot ? (
+                  <li
+                    className="rounded-lg border border-gray-200 bg-white p-3 text-sm"
+                    style={{ color: TEXT_MUTED }}
+                  >
+                    장바구니는 비어 있지만, 접수된 주문 금액({formatPrice(displayPayTotal)}원)으로 결제를
+                    이어갈 수 있습니다.
+                  </li>
+                ) : null}
+                {items.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex gap-2.5 rounded-lg border border-gray-200 bg-white p-3"
+                  >
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-20 sm:w-20">
+                      {item.product.thumbnail_url ? (
+                        <img
+                          src={item.product.thumbnail_url}
+                          alt={item.product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gray-200" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-snug" style={{ color: TEXT }}>
+                        {item.product.name}
+                      </p>
+                      <p className="mt-1 text-xs sm:text-sm" style={{ color: TEXT_MUTED }}>
+                        비회원 판매가 {formatPrice(getItemUnit(item))}원 × {item.quantity}개
+                      </p>
+                      <p className="mt-0.5 text-sm font-bold" style={{ color: TEXT }}>
+                        {formatPrice(getItemPrice(item))}원
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
 
           <SectionDivider />
@@ -851,21 +857,22 @@ export default function GuestOrderPage() {
                 <label className={labelClass} style={{ color: TEXT_MUTED }}>
                   배달지 주소 <span className="text-rose-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex gap-2">
                   <input
                     type="text"
                     readOnly
                     value={shippingPostcode}
                     placeholder="우편번호"
                     onFocus={checkoutFieldFocusScroll}
-                    className={`${inputClass} min-w-0 bg-gray-50`}
+                    className={`${inputClass} w-24 shrink-0 bg-gray-50`}
                   />
                   <button
                     type="button"
                     onClick={openPostcodeSearch}
-                    className="min-h-[48px] rounded-lg border border-gray-200 bg-gray-100 px-3 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-200"
+                    className="shrink-0 rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm font-bold"
+                    style={{ color: PRIMARY }}
                   >
-                    우편번호 검색
+                    주소 검색
                   </button>
                 </div>
                 <input
@@ -884,18 +891,16 @@ export default function GuestOrderPage() {
                   장소 상세 <span className="text-rose-500">*</span>
                 </label>
                 <p className="mb-2 text-xs leading-snug" style={{ color: TEXT_MUTED }}>
-                  <span className="block">배달 기사님이 쉽게 찾으실 수 있게 자세한 사항을 적어 주세요.</span>
-                  <span className="mt-0.5 block">(빈소·예식장 호실, 층수, 홀 이름 등).</span>
+                  배달 기사님이 쉽게 찾으실 수 있게 자세한 사항을 적어 주세요
+                  (빈소·예식장 호실, 층수, 홀 이름 등).
                 </p>
-                <input
-                  type="text"
-                  inputMode="text"
-                  enterKeyHint="done"
+                <textarea
                   value={venueDetail}
                   onChange={(e) => setVenueDetail(e.target.value)}
                   onFocus={checkoutFieldFocusScroll}
-                  onKeyDown={checkoutInputEnterGoNext}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-300/50"
+                  rows={4}
+                  enterKeyHint="done"
+                  className={`${inputClass} min-h-[112px] resize-y ring-2 ring-[#D6A8E0]/25`}
                   placeholder="예) 아산병원 장례식장 201호, 3층 그랜드홀"
                 />
               </div>
@@ -928,7 +933,7 @@ export default function GuestOrderPage() {
           <SectionDivider />
 
           <section className="py-4">
-            <div className={sectionCardClass}>
+            <div className={sectionCardClass} style={{ backgroundColor: PAYMENT_BG, borderRadius: CARD_RADIUS }}>
               <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
                 5. 결제 수단·금액
               </h2>
@@ -953,7 +958,7 @@ export default function GuestOrderPage() {
                   <span className="text-base font-bold" style={{ color: TEXT }}>
                     총 결제금액
                   </span>
-                  <span className="shrink-0 text-2xl font-extrabold" style={{ color: TEXT }}>
+                  <span className="shrink-0 text-2xl font-extrabold" style={{ color: ACCENT_DARK }}>
                     {formatPrice(displayPayTotal)}원
                   </span>
                 </div>
