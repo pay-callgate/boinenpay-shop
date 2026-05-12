@@ -12,7 +12,6 @@ import { toast } from "@/components/shop/ToastContext";
 import { effectiveGuestUnitPrice } from "@/lib/product-pricing";
 import { openDaumPostcode } from "@/lib/daum-postcode";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
-import { useUserClient } from "@/hooks/useUserClient";
 import {
   isCheckoutTestDefaultsEnabled,
   CHECKOUT_TEST_DEFAULTS,
@@ -88,7 +87,7 @@ export default function GuestOrderPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
 
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
@@ -103,7 +102,6 @@ export default function GuestOrderPage() {
   const template = useShopTemplate();
   const partnerId = template?.partner?.id ?? null;
   const clientId = template?.client?.id ?? null;
-  const { userClients, loading: userClientLoading } = useUserClient(partnerId ?? undefined);
 
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,27 +164,93 @@ export default function GuestOrderPage() {
   }, []);
 
   /**
-   * 이 전용몰 소속 회원이면 일반 체크아웃으로 (회원가 결제).
-   * 타 거래처 소속으로 로그인된 채 비회원가로 들어온 경우는 그대로 비회원 주문서 유지(OrderGuard 에서 소속 불일치 차단 안 함).
+   * 로그인 회원이 /guest-order URL로 직접 들어온 경우:
+   * 게스트 장바구니 행 ID를 그대로 checkout에 넘기면 회원 장바구니와 불일치해 빈 주문서가 된다.
+   * 게스트 카트에서 같은 상품/옵션/수량을 회원 장바구니에 담은 뒤 checkout으로 보낸다.
    */
   useEffect(() => {
-    if (sessionStatus !== "authenticated" || !itemsQuery || !clientId) return;
-    if (userClientLoading) return;
-    const belongs = userClients.some((uc) => uc.client_id === clientId);
-    if (belongs) {
-      router.replace(
-        `/${subdomain}/${clientSlug}/checkout?items=${encodeURIComponent(itemsQuery)}`
-      );
-    }
+    if (sessionStatus !== "authenticated" || !clientId || !partnerId) return;
+    let cancelled = false;
+
+    (async () => {
+      toast("이미 로그인되어 있어 회원 결제 페이지로 이동합니다.", "success");
+      const q = itemsQuery.trim();
+
+      if (!q) {
+        if (!cancelled) router.replace(`/${subdomain}/${clientSlug}/checkout`);
+        return;
+      }
+
+      try {
+        const guestRes = await shopFetch(
+          `/api/cart?clientId=${encodeURIComponent(clientId)}&guestCart=1`
+        );
+        if (!guestRes.ok || cancelled) {
+          if (!cancelled) router.replace(`/${subdomain}/${clientSlug}/checkout`);
+          return;
+        }
+        const guestData = await guestRes.json();
+        const all = (guestData.items || []) as CartItem[];
+        const selected =
+          selectedItemIds.length > 0
+            ? all.filter((item) => selectedItemIds.includes(item.id))
+            : all;
+        if (selected.length === 0) {
+          if (!cancelled) router.replace(`/${subdomain}/${clientSlug}/checkout`);
+          return;
+        }
+
+        const newIds: string[] = [];
+        for (const item of selected) {
+          const res = await shopFetch("/api/cart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              clientId,
+              productId: item.product_id,
+              optionJson: item.option_json,
+              quantity: item.quantity,
+            }),
+          });
+          if (!res.ok || cancelled) {
+            if (!cancelled) {
+              toast(
+                "회원 장바구니로 옮기지 못했습니다. 장바구니를 확인해 주세요.",
+                "error"
+              );
+              router.replace(`/${subdomain}/${clientSlug}/cart`);
+            }
+            return;
+          }
+          const data = await res.json();
+          const id = data?.cartItem?.id as string | undefined;
+          if (id) newIds.push(id);
+        }
+        if (cancelled) return;
+        if (newIds.length === 0) {
+          router.replace(`/${subdomain}/${clientSlug}/checkout`);
+          return;
+        }
+        router.replace(
+          `/${subdomain}/${clientSlug}/checkout?items=${encodeURIComponent(newIds.join(","))}`
+        );
+      } catch {
+        if (!cancelled) router.replace(`/${subdomain}/${clientSlug}/checkout`);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     sessionStatus,
-    itemsQuery,
     clientId,
+    partnerId,
+    itemsQuery,
     subdomain,
     clientSlug,
     router,
-    userClients,
-    userClientLoading,
+    selectedItemIds,
   ]);
 
   useEffect(() => {
@@ -464,25 +528,33 @@ export default function GuestOrderPage() {
     }
   };
 
-  if (template == null || !partnerId || !clientId || loading) {
+  if (template == null || !partnerId || !clientId) {
     return <div className="min-h-screen" style={{ backgroundColor: "#FAFAFA" }} />;
   }
 
-  const isMallMember =
-    session?.user?.id &&
-    clientId &&
-    userClients.some((uc) => uc.client_id === clientId);
-
-  if (sessionStatus === "authenticated" && userClientLoading) {
+  if (sessionStatus === "loading") {
     return <div className="min-h-screen" style={{ backgroundColor: "#FAFAFA" }} />;
   }
 
-  if (isMallMember) {
+  if (sessionStatus === "authenticated") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 text-center text-sm text-gray-600">
-        회원 주문(체크아웃)으로 이동 중…
+      <div
+        className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 text-center"
+        style={{ backgroundColor: "#FAFAFA" }}
+      >
+        <p className="text-sm font-medium text-gray-800">
+          이미 로그인되어 있어 회원 결제 페이지로 이동합니다.
+        </p>
+        <div
+          className="mt-5 h-9 w-9 animate-spin rounded-full border-2 border-[#E9D5FF] border-t-[#9333EA]"
+          aria-hidden
+        />
       </div>
     );
+  }
+
+  if (loading) {
+    return <div className="min-h-screen" style={{ backgroundColor: "#FAFAFA" }} />;
   }
 
   if (!pendingOrderId && (selectedItemIds.length === 0 || items.length === 0)) {

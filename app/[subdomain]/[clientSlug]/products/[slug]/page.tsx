@@ -430,6 +430,11 @@ export default function ProductDetailPage() {
   const goToGuestCheckout = async () => {
     if (!product) return;
     if (!canGuestShop()) return;
+    if (sessionStatus === "authenticated") {
+      toast("이미 로그인되어 있습니다. 회원 결제로 진행합니다.", "success");
+      void goToMemberCheckout();
+      return;
+    }
     /** 비회원가: 전용몰 미소속 로그인 사용자도 게스트 장바구니로 담아야 하므로 소속 검사 생략 */
     setAddingToCart(true);
     try {
@@ -848,14 +853,20 @@ export default function ProductDetailPage() {
           </p>
         </div>
 
-        {/* 하단 1-Depth 액션 바: ♡ | 장바구니 | 비회원가 | 회원가 */}
+        {/* 하단 액션 바: ♡ | 장바구니 | (비회원가·회원가 또는 로그인 시 바로 구매만) */}
         <div
           className="fixed left-0 right-0 z-50 border-t border-gray-200 bg-white"
           style={{
             bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM_NAV_HEIGHT}px)`,
           }}
         >
-          <div className="mx-auto grid max-w-[430px] grid-cols-[48px_48px_1fr_1fr] items-stretch gap-0 min-h-[56px]">
+          <div
+            className={`mx-auto grid max-w-[430px] items-stretch gap-0 min-h-[56px] ${
+              sessionStatus === "authenticated"
+                ? "grid-cols-[48px_48px_1fr]"
+                : "grid-cols-[48px_48px_1fr_1fr]"
+            }`}
+          >
             <button
               type="button"
               onClick={toggleWishlist}
@@ -879,32 +890,54 @@ export default function ProductDetailPage() {
             >
               <ShoppingCart strokeWidth={1.5} className="h-6 w-6" />
             </button>
-            <button
-              type="button"
-              disabled={isSoldOut || addingToCart}
-              onClick={goToGuestCheckout}
-              className="flex min-w-0 flex-col items-center justify-center border-r border-gray-200 bg-white px-1 py-2 text-center active:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <span className="text-[10px] font-medium leading-tight text-gray-500">비회원가</span>
-              <span className="truncate text-xs font-bold tabular-nums text-gray-900">
-                {isSoldOut ? "품절" : `${formatPrice(guestUnitTotal)}원`}
-              </span>
-            </button>
-            <button
-              type="button"
-              disabled={isSoldOut || addingToCart}
-              onClick={goToMemberCheckout}
-              className="flex min-w-0 flex-col items-center justify-center gap-0.5 bg-[#F8F5FF] px-1 py-2 text-center active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ color: PRIMARY }}
-            >
-              <span className="flex items-center gap-0.5 text-[10px] font-semibold leading-tight">
-                <Gift className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
-                회원가
-              </span>
-              <span className="truncate text-xs font-bold tabular-nums">
-                {isSoldOut ? "—" : `${formatPrice(memberUnitTotal)}원`}
-              </span>
-            </button>
+            {sessionStatus !== "authenticated" ? (
+              <>
+                <button
+                  type="button"
+                  disabled={isSoldOut || addingToCart}
+                  onClick={goToGuestCheckout}
+                  className="flex min-w-0 flex-col items-center justify-center border-r border-gray-200 bg-white px-1 py-2 text-center active:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="text-[10px] font-medium leading-tight text-gray-500">
+                    비회원 구매
+                  </span>
+                  <span className="truncate text-xs font-bold tabular-nums text-gray-900">
+                    {isSoldOut ? "품절" : `${formatPrice(guestUnitTotal)}원`}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isSoldOut || addingToCart}
+                  onClick={goToMemberCheckout}
+                  className="flex min-w-0 flex-col items-center justify-center gap-0.5 bg-[#F8F5FF] px-1 py-2 text-center active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ color: PRIMARY }}
+                >
+                  <span className="flex items-center gap-0.5 text-[10px] font-semibold leading-tight">
+                    <Gift className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
+                    회원 구매
+                  </span>
+                  <span className="truncate text-xs font-bold tabular-nums">
+                    {isSoldOut ? "—" : `${formatPrice(memberUnitTotal)}원`}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={isSoldOut || addingToCart}
+                onClick={goToMemberCheckout}
+                className="flex min-w-0 flex-col items-center justify-center gap-1 bg-[#F8F5FF] px-3 py-2.5 text-center active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ color: PRIMARY }}
+              >
+                <span className="flex items-center gap-1 text-xs font-bold leading-tight sm:text-sm">
+                  <Gift className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+                  바로 구매
+                </span>
+                <span className="truncate text-sm font-bold tabular-nums sm:text-base text-gray-900">
+                  {isSoldOut ? "품절" : `${formatPrice(memberUnitTotal)}원`}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
