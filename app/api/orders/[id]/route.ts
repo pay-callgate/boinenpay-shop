@@ -5,6 +5,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { recordOrderPartnerNotifyEventSafe } from "@/lib/order-partner-notify-events";
 import { verifyGuestCheckout } from "@/lib/guest-checkout-signature";
 import { sanitizeOrderRowForCustomer } from "@/lib/orders/sanitize-customer-order";
+import { canCustomerRequestCancel } from "@/lib/orders/cancel-eligibility";
 
 /**
  * T5-2: 주문 상세 조회 API
@@ -122,7 +123,24 @@ export async function GET(
       .order("created_at", { ascending: true });
 
     /** 고객 화면: 내부 이력·뉴런 필드 미포함 (파트너는 `/api/partner/orders/[id]` 사용) */
-    const safeOrder = sanitizeOrderRowForCustomer(order as Record<string, unknown>);
+    const cancelCheck = canCustomerRequestCancel(
+      order as {
+        payment_status: string | null;
+        status: string | null;
+        newrun_delivery_info?: unknown;
+      }
+    );
+    const safeOrder = sanitizeOrderRowForCustomer(order as Record<string, unknown>) as Record<
+      string,
+      unknown
+    > & {
+      customer_cancel_allowed?: boolean;
+      customer_cancel_message?: string;
+    };
+    safeOrder.customer_cancel_allowed = cancelCheck.ok;
+    if (!cancelCheck.ok) {
+      safeOrder.customer_cancel_message = cancelCheck.message;
+    }
 
     return NextResponse.json({
       order: safeOrder,

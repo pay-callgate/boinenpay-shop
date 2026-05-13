@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { recordOrderPartnerNotifyEventSafe } from "@/lib/order-partner-notify-events";
+import { canPartnerAdminCancelOrder } from "@/lib/orders/cancel-eligibility";
 
 /**
  * 파트너 어드민 전용: 주문 상세 조회
@@ -89,10 +90,21 @@ export async function GET(
       .eq("order_id", id)
       .order("created_at", { ascending: false });
 
+    const paymentCancel = canPartnerAdminCancelOrder(
+      order as {
+        payment_status: string | null;
+        status: string | null;
+        newrun_delivery_info?: unknown;
+      }
+    );
+
     return NextResponse.json({
       order,
       items: items || [],
       history: history || [],
+      partner_payment_cancel: paymentCancel.ok
+        ? { allowed: true, message: null as string | null }
+        : { allowed: false, message: paymentCancel.message },
     });
   } catch (err) {
     console.error("Partner order detail GET API error:", err);

@@ -82,6 +82,9 @@ interface Order {
   ribbon_message?: string | null;
   client: Client;
   user?: OrderUser | null;
+  /** GET /api/orders/[id] — 협회 접수 전 취소 가능 여부 */
+  customer_cancel_allowed?: boolean;
+  customer_cancel_message?: string;
 }
 
 export default function MyOrderDetailPage() {
@@ -103,6 +106,7 @@ export default function MyOrderDetailPage() {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
   const orderApiUrl =
     guestMode && guestToken && guestSig
@@ -205,6 +209,51 @@ export default function MyOrderDetailPage() {
       toast((e as Error)?.message || "결제 요청에 실패했습니다.", "error");
     } finally {
       setPaymentSubmitting(false);
+    }
+  };
+
+  const handleOrderCancel = async () => {
+    if (!order || cancelSubmitting) return;
+    if (!order.customer_cancel_allowed) {
+      toast(order.customer_cancel_message || "지금은 주문을 취소할 수 없습니다.", "error");
+      return;
+    }
+    if (!window.confirm("주문을 취소하고 결제 금액을 전액 환불합니다. 진행할까요?")) return;
+    setCancelSubmitting(true);
+    try {
+      const body: Record<string, string> = {
+        reason: "고객 요청에 의한 취소",
+      };
+      if (guestMode && guestToken && guestSig) {
+        body.guestCheckoutToken = guestToken;
+        body.paymentSignature = guestSig;
+      }
+      const res = await shopFetch(`/api/orders/${orderId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        handleSessionExpiry: !guestMode,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        toast(
+          data.idempotent ? "이미 취소된 주문입니다." : "주문이 취소되었습니다.",
+          data.idempotent ? "default" : "success"
+        );
+        router.refresh();
+        const refresh = await shopFetch(orderApiUrl, { handleSessionExpiry: !guestMode });
+        const again = refresh.ok ? await refresh.json().catch(() => null) : null;
+        if (again?.order) {
+          setOrder(again.order);
+          setItems(again.items ?? []);
+        }
+        return;
+      }
+      toast(data.error || data.message || "취소 처리에 실패했습니다.", "error");
+    } catch (e) {
+      toast((e as Error)?.message || "취소 요청에 실패했습니다.", "error");
+    } finally {
+      setCancelSubmitting(false);
     }
   };
 
@@ -798,6 +847,43 @@ export default function MyOrderDetailPage() {
               {/* paymentSubmitting ? "결제창으로 이동 중..." : */}결제하기
             </button>
           )}
+          {order.payment_status === "paid" && order.customer_cancel_allowed && (
+            <button
+              type="button"
+              onClick={handleOrderCancel}
+              disabled={cancelSubmitting}
+              style={{
+                marginTop: "12px",
+                width: "100%",
+                padding: "14px",
+                backgroundColor: "#fff",
+                color: "#B91C1C",
+                border: "1px solid #FECACA",
+                borderRadius: "12px",
+                fontSize: "0.95rem",
+                fontWeight: 700,
+                cursor: cancelSubmitting ? "not-allowed" : "pointer",
+                opacity: cancelSubmitting ? 0.7 : 1,
+              }}
+            >
+              {cancelSubmitting ? "처리 중…" : "주문 취소 (전액 환불)"}
+            </button>
+          )}
+          {order.payment_status === "paid" &&
+            !order.customer_cancel_allowed &&
+            order.customer_cancel_message && (
+              <p
+                style={{
+                  marginTop: "12px",
+                  fontSize: "0.8rem",
+                  color: "#6B7280",
+                  lineHeight: 1.5,
+                  marginBottom: 0,
+                }}
+              >
+                {order.customer_cancel_message}
+              </p>
+            )}
         </div>
       </div>
     </OrderGuard>

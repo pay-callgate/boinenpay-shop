@@ -213,6 +213,13 @@ export default function OrderDetailPage() {
   const [memo, setMemo] = useState("");
   const [updating, setUpdating] = useState(false);
 
+  const [partnerPaymentCancel, setPartnerPaymentCancel] = useState<{
+    allowed: boolean;
+    message: string | null;
+  } | null>(null);
+  const [paymentCancelReason, setPaymentCancelReason] = useState("");
+  const [paymentCancelSubmitting, setPaymentCancelSubmitting] = useState(false);
+
   /** 뉴런(Newrun) 협회 검색 팝업 — var_ret postMessage 결과 + DB 초안(T3.3) */
   const [newrunFloristPayload, setNewrunFloristPayload] = useState<Record<
     string,
@@ -430,6 +437,7 @@ export default function OrderDetailPage() {
         setOrder(data.order);
         setItems(data.items || []);
         setHistory(data.history || []);
+        setPartnerPaymentCancel(data.partner_payment_cancel ?? null);
         setNewStatus(data.order.status);
         setCourierCompany(data.order.courier_company || "");
         setTrackingNumber(data.order.tracking_number || "");
@@ -485,6 +493,45 @@ export default function OrderDetailPage() {
       alert("네트워크 오류가 발생했습니다.");
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handlePaymentCancel = async () => {
+    if (!order || paymentCancelSubmitting) return;
+    if (!partnerPaymentCancel?.allowed) {
+      alert(partnerPaymentCancel?.message || "지금은 결제 취소를 할 수 없습니다.");
+      return;
+    }
+    const reason = paymentCancelReason.trim();
+    if (reason.length < 4) {
+      alert("취소 사유를 4자 이상 입력해 주세요.");
+      return;
+    }
+    if (
+      !window.confirm(
+        "ViewPay 전액 취소 후 주문이 취소됩니다. 재고가 복구됩니다. 계속할까요?"
+      )
+    ) {
+      return;
+    }
+    setPaymentCancelSubmitting(true);
+    try {
+      const res = await adminFetch(`/api/partner/orders/${orderId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        alert(data.idempotent ? "이미 취소된 주문입니다." : "결제 취소 및 주문 취소가 완료되었습니다.");
+        window.location.reload();
+        return;
+      }
+      alert(data.error || data.message || "취소 처리에 실패했습니다.");
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setPaymentCancelSubmitting(false);
     }
   };
 
@@ -577,6 +624,40 @@ export default function OrderDetailPage() {
                 {STATUS_LABELS[order.status] || order.status}
               </span>
             </div>
+          </div>
+
+          {/* ViewPay 전액 취소 (파트너) */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-2">결제 취소 (ViewPay)</h2>
+            <p className="text-xs text-slate-600 mb-3">
+              전액 환불 후 주문 상태가 취소로 반영되고 재고가 복구됩니다. 우리부고·뉴런 별도 취소
+              연동은 추후 확정 시 추가합니다.
+            </p>
+            {partnerPaymentCancel && !partnerPaymentCancel.allowed && (
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-3">
+                {partnerPaymentCancel.message ?? "현재 결제 취소할 수 없습니다."}
+              </p>
+            )}
+            {partnerPaymentCancel?.allowed && order.payment_status === "paid" && order.status !== "cancelled" && (
+              <>
+                <label className="block text-xs font-medium text-slate-600 mb-1">취소 사유 (필수, 4자 이상)</label>
+                <textarea
+                  value={paymentCancelReason}
+                  onChange={(e) => setPaymentCancelReason(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm mb-3"
+                  placeholder="예: 고객 전화 요청, 품절 확인 등"
+                />
+                <button
+                  type="button"
+                  onClick={handlePaymentCancel}
+                  disabled={paymentCancelSubmitting}
+                  className="h-10 px-4 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60"
+                >
+                  {paymentCancelSubmitting ? "처리 중…" : "결제 전액 취소 실행"}
+                </button>
+              </>
+            )}
           </div>
 
           {/* 화훼: 희망 배송일·리본 */}
