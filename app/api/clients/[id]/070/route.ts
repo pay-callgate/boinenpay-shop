@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 
+import { upsertClientCall070Config } from "@/lib/clients/upsert-call-070-config";
+
 /**
  * T3-4: 070 연동 설정 API
  * GET /api/clients/[id]/070 - 070 설정 조회
@@ -79,66 +81,26 @@ export async function POST(
 
     const supabase = createServerSupabase();
 
-    // 기존 설정 확인
-    const { data: existing } = await supabase
+    const { data: before } = await supabase
       .from("client_call_070_configs")
       .select("id")
       .eq("client_id", clientId)
       .maybeSingle();
 
-    if (existing) {
-      // 업데이트
-      const { data: config, error } = await supabase
-        .from("client_call_070_configs")
-        .update({
-          call_070_number: call070Number,
-          greeting_message: greetingMessage || null,
-          industry: industry || null,
-          admin_name: adminName || null,
-          admin_email: adminEmail || null,
-          admin_phone: adminPhone || null,
-          sms_text_template: smsTextTemplate || null,
-        })
-        .eq("id", existing.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("070 config update error:", error);
-        return NextResponse.json(
-          { error: "070 설정 수정 실패" },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({ config });
-    } else {
-      // 생성
-      const { data: config, error } = await supabase
-        .from("client_call_070_configs")
-        .insert({
-          client_id: clientId,
-          call_070_number: call070Number,
-          greeting_message: greetingMessage || null,
-          industry: industry || null,
-          admin_name: adminName || null,
-          admin_email: adminEmail || null,
-          admin_phone: adminPhone || null,
-          sms_text_template: smsTextTemplate || null,
-          callcloud_registered: false,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("070 config create error:", error);
-        return NextResponse.json(
-          { error: "070 설정 생성 실패" },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({ config }, { status: 201 });
+    try {
+      const config = await upsertClientCall070Config(supabase, clientId, {
+        call070Number,
+        greetingMessage,
+        industry,
+        adminName,
+        adminEmail,
+        adminPhone,
+        smsTextTemplate,
+      });
+      return NextResponse.json({ config }, { status: before ? 200 : 201 });
+    } catch (error) {
+      console.error("070 config upsert error:", error);
+      return NextResponse.json({ error: "070 설정 저장 실패" }, { status: 500 });
     }
   } catch (err) {
     console.error("070 config POST error:", err);

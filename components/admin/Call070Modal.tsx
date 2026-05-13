@@ -5,7 +5,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 
 /**
  * T3-4: 070번호 연결 팝업 (TRD §7.2)
- * T3-5: CallCloud 자동 등록 연동
+ * 접수: 구글 시트 행 추가 + 슬랙 알림 → 담당자 CallCloud 수동 등록 → 시트 "완료" 시 웹훅으로 DB 동기화
  */
 
 interface Call070Config {
@@ -55,7 +55,7 @@ export function Call070Modal({
     sms_text_template: `안녕하세요 ${clientName}입니다.`,
   });
   const [saving, setSaving] = useState(false);
-  const [registering, setRegistering] = useState(false);
+  const [requestingQueue, setRequestingQueue] = useState(false);
   const [config, setConfig] = useState<Call070Config | null>(null);
 
   // 기존 설정 로드 + 담당자 정보로 관리자 필드 자동 세팅
@@ -134,8 +134,8 @@ export function Call070Modal({
     }
   };
 
-  // 070번호 연결: Payload를 register API로 전달 → 봇 성공 시에만 DB 저장 (Strict Consistency)
-  const handleCallCloudRegister = async () => {
+ /** 시트 + 슬랙 접수 (CallCloud 자동화 없음) */
+  const handleRequestQueue = async () => {
     if (!formData.call_070_number?.trim()) {
       alert("서비스 번호(070)는 필수입니다.");
       return;
@@ -143,16 +143,16 @@ export function Call070Modal({
 
     if (
       !confirm(
-        "CallCloud 백오피스 브라우저를 열어 등록을 진행합니다.\n계속하시겠습니까?"
+        "070 연동 요청을 접수합니다.\n\n구글 시트에 행이 추가되고 슬랙으로 알림이 갑니다.\n콜게이트 담당자가 CallCloud에 등록한 뒤, 시트에서 진행 상태를 「완료」로 바꾸면 연동 완료로 반영됩니다.\n\n계속할까요?"
       )
     ) {
       return;
     }
 
-    setRegistering(true);
+    setRequestingQueue(true);
 
     try {
-      const res = await adminFetch(`/api/clients/${clientId}/070/register`, {
+      const res = await adminFetch(`/api/clients/${clientId}/070/request-queue`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -166,59 +166,37 @@ export function Call070Modal({
         }),
       });
 
-      const rawText = await res.text();
+      const data = await res.json().catch(() => ({}));
 
-      if (res.status === 504) {
-        alert(
-          "070 연동 처리가 서버 시간 제한(타임아웃)에 걸렸습니다.\n\n" +
-            "Vercel에서 FUNCTION_INVOCATION_TIMEOUT(504)이 발생한 경우입니다.\n" +
-            "• Pro 플랜: 프로젝트/API의 maxDuration(최대 처리 시간)을 늘렸는지 확인하세요.\n" +
-            "• 무료·Hobby 플랜: 함수 실행 시간 상한이 낮아 장시간 자동화가 끊길 수 있습니다.\n" +
-            "• Vercel 로그에서 [070-register] / [CallCloud] 메시지로 실제 소요 시간을 확인할 수 있습니다."
+      if (res.ok && data.success) {
+        const rowMsg =
+          typeof data.sheetRow === "number"
+            ? `\n(시트 행: 약 ${data.sheetRow}번째 줄)`
+            : "";
+        alert((data.message as string) + rowMsg);
+        setConfig((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...formData,
+                callcloud_registered: prev.callcloud_registered,
+              }
+            : { ...formData, callcloud_registered: false }
         );
+        onSuccess();
+        onClose();
         return;
       }
 
-      let data: {
-        message?: string;
-        error?: string;
-        details?: string;
-        alreadyRegistered?: boolean;
-      } = {};
-      try {
-        data = rawText ? (JSON.parse(rawText) as typeof data) : {};
-      } catch {
-        console.error("070 register: JSON 파싱 실패", res.status, rawText?.slice?.(0, 300));
-        alert(
-          `서버 응답을 해석할 수 없습니다 (HTTP ${res.status}).\n` +
-            "HTML 오류 페이지가 온 경우도 있습니다. 네트워크 탭에서 응답 본문을 확인해 주세요."
-        );
-        return;
-      }
-
-      if (res.ok) {
-        if (data.alreadyRegistered) {
-          alert(data.message || "이미 CallCloud에 등록되어 있습니다.");
-          onClose();
-        } else {
-          alert(data.message || "070번호 연동이 정상적으로 완료되었습니다.");
-          setConfig((prev) => (prev ? { ...prev, callcloud_registered: true } : null));
-          onSuccess();
-          onClose();
-        }
-      } else {
-        alert(
-          `CallCloud 자동화 실행 실패:\n${data.error ?? `HTTP ${res.status}`}\n\n상세: ${data.details || "없음"}`
-        );
-      }
-    } catch (error) {
-      console.error("CallCloud register error:", error);
       alert(
-        "요청 전송 또는 연결에 실패했습니다.\n" +
-          "(브라우저 콘솔·Network 탭에서 POST /070/register 상태를 확인해 주세요.)"
+        (data.error as string) ||
+          `070 연동 요청 처리 실패 (HTTP ${res.status}). 다시 시도하거나 관리자에게 문의해 주세요.`
       );
+    } catch (error) {
+      console.error("070 request-queue error:", error);
+      alert("요청 전송에 실패했습니다. 네트워크를 확인해 주세요.");
     } finally {
-      setRegistering(false);
+      setRequestingQueue(false);
     }
   };
 
@@ -272,7 +250,7 @@ export function Call070Modal({
             marginBottom: "20px",
           }}
         >
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 700 }}>070번호 연동</h2>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700 }}>070 번호 연동 (시트·슬랙 접수)</h2>
           <button
             onClick={onClose}
             style={{
@@ -289,6 +267,22 @@ export function Call070Modal({
         </div>
 
         <form onSubmit={(e) => e.preventDefault()}>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#4B5563",
+              lineHeight: 1.5,
+              marginBottom: "16px",
+              padding: "12px",
+              background: "#F0F9FF",
+              borderRadius: "8px",
+              border: "1px solid #BAE6FD",
+            }}
+          >
+            <strong>접수 절차:</strong> 아래 [070 연동 요청]을 누르면 설정이 저장되고, 구글 시트에 행이
+            추가되며 슬랙으로 알림이 전송됩니다. 담당자가 CallCloud에 반영한 뒤 시트에서 진행 상태를
+            「완료」로 변경하면 CallLink에 연동 완료로 표시됩니다.
+          </p>
           <div style={{ display: "grid", gap: "16px" }}>
             <div>
               <label style={labelStyle}>
@@ -419,7 +413,7 @@ export function Call070Modal({
             </div>
           </div>
 
-          <div style={{ marginTop: "24px", display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+          <div style={{ marginTop: "24px", display: "flex", gap: "12px", justifyContent: "flex-end", flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={onClose}
@@ -434,22 +428,40 @@ export function Call070Modal({
             >
               취소
             </button>
+            <button
+              type="button"
+              onClick={() =>
+                void handleSubmit({ preventDefault: () => {} } as React.FormEvent)
+              }
+              disabled={saving || requestingQueue}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#F3F4F6",
+                color: "#111827",
+                border: "1px solid #D1D5DB",
+                borderRadius: "6px",
+                cursor: saving || requestingQueue ? "not-allowed" : "pointer",
+                fontWeight: 500,
+              }}
+            >
+              {saving ? "저장 중…" : "설정만 저장"}
+            </button>
             {!formData.callcloud_registered && (
               <button
                 type="button"
-                onClick={handleCallCloudRegister}
-                disabled={registering}
+                onClick={() => void handleRequestQueue()}
+                disabled={requestingQueue || saving}
                 style={{
                   padding: "10px 20px",
                   backgroundColor: "#4A90D9",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
-                  cursor: registering ? "not-allowed" : "pointer",
+                  cursor: requestingQueue || saving ? "not-allowed" : "pointer",
                   fontWeight: 500,
                 }}
               >
-                {/* registering ? "연결 중..." : */}070번호 연결
+                {requestingQueue ? "접수 중…" : "070 연동 요청"}
               </button>
             )}
             {formData.callcloud_registered && (
@@ -462,7 +474,7 @@ export function Call070Modal({
                   fontWeight: 500,
                 }}
               >
-                ✓ 연결됨
+                ✓ CallCloud 연동 완료
               </div>
             )}
           </div>
