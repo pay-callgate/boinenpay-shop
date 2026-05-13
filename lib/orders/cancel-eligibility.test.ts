@@ -33,13 +33,23 @@ describe("canCustomerRequestCancel", () => {
 });
 
 describe("canPartnerAdminCancelOrder", () => {
-  it("결제완료·배송완료 전 → 허용", () => {
+  it("결제완료·배송준비중 → 허용", () => {
+    const r = canPartnerAdminCancelOrder({
+      payment_status: "paid",
+      status: "preparing",
+      newrun_delivery_info: { state: "2" },
+    });
+    expect(r).toEqual({ ok: true });
+  });
+
+  it("접수·주문확정 등(결제완료 상태 아님) → 거절", () => {
     const r = canPartnerAdminCancelOrder({
       payment_status: "paid",
       status: "confirmed",
       newrun_delivery_info: { state: "2" },
     });
-    expect(r).toEqual({ ok: true });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("status_not_eligible");
   });
 
   it("내부 delivered → 거절", () => {

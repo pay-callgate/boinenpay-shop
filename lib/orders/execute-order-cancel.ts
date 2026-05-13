@@ -74,20 +74,14 @@ export async function executeOrderCancel(
     };
   }
 
-  const orderNo = String(row.viewpay_merchant_order_no ?? row.order_no ?? "").trim();
-  if (!orderNo) {
-    return {
-      ok: false,
-      code: "no_order_no",
-      message: "주문번호가 없어 결제 취소를 진행할 수 없습니다.",
-      status: 400,
-    };
-  }
+  const orderNoFallback = String(
+    row.viewpay_merchant_order_no ?? row.order_no ?? ""
+  ).trim();
 
   try {
     await viewpayCancelFullPayment({
       cgTid,
-      orderNo,
+      orderNoFallback: orderNoFallback || undefined,
       reason,
     });
   } catch (e) {

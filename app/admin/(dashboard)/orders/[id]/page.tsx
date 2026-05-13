@@ -507,6 +507,12 @@ export default function OrderDetailPage() {
       alert("취소 사유를 4자 이상 입력해 주세요.");
       return;
     }
+    if (order.status === "shipping") {
+      const okShip = window.confirm(
+        "배송이 이미 출발한 건입니다. 배송비 차감이 필요한 경우 시스템 취소 후 PG사 관리자 페이지에서 부분 환불을 진행해 주세요. 취소하시겠습니까?"
+      );
+      if (!okShip) return;
+    }
     if (
       !window.confirm(
         "ViewPay 전액 취소 후 주문이 취소됩니다. 재고가 복구됩니다. 계속할까요?"
@@ -516,7 +522,7 @@ export default function OrderDetailPage() {
     }
     setPaymentCancelSubmitting(true);
     try {
-      const res = await adminFetch(`/api/partner/orders/${orderId}/cancel`, {
+      const res = await adminFetch(`/api/admin/orders/${orderId}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
@@ -628,10 +634,10 @@ export default function OrderDetailPage() {
 
           {/* ViewPay 전액 취소 (파트너) */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-2">결제 취소 (ViewPay)</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-2">강제 주문 취소 (ViewPay)</h2>
             <p className="text-xs text-slate-600 mb-3">
-              전액 환불 후 주문 상태가 취소로 반영되고 재고가 복구됩니다. 우리부고·뉴런 별도 취소
-              연동은 추후 확정 시 추가합니다.
+              결제완료·배송준비중·배송중 상태에서만 전액 환불 후 주문 취소 및 재고 복구가 가능합니다. 배송
+              완료 후에는 비활성화됩니다. 우리부고·뉴런 별도 취소 연동은 추후 확정 시 추가합니다.
             </p>
             {partnerPaymentCancel && !partnerPaymentCancel.allowed && (
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-3">
@@ -654,7 +660,7 @@ export default function OrderDetailPage() {
                   disabled={paymentCancelSubmitting}
                   className="h-10 px-4 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60"
                 >
-                  {paymentCancelSubmitting ? "처리 중…" : "결제 전액 취소 실행"}
+                  {paymentCancelSubmitting ? "처리 중…" : "강제 주문 취소"}
                 </button>
               </>
             )}

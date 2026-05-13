@@ -47,9 +47,12 @@ export function canCustomerRequestCancel(order: OrderRowForCancelEligibility): {
   return { ok: true };
 }
 
+/** 어드민 ViewPay 전액 취소: 결제완료·배송준비중·배송중만 (배송완료 제외) */
+const PARTNER_ADMIN_CANCEL_STATUSES = new Set(["paid", "preparing", "shipping"]);
+
 /**
- * 파트너 어드민: 선구축 — 배송완료(delivered 또는 뉴런 state 4) 전까지 전액 취소 허용.
- * (우리부고 답변 후 접수 이후·배송 중 정책 조정 가능)
+ * 파트너 어드민: 결제 완료 + 주문 상태가 결제완료/배송준비중/배송중일 때만 전액 취소.
+ * 배송완료(delivered 또는 뉴런 state 4)는 불가.
  */
 export function canPartnerAdminCancelOrder(order: OrderRowForCancelEligibility): {
   ok: true;
@@ -64,6 +67,14 @@ export function canPartnerAdminCancelOrder(order: OrderRowForCancelEligibility):
   }
   if (st === "delivered") {
     return { ok: false, code: "delivered", message: "배송 완료된 주문은 시스템에서 결제 취소할 수 없습니다." };
+  }
+  if (!PARTNER_ADMIN_CANCEL_STATUSES.has(st)) {
+    return {
+      ok: false,
+      code: "status_not_eligible",
+      message:
+        "결제 취소는 주문 상태가 결제완료·배송준비중·배송중일 때만 가능합니다.",
+    };
   }
   const nr = parseNewrunState(order.newrun_delivery_info);
   if (nr === "4") {

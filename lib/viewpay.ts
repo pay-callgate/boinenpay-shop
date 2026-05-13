@@ -19,7 +19,7 @@ let cachedToken: string | null = null;
  * ViewPay 환경 변수를 런타임에 process.env에서 읽음.
  * .env.local이 제대로 로드되는지 진단 로그 출력.
  */
-function getViewPayEnv(): {
+export function getViewPayEnv(): {
   base: string;
   merchantId: string;
   channelId: string;

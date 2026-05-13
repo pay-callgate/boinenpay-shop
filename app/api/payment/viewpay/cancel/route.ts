@@ -8,7 +8,7 @@ import { viewpayCancelFullPayment } from "@/lib/viewpay-cancel-payment";
 /**
  * Phase B5: ViewPay 전액 취소 (공식 cancelInfo 형식)
  * POST /api/payment/viewpay/cancel
- * Body: { cgTid, orderNo, reason? } — 주문 취소 플로우는 POST /api/orders/[id]/cancel 권장
+ * Body: { cgTid, orderNo? (PG 미일치 시 예비), reason? } — 주문 취소는 POST /api/orders/[id]/cancel 권장
  */
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       action: "payment_viewpay_cancel_request",
       data: {
         hasCgTid: Boolean(cgTid?.trim()),
-        hasOrderNo: Boolean(orderNo?.trim()),
+        hasOrderNoFallback: Boolean(orderNo?.trim()),
       },
     });
 
@@ -35,16 +35,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!orderNo?.trim()) {
-      return NextResponse.json(
-        { success: false, message: "orderNo(가맹점 주문번호) 필수입니다." },
-        { status: 400 }
-      );
-    }
 
     const result = await viewpayCancelFullPayment({
       cgTid: String(cgTid).trim(),
-      orderNo: String(orderNo).trim(),
+      orderNoFallback:
+        typeof orderNo === "string" && orderNo.trim() ? orderNo.trim() : undefined,
       reason:
         typeof reason === "string" && reason.trim()
           ? reason.trim()
@@ -52,7 +47,7 @@ export async function POST(request: NextRequest) {
     });
     logger.info("[ViewPay cancel] 성공", {
       action: "payment_viewpay_cancel_success",
-      data: { orderNo: String(orderNo).trim() },
+      data: {},
     });
     return NextResponse.json({ success: true, data: result });
   } catch (err) {

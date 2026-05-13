@@ -82,9 +82,6 @@ interface Order {
   ribbon_message?: string | null;
   client: Client;
   user?: OrderUser | null;
-  /** GET /api/orders/[id] — 협회 접수 전 취소 가능 여부 */
-  customer_cancel_allowed?: boolean;
-  customer_cancel_message?: string;
 }
 
 export default function MyOrderDetailPage() {
@@ -106,7 +103,7 @@ export default function MyOrderDetailPage() {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
-  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelGuideOpen, setCancelGuideOpen] = useState(false);
 
   const orderApiUrl =
     guestMode && guestToken && guestSig
@@ -212,51 +209,10 @@ export default function MyOrderDetailPage() {
     }
   };
 
-  const handleOrderCancel = async () => {
-    if (!order || cancelSubmitting) return;
-    if (!order.customer_cancel_allowed) {
-      toast(order.customer_cancel_message || "지금은 주문을 취소할 수 없습니다.", "error");
-      return;
-    }
-    if (!window.confirm("주문을 취소하고 결제 금액을 전액 환불합니다. 진행할까요?")) return;
-    setCancelSubmitting(true);
-    try {
-      const body: Record<string, string> = {
-        reason: "고객 요청에 의한 취소",
-      };
-      if (guestMode && guestToken && guestSig) {
-        body.guestCheckoutToken = guestToken;
-        body.paymentSignature = guestSig;
-      }
-      const res = await shopFetch(`/api/orders/${orderId}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        handleSessionExpiry: !guestMode,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        toast(
-          data.idempotent ? "이미 취소된 주문입니다." : "주문이 취소되었습니다.",
-          data.idempotent ? "default" : "success"
-        );
-        router.refresh();
-        const refresh = await shopFetch(orderApiUrl, { handleSessionExpiry: !guestMode });
-        const again = refresh.ok ? await refresh.json().catch(() => null) : null;
-        if (again?.order) {
-          setOrder(again.order);
-          setItems(again.items ?? []);
-        }
-        return;
-      }
-      toast(data.error || data.message || "취소 처리에 실패했습니다.", "error");
-    } catch (e) {
-      toast((e as Error)?.message || "취소 요청에 실패했습니다.", "error");
-    } finally {
-      setCancelSubmitting(false);
-    }
+  const handleCancelGuideOpen = () => {
+    if (!order) return;
+    setCancelGuideOpen(true);
   };
-
   if (template == null || !partner || !client) {
     return (
       <div
@@ -345,6 +301,10 @@ export default function MyOrderDetailPage() {
     payment_status: order.payment_status,
   });
 
+  const showCancelGuideButton =
+    order.status !== "delivered" &&
+    order.status !== "cancelled" &&
+    order.payment_status !== "refunded";
   return (
     <OrderGuard
       partnerId={partner.id}
@@ -847,45 +807,132 @@ export default function MyOrderDetailPage() {
               {/* paymentSubmitting ? "결제창으로 이동 중..." : */}결제하기
             </button>
           )}
-          {order.payment_status === "paid" && order.customer_cancel_allowed && (
+          {showCancelGuideButton && (
             <button
               type="button"
-              onClick={handleOrderCancel}
-              disabled={cancelSubmitting}
+              onClick={handleCancelGuideOpen}
               style={{
                 marginTop: "12px",
                 width: "100%",
                 padding: "14px",
                 backgroundColor: "#fff",
-                color: "#B91C1C",
-                border: "1px solid #FECACA",
+                color: "#B45309",
+                border: "1px solid #FCD34D",
                 borderRadius: "12px",
                 fontSize: "0.95rem",
                 fontWeight: 700,
-                cursor: cancelSubmitting ? "not-allowed" : "pointer",
-                opacity: cancelSubmitting ? 0.7 : 1,
+                cursor: "pointer",
               }}
             >
-              {cancelSubmitting ? "처리 중…" : "주문 취소 (전액 환불)"}
+              주문 취소 안내
             </button>
           )}
-          {order.payment_status === "paid" &&
-            !order.customer_cancel_allowed &&
-            order.customer_cancel_message && (
-              <p
-                style={{
-                  marginTop: "12px",
-                  fontSize: "0.8rem",
-                  color: "#6B7280",
-                  lineHeight: 1.5,
-                  marginBottom: 0,
-                }}
-              >
-                {order.customer_cancel_message}
-              </p>
-            )}
         </div>
       </div>
+
+      {cancelGuideOpen && order && (
+        <div
+          role="presentation"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            backgroundColor: "rgba(15, 23, 42, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={() => setCancelGuideOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-guide-dialog-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "340px",
+              backgroundColor: "#fff",
+              borderRadius: "16px",
+              padding: "24px 20px 20px",
+              boxShadow: "0 18px 50px rgba(0,0,0,0.18)",
+            }}
+          >
+            <h2
+              id="cancel-guide-dialog-title"
+              style={{
+                margin: "0 0 16px",
+                fontSize: "1.05rem",
+                fontWeight: 800,
+                color: "#111827",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              주문 취소 안내
+            </h2>
+            <div
+              style={{
+                margin: "0 0 20px",
+                fontSize: "0.9rem",
+                color: "#374151",
+                lineHeight: 1.65,
+                whiteSpace: "pre-line",
+              }}
+            >
+              <p style={{ margin: "0 0 12px" }}>
+                생화 상품 특성상 결제 후 1시간 이내에만 고객센터를 통해 취소가 가능합니다.
+              </p>
+              <p style={{ margin: "0 0 12px", fontWeight: 600 }}>
+                📞 고객센터:{" "}
+                <a
+                  href="tel:02-1661-1897"
+                  style={{ color: "#7C3AED", textDecoration: "underline", fontWeight: 700 }}
+                >
+                  02-1661-1897
+                </a>
+              </p>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.1rem",
+                  listStyleType: "disc",
+                  fontSize: "0.85rem",
+                  color: "#4B5563",
+                }}
+              >
+                <li style={{ marginBottom: "6px" }}>
+                  배송 출발 이후: 발생한 배송비를 제외하고 환불됩니다.
+                </li>
+                <li style={{ marginBottom: "6px" }}>
+                  배송 완료 이후: 주문 취소 및 환불이 불가합니다.
+                </li>
+                <li>
+                  영업시간 외: 문자로 &apos;주문자 성함&apos;과 &apos;취소 요청&apos;을 남겨주시면
+                  익일 오전 처리해 드립니다.
+                </li>
+              </ul>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCancelGuideOpen(false)}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "none",
+                backgroundColor: "#D6A8E0",
+                fontSize: "0.95rem",
+                fontWeight: 700,
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </OrderGuard>
   );
 }
