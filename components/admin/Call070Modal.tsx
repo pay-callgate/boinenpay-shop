@@ -179,7 +179,7 @@ export function Call070Modal({
             ? {
                 ...prev,
                 ...formData,
-                callcloud_registered: prev.callcloud_registered,
+                callcloud_registered: false,
               }
             : { ...formData, callcloud_registered: false }
         );

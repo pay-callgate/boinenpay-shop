@@ -115,6 +115,8 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString();
 
+    const wasAlreadyComplete = cfg.callcloud_registered === true;
+
     const { error: updCfgErr } = await supabase
       .from("client_call_070_configs")
       .update({ callcloud_registered: true, updated_at: now })
@@ -139,7 +141,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       action: "updated",
       clientId: id,
-      alreadyComplete: cfg.callcloud_registered === true,
+      alreadyComplete: wasAlreadyComplete,
     });
   } catch (e) {
     console.error("[webhook/callcloud-sync]", e);

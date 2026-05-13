@@ -24,7 +24,7 @@ export async function postSlack070QueueNotification(opts: {
     : "구글 시트에 새 행이 추가되었습니다. (행 번호는 시트에서 확인해 주세요)";
 
   const text = [
-    "*070 연동 요청 (CallLink → 시트·슬랙)*",
+    "*070 연동 요청 접수 안내(콜링크 쇼핑 --> 구글스프레드시트 신규 데이터 추가)*",
     `• 거래처: *${opts.clientName}* (\`${opts.clientId}\`)`,
     `• ${rowHint}`,
     `• 시트 열기: ${sheetUrl}`,

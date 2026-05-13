@@ -123,7 +123,18 @@ export async function POST(
       });
       sheetRow = parseSheetAppendedRow(updatedRange);
     } catch (e) {
-      console.error("[070/request-queue] Google Sheets append failed", e);
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("[070/request-queue] Google Sheets append failed", {
+        message: err.message,
+        name: err.name,
+        clientId,
+        spreadsheetIdSet: Boolean(process.env.GOOGLE_SHEETS_070_SPREADSHEET_ID?.trim()),
+        spreadsheetIdTail: process.env.GOOGLE_SHEETS_070_SPREADSHEET_ID?.trim()?.slice(-8),
+        tabName:
+          process.env.GOOGLE_SHEETS_070_TAB_NAME?.trim() || "070연동대기열 (default)",
+        hasServiceAccountJson: Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim()),
+        hasServiceAccountBase64: Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_BASE64?.trim()),
+      });
       return NextResponse.json(
         {
           error:
@@ -144,7 +155,12 @@ export async function POST(
         spreadsheetId,
       });
     } catch (e) {
-      console.error("[070/request-queue] Slack notify failed", e);
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("[070/request-queue] Slack notify failed", {
+        message: err.message,
+        clientId,
+        sheetRow,
+      });
       return NextResponse.json(
         {
           error:

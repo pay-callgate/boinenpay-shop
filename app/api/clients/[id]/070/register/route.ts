@@ -40,8 +40,11 @@ function createLog070Register(runId: string, t0: number) {
 }
 
 /**
- * T3-5 / M7: CallCloud 070 연동 (Strict Consistency)
+ * T3-5 / M7: CallCloud 070 연동 (Playwright 자동화, 레거시)
  * POST /api/clients/[id]/070/register
+ *
+ * 운영 기본 흐름은 시트「완료」→ /api/webhooks/callcloud-sync 가 DB 플래그를 올립니다.
+ * 이 라우트는 봇 성공 시에도 동일하게 callcloud_registered / call_070_connected 를 true 로 설정합니다.
  *
  * 흐름: 프론트 Payload 수신 → 봇 선 실행 → 성공 시에만 DB 저장
  * - Playwright 봇 실패 시 DB 미접근, 즉시 에러 반환

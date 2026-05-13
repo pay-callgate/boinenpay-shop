@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Link as LinkIcon, MessageSquare, Phone, Settings } from "lucide-react";
+import { Link as LinkIcon, Link2, MessageSquare, Phone, Settings } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
 import { Call070Modal } from "@/components/admin/Call070Modal";
 import { LinkNotificationModal } from "@/components/admin/LinkNotificationModal";
@@ -30,6 +31,18 @@ interface Client {
 }
 
 import { getBaseUrl, getStorefrontUrl } from "@/lib/app-url";
+
+/** 테이블 셀: 연관 요소만 타이트하게 그룹 (셀 전체를 채우지 않음) */
+const ORDER_LINK_CHIP_CLASS =
+  "inline-flex h-9 w-[200px] max-w-[200px] shrink-0 items-center overflow-hidden rounded-md border border-slate-200/90 bg-slate-100 px-2.5";
+const ORDER_LINK_ACTION_BTN =
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200/90 bg-white text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800";
+const CALLLINK_PRIMARY_BTN =
+  "inline-flex h-9 w-[180px] min-w-[180px] max-w-[180px] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors";
+const CALLLINK_COMPLETE_BTN =
+  "inline-flex h-9 min-w-[180px] w-max shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2 text-xs font-medium transition-colors";
+const CALLLINK_GEAR_BTN =
+  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200/90 bg-white text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800";
 
 export default function ClientsLinksPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -214,6 +227,7 @@ export default function ClientsLinksPage() {
           clientId={linkModalClient.id}
           clientSlug={linkModalClient.slug}
           assigned070Number={
+            linkModalClient.call_070_connected &&
             linkModalClient.client_call_070_configs?.[0]?.call_070_number
               ? format070Display(linkModalClient.client_call_070_configs[0].call_070_number)
               : ""
@@ -300,7 +314,7 @@ export default function ClientsLinksPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
                     주문링크
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
                     CallLink 연동
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">
@@ -356,17 +370,21 @@ export default function ClientsLinksPage() {
                         {c.contact_phone || "-"}
                       </td>
 
-                      {/* 주문링크 */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block rounded bg-slate-100 px-3 py-1.5 font-mono text-sm text-slate-700">
-                            {getOrderLinkDisplay(c.slug)}
+                      {/* 주문링크 — 좌측 정렬, 칩+아이콘 찰싹 그룹 (w-full·justify-between 없음) */}
+                      <td className="px-4 py-3 align-middle">
+                        <div className="inline-flex items-center justify-start gap-2">
+                          <span
+                            className={ORDER_LINK_CHIP_CLASS}
+                            title={getOrderLinkDisplay(c.slug)}
+                          >
+                            <span className="min-w-0 flex-1 truncate font-mono text-xs leading-none text-slate-700">
+                              {getOrderLinkDisplay(c.slug)}
+                            </span>
                           </span>
-                          {/* 복사 버튼 */}
                           <button
                             type="button"
                             onClick={() => copyToClipboard(c.id, c.slug)}
-                            className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                            className={ORDER_LINK_ACTION_BTN}
                             title="링크 복사"
                           >
                             {copiedId === c.id ? (
@@ -379,11 +397,10 @@ export default function ClientsLinksPage() {
                               </svg>
                             )}
                           </button>
-                          {/* 외부 링크 버튼 */}
                           <button
                             type="button"
                             onClick={() => openInNewTab(c.slug)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                            className={ORDER_LINK_ACTION_BTN}
                             title="새 탭에서 열기"
                           >
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,64 +410,111 @@ export default function ClientsLinksPage() {
                         </div>
                       </td>
 
-                      {/* CallLink 연동: 소프트 UI (bg-slate-100/200) */}
-                      <td className="px-4 py-3 text-center">
+                      {/* CallLink — 좌측 기준선 정렬 */}
+                      <td className="px-4 py-3 align-middle">
                         {(() => {
                           const call070Number =
                             c.client_call_070_configs?.[0]?.call_070_number?.trim() || null;
+                          const is070Live = c.call_070_connected === true;
+                          const open070 = () => {
+                            setSelectedClient(c);
+                            setIs070ModalOpen(true);
+                          };
                           if (!call070Number) {
                             return (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedClient(c);
-                                  setIs070ModalOpen(true);
-                                }}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
-                              >
-                                <LinkIcon className="h-3.5 w-3.5" strokeWidth={2} />
-                                070 연동하기
-                              </button>
+                              <div className="flex justify-start">
+                                <div className="inline-flex items-center justify-start gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={open070}
+                                    className={`${CALLLINK_PRIMARY_BTN} border-slate-200/90 bg-slate-50 text-slate-700 hover:bg-slate-100/90`}
+                                  >
+                                    <LinkIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                                    <span className="truncate">070 연동하기</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={open070}
+                                    className={CALLLINK_GEAR_BTN}
+                                    title="연동 설정"
+                                  >
+                                    <Settings className="h-4 w-4" strokeWidth={2} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (!is070Live) {
+                            return (
+                              <div className="flex justify-start">
+                                <div className="inline-flex items-center justify-start gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={open070}
+                                    className={`${CALLLINK_PRIMARY_BTN} border-amber-200/90 bg-amber-50/95 text-amber-950 hover:bg-amber-100/90`}
+                                    title="C2W(Call2Web)에 등록된 뒤 시트에서 진행상태를 완료로 바꾸면 070 번호가 표시됩니다."
+                                  >
+                                    <Link2
+                                      className="h-3.5 w-3.5 shrink-0 text-amber-600 animate-pulse"
+                                      strokeWidth={2}
+                                      aria-hidden
+                                    />
+                                    <span className="truncate">[C2W 시스템 등록 중]</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={open070}
+                                    className={CALLLINK_GEAR_BTN}
+                                    title="연동 설정·요청"
+                                  >
+                                    <Settings className="h-4 w-4" strokeWidth={2} />
+                                  </button>
+                                </div>
+                              </div>
                             );
                           }
                           return (
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedClient(c);
-                                  setIs070ModalOpen(true);
-                                }}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
-                              >
-                                <Phone className="h-3.5 w-3.5" strokeWidth={2} />
-                                {format070Display(call070Number)}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedClient(c);
-                                  setIs070ModalOpen(true);
-                                }}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200"
-                                title="연동 수정"
-                              >
-                                <Settings className="h-4 w-4" strokeWidth={2} />
-                              </button>
+                            <div className="flex justify-start">
+                              <div className="inline-flex items-center justify-start gap-2">
+                                <button
+                                  type="button"
+                                  onClick={open070}
+                                  className={`${CALLLINK_COMPLETE_BTN} border-emerald-200/85 bg-emerald-50/90 text-emerald-950 hover:bg-emerald-100/90`}
+                                >
+                                  <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-700" strokeWidth={2} />
+                                  <span className="shrink-0 tabular-nums tracking-tight">
+                                    {format070Display(call070Number)}
+                                  </span>
+                                  <Badge
+                                    variant="active"
+                                    className="shrink-0 px-1 py-0 text-[9px] font-medium leading-tight"
+                                  >
+                                    연동 완료
+                                  </Badge>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={open070}
+                                  className={CALLLINK_GEAR_BTN}
+                                  title="연동 수정"
+                                >
+                                  <Settings className="h-4 w-4" strokeWidth={2} />
+                                </button>
+                              </div>
                             </div>
                           );
                         })()}
                       </td>
 
                       {/* 고객사 Link 안내 (헤더) / Link 안내 발송 (버튼) */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center align-middle">
                         <button
                           type="button"
                           onClick={() => {
                             setLinkModalClient(c);
                             setIsLinkModalOpen(true);
                           }}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200"
+                          className="inline-flex h-9 min-w-[8.5rem] items-center justify-center gap-1.5 rounded-md border border-slate-200/90 bg-slate-50 px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100/90"
                         >
                           <MessageSquare className="h-3.5 w-3.5" strokeWidth={2} />
                           Link 안내 발송

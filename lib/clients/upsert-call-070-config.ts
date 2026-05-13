@@ -10,7 +10,11 @@ export type UpsertCall070Fields = {
   smsTextTemplate?: string | null;
 };
 
-/** client_call_070_configs 단일 행 upsert (callcloud_registered 유지·신규 시 false) */
+/**
+ * client_call_070_configs 단일 행 upsert.
+ * 시트 「완료」·웹훅 전까지는 미연동으로 보므로, 저장/수정 시 callcloud_registered 를 false 로 맞추고
+ * 완료 플래그 true 는 주로 /api/webhooks/callcloud-sync 가 설정합니다. (레거시 POST .../070/register 도 동일 플래그를 올릴 수 있음)
+ */
 export async function upsertClientCall070Config(
   supabase: SupabaseClient,
   clientId: string,
@@ -34,12 +38,20 @@ export async function upsertClientCall070Config(
         admin_email: fields.adminEmail ?? null,
         admin_phone: fields.adminPhone ?? null,
         sms_text_template: fields.smsTextTemplate ?? null,
+        callcloud_registered: false,
       })
       .eq("id", existing.id)
       .select()
       .single();
 
     if (error) throw error;
+
+    const { error: clientUpdErr } = await supabase
+      .from("clients")
+      .update({ call_070_connected: false })
+      .eq("id", clientId);
+
+    if (clientUpdErr) throw clientUpdErr;
     return config;
   }
 
@@ -60,5 +72,12 @@ export async function upsertClientCall070Config(
     .single();
 
   if (error) throw error;
+
+  const { error: clientUpdErr } = await supabase
+    .from("clients")
+    .update({ call_070_connected: false })
+    .eq("id", clientId);
+
+  if (clientUpdErr) throw clientUpdErr;
   return config;
 }
