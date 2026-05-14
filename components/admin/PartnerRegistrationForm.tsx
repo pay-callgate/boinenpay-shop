@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { ADMIN_MODAL_PRIMARY_FORM_SUBMIT_CLASS } from "@/lib/admin-dialog-policy";
 
 interface PartnerRegistrationFormProps {
   subdomain: string;
@@ -31,9 +32,8 @@ const inputClass =
   "block w-full h-11 rounded-md border border-slate-300 px-3 py-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600";
 const readonlyClass =
   "block w-full h-11 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600 cursor-not-allowed";
-/** 해당 화면 모든 버튼 공통 스타일 (취소 버튼 색 기준). 비활성 시에도 스냅샷 색상 유지 */
-const buttonClass =
-  "h-11 rounded-lg px-4 py-3 text-sm font-medium text-white !bg-slate-800 hover:!bg-slate-700 disabled:!bg-slate-800 disabled:hover:!bg-slate-800 disabled:cursor-not-allowed border-0 cursor-pointer";
+/** 운영자·기업 등록 제출 (어드민 모달 Primary 정책과 동일) */
+const buttonClass = ADMIN_MODAL_PRIMARY_FORM_SUBMIT_CLASS;
 
 export function PartnerRegistrationForm({
   subdomain,

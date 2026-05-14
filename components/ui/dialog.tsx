@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { ADMIN_MODAL_HEADER_BG_CLASS } from "@/lib/admin-dialog-policy";
+
 interface DialogContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -106,7 +108,9 @@ export function DialogContent({
 
 export function DialogHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="sticky top-0 z-10 bg-slate-800 px-6 py-4 rounded-t-lg">
+    <div
+      className={`sticky top-0 z-10 relative rounded-t-lg ${ADMIN_MODAL_HEADER_BG_CLASS} px-6 pb-4 pt-6`}
+    >
       {children}
     </div>
   );

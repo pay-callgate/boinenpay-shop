@@ -13,6 +13,10 @@ import {
   DialogBody,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  ADMIN_MODAL_CANCEL_BTN_CLASS,
+  ADMIN_MODAL_PRIMARY_BTN_CLASS,
+} from "@/lib/admin-dialog-policy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminFetch } from "@/lib/admin-fetch";
 import {
@@ -276,7 +280,7 @@ export function ProductRegistrationModal({
           <DialogClose>✕</DialogClose>
         </DialogHeader>
 
-        <DialogBody className="flex-1 min-h-0">
+        <DialogBody className="flex-1 min-h-0 bg-gray-50">
           <form id="product-reg-form" onSubmit={handleSubmit(onSubmit)} className="h-full">
             <div className="grid grid-cols-12 gap-6 p-6">
               {/* 좌측: 미디어 전용 - 갤러리 형태 (메인 크게, 추가 이미지 하단) */}
@@ -647,7 +651,7 @@ export function ProductRegistrationModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className={ADMIN_MODAL_CANCEL_BTN_CLASS}
           >
             취소
           </button>
@@ -655,7 +659,7 @@ export function ProductRegistrationModal({
             type="submit"
             form="product-reg-form"
             disabled={saving}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-50"
+            className={`${ADMIN_MODAL_PRIMARY_BTN_CLASS} whitespace-nowrap`}
           >
             {initialData ? "수정 저장" : "상품 등록"}
           </button>

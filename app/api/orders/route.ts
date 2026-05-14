@@ -75,6 +75,9 @@ export async function GET(request: NextRequest) {
           id,
           name,
           email
+        ),
+        order_items (
+          product_name
         )
       `,
         { count: "exact" }

@@ -3,8 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { AdminHeader } from "@/components/admin/AdminHeader";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminDashboardShell } from "@/components/admin/AdminDashboardShell";
 import { AdminIdleGuard } from "@/components/admin/AdminIdleGuard";
 import { AdminToastWrapper } from "@/components/admin/AdminToastWrapper";
 
@@ -75,17 +74,13 @@ export default async function AdminDashboardLayout({
   return (
     <AdminToastWrapper>
       <AdminIdleGuard>
-        <div className="flex h-screen flex-col overflow-hidden bg-[#F5F7FA]">
-        <AdminHeader />
-        <div className="flex min-h-0 flex-1">
-          <AdminSidebar
-            partnerDisplayName={partnerDisplayName}
-            userName={session.user.name ?? undefined}
-          />
-          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-6">{children}</main>
-        </div>
-      </div>
-    </AdminIdleGuard>
+        <AdminDashboardShell
+          partnerDisplayName={partnerDisplayName}
+          userName={session.user.name ?? undefined}
+        >
+          {children}
+        </AdminDashboardShell>
+      </AdminIdleGuard>
     </AdminToastWrapper>
   );
 }

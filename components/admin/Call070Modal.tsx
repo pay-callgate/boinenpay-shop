@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogBody,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { adminFetch } from "@/lib/admin-fetch";
+import {
+  ADMIN_MODAL_HEADER_BAR_CLASS,
+  ADMIN_MODAL_PRIMARY_BTN_CLASS,
+  ADMIN_MODAL_CANCEL_BTN_CLASS,
+} from "@/lib/admin-dialog-policy";
 
 /**
  * T3-4: 070번호 연결 팝업 (TRD §7.2)
@@ -34,6 +45,11 @@ interface Props {
   onSuccess: () => void;
 }
 
+const labelCls = "mb-1.5 block text-sm font-medium text-slate-700";
+const inputCls =
+  "h-11 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1e293b] focus:outline-none focus:ring-1 focus:ring-[#1e293b]";
+const readOnlyInputCls = `${inputCls} cursor-not-allowed bg-slate-50`;
+
 export function Call070Modal({
   clientId,
   clientName,
@@ -54,11 +70,8 @@ export function Call070Modal({
     admin_phone: "",
     sms_text_template: `안녕하세요 ${clientName}입니다.`,
   });
-  const [saving, setSaving] = useState(false);
   const [requestingQueue, setRequestingQueue] = useState(false);
-  const [config, setConfig] = useState<Call070Config | null>(null);
 
-  // 기존 설정 로드 + 담당자 정보로 관리자 필드 자동 세팅
   useEffect(() => {
     if (!isOpen || !clientId) return;
 
@@ -71,19 +84,19 @@ export function Call070Modal({
         const defaultAdminEmail = c?.admin_email?.trim() || contactEmail || "";
         const defaultAdminPhone = c?.admin_phone?.trim() || contactPhone || "";
         if (c) {
-          setConfig(c);
           setFormData({
             call_070_number: c.call_070_number || "",
-            greeting_message: c.greeting_message || `안녕하세요 ${clientName}에 전화 주셔서 감사합니다.`,
+            greeting_message:
+              c.greeting_message || `안녕하세요 ${clientName}에 전화 주셔서 감사합니다.`,
             industry: c.industry || "화훼",
             admin_name: defaultAdminName,
             admin_email: defaultAdminEmail,
             admin_phone: defaultAdminPhone,
-            sms_text_template: c.sms_text_template || `안녕하세요 ${clientName}입니다.`,
+            sms_text_template:
+              c.sms_text_template || `안녕하세요 ${clientName}입니다.`,
             callcloud_registered: c.callcloud_registered || false,
           });
         } else {
-          setConfig(null);
           setFormData((prev) => ({
             ...prev,
             admin_name: defaultAdminName,
@@ -93,48 +106,9 @@ export function Call070Modal({
         }
       }
     }
-    fetchConfig();
+    void fetchConfig();
   }, [isOpen, clientId, clientName, contactName, contactPhone, contactEmail]);
 
-  // 저장
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.call_070_number.trim()) {
-      alert("서비스 번호(070)는 필수입니다.");
-      return;
-    }
-
-    setSaving(true);
-
-    const res = await adminFetch(`/api/clients/${clientId}/070`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        call070Number: formData.call_070_number,
-        greetingMessage: formData.greeting_message,
-        industry: formData.industry,
-        adminName: formData.admin_name,
-        adminEmail: formData.admin_email,
-        adminPhone: formData.admin_phone,
-        smsTextTemplate: formData.sms_text_template,
-      }),
-    });
-
-    setSaving(false);
-
-    if (res.ok) {
-      const data = await res.json();
-      setConfig(data.config);
-      alert("070번호 연결 정보가 저장되었습니다.");
-      onSuccess();
-      // 모달은 닫지 않고 070 연결 버튼을 표시
-    } else {
-      const data = await res.json();
-      alert(data.error || "저장 실패");
-    }
-  };
-
- /** 시트 + 슬랙 접수 (CallCloud 자동화 없음) */
   const handleRequestQueue = async () => {
     if (!formData.call_070_number?.trim()) {
       alert("서비스 번호(070)는 필수입니다.");
@@ -174,15 +148,6 @@ export function Call070Modal({
             ? `\n(시트 행: 약 ${data.sheetRow}번째 줄)`
             : "";
         alert((data.message as string) + rowMsg);
-        setConfig((prev) =>
-          prev
-            ? {
-                ...prev,
-                ...formData,
-                callcloud_registered: false,
-              }
-            : { ...formData, callcloud_registered: false }
-        );
         onSuccess();
         onClose();
         return;
@@ -200,105 +165,38 @@ export function Call070Modal({
     }
   };
 
-  if (!isOpen) return null;
-
-  const inputStyle = {
-    width: "100%",
-    padding: "10px 14px",
-    border: "1px solid #E5E7EB",
-    borderRadius: "6px",
-    fontSize: "14px",
-  };
-
-  const labelStyle = {
-    display: "block",
-    marginBottom: "6px",
-    fontWeight: 500,
-    fontSize: "14px",
-  };
-
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "12px",
-          padding: "24px",
-          maxWidth: "600px",
-          width: "90%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "20px",
-          }}
-        >
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 700 }}>070 번호 연동 (시트·슬랙 접수)</h2>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex max-h-[90vh] max-w-xl flex-col overflow-hidden bg-white p-0">
+        <div className={ADMIN_MODAL_HEADER_BAR_CLASS}>
           <button
+            type="button"
             onClick={onClose}
-            style={{
-              padding: "4px 8px",
-              border: "none",
-              backgroundColor: "transparent",
-              cursor: "pointer",
-              fontSize: "20px",
-              color: "#999",
-            }}
+            className="absolute right-4 top-4 text-xl leading-none text-white transition-colors hover:text-slate-200"
+            aria-label="닫기"
           >
             ✕
           </button>
+          <h2 className="pr-10 text-lg font-bold text-white">070 번호 연동</h2>
         </div>
 
-        <form onSubmit={(e) => e.preventDefault()}>
-          <p
-            style={{
-              fontSize: "13px",
-              color: "#4B5563",
-              lineHeight: 1.5,
-              marginBottom: "16px",
-              padding: "12px",
-              background: "#F0F9FF",
-              borderRadius: "8px",
-              border: "1px solid #BAE6FD",
-            }}
-          >
-            <strong>접수 절차:</strong> 아래 [070 연동 요청]을 누르면 설정이 저장되고, 구글 시트에 행이
-            추가되며 슬랙으로 알림이 전송됩니다. 담당자가 CallCloud에 반영한 뒤 시트에서 진행 상태를
-            「완료」로 변경하면 CallLink에 연동 완료로 표시됩니다.
-          </p>
-          <div style={{ display: "grid", gap: "16px" }}>
+        <DialogBody className="min-h-0 flex-1 overflow-y-auto bg-gray-50 px-6 py-6">
+          <div className="space-y-4">
             <div>
-              <label style={labelStyle}>
-                고객사명 <span style={{ color: "#DC2626" }}>*</span>
+              <label className={labelCls}>
+                고객사명 <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
                 value={clientName}
                 readOnly
-                style={{ ...inputStyle, backgroundColor: "#F9FAFB" }}
+                className={readOnlyInputCls}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>
-                서비스 번호 (070) <span style={{ color: "#DC2626" }}>*</span>
+              <label className={labelCls}>
+                서비스 번호 (070) <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
@@ -308,41 +206,43 @@ export function Call070Modal({
                 }
                 required
                 placeholder="07012341234 (하이픈 없이)"
-                style={inputStyle}
+                className={inputCls}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>인사말 멘트</label>
+              <label className={labelCls}>인사말 멘트</label>
               <input
                 type="text"
                 value={formData.greeting_message}
                 onChange={(e) =>
                   setFormData({ ...formData, greeting_message: e.target.value })
                 }
-                style={inputStyle}
+                className={inputCls}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>고객사 대표번호</label>
+              <label className={labelCls}>고객사 대표번호</label>
               <input
                 type="text"
                 value={formData.call_070_number}
                 readOnly
-                style={{ ...inputStyle, backgroundColor: "#F9FAFB" }}
+                className={readOnlyInputCls}
               />
-              <p style={{ fontSize: "12px", color: "#999", marginTop: "4px" }}>
+              <p className="mt-1 text-xs text-slate-500">
                 서비스 번호와 동일하게 적용됩니다.
               </p>
             </div>
 
             <div>
-              <label style={labelStyle}>업종</label>
+              <label className={labelCls}>업종</label>
               <select
                 value={formData.industry}
-                onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                style={inputStyle}
+                onChange={(e) =>
+                  setFormData({ ...formData, industry: e.target.value })
+                }
+                className={inputCls}
               >
                 <option value="화훼">화훼</option>
                 <option value="제조">제조</option>
@@ -352,134 +252,94 @@ export function Call070Modal({
               </select>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
-                <label style={labelStyle}>관리자명</label>
+                <label className={labelCls}>관리자명</label>
                 <input
                   type="text"
                   value={formData.admin_name}
-                  onChange={(e) => setFormData({ ...formData, admin_name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, admin_name: e.target.value })
+                  }
                   placeholder="홍길동"
-                  style={inputStyle}
+                  className={inputCls}
                 />
               </div>
               <div>
-                <label style={labelStyle}>관리자 이메일</label>
+                <label className={labelCls}>관리자 이메일</label>
                 <input
                   type="email"
                   value={formData.admin_email}
-                  onChange={(e) => setFormData({ ...formData, admin_email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, admin_email: e.target.value })
+                  }
                   placeholder="hong@gmail.com"
-                  style={inputStyle}
+                  className={inputCls}
                 />
               </div>
               <div>
-                <label style={labelStyle}>관리자 전화번호</label>
+                <label className={labelCls}>관리자 전화번호</label>
                 <input
                   type="tel"
                   value={formData.admin_phone}
-                  onChange={(e) => setFormData({ ...formData, admin_phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, admin_phone: e.target.value })
+                  }
                   placeholder="01012344321"
-                  style={inputStyle}
+                  className={inputCls}
                 />
               </div>
             </div>
 
             <div>
-              <label style={labelStyle}>
-                서비스 URL <span style={{ color: "#DC2626" }}>*</span>
+              <label className={labelCls}>
+                서비스 URL <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
                 value={serviceUrl}
                 readOnly
-                style={{ ...inputStyle, backgroundColor: "#F9FAFB", fontFamily: "monospace" }}
+                className={`${readOnlyInputCls} font-mono text-sm`}
               />
-              <p style={{ fontSize: "12px", color: "#999", marginTop: "4px" }}>
+              <p className="mt-1 text-xs text-slate-500">
                 거래처 전용 URL이 자동으로 입력됩니다.
               </p>
             </div>
 
             <div>
-              <label style={labelStyle}>SMS 텍스트</label>
+              <label className={labelCls}>SMS 텍스트</label>
               <textarea
                 value={formData.sms_text_template}
                 onChange={(e) =>
                   setFormData({ ...formData, sms_text_template: e.target.value })
                 }
                 rows={3}
-                style={{ ...inputStyle, resize: "vertical" }}
+                className={`min-h-[5rem] w-full resize-y ${inputCls}`}
               />
             </div>
           </div>
+        </DialogBody>
 
-          <div style={{ marginTop: "24px", display: "flex", gap: "12px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+        <DialogFooter>
+          <button type="button" onClick={onClose} className={ADMIN_MODAL_CANCEL_BTN_CLASS}>
+            취소
+          </button>
+          {!formData.callcloud_registered ? (
             <button
               type="button"
-              onClick={onClose}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#E5E7EB",
-                color: "#333",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-              }}
+              onClick={() => void handleRequestQueue()}
+              disabled={requestingQueue}
+              className={`${ADMIN_MODAL_PRIMARY_BTN_CLASS} whitespace-nowrap px-5`}
             >
-              취소
+              {requestingQueue ? "접수 중…" : "070 연동 요청"}
             </button>
-            <button
-              type="button"
-              onClick={() =>
-                void handleSubmit({ preventDefault: () => {} } as React.FormEvent)
-              }
-              disabled={saving || requestingQueue}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#F3F4F6",
-                color: "#111827",
-                border: "1px solid #D1D5DB",
-                borderRadius: "6px",
-                cursor: saving || requestingQueue ? "not-allowed" : "pointer",
-                fontWeight: 500,
-              }}
-            >
-              {saving ? "저장 중…" : "설정만 저장"}
-            </button>
-            {!formData.callcloud_registered && (
-              <button
-                type="button"
-                onClick={() => void handleRequestQueue()}
-                disabled={requestingQueue || saving}
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: "#4A90D9",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: requestingQueue || saving ? "not-allowed" : "pointer",
-                  fontWeight: 500,
-                }}
-              >
-                {requestingQueue ? "접수 중…" : "070 연동 요청"}
-              </button>
-            )}
-            {formData.callcloud_registered && (
-              <div
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: "#10B981",
-                  color: "#fff",
-                  borderRadius: "6px",
-                  fontWeight: 500,
-                }}
-              >
-                ✓ CallCloud 연동 완료
-              </div>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
+          ) : (
+            <div className="flex items-center whitespace-nowrap rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white">
+              ✓ CallCloud 연동 완료
+            </div>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

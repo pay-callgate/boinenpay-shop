@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import { usePartnerSettingsModal } from "@/components/admin/PartnerSettingsModalContext";
 
 /** Heroicons Cog-6-tooth (outline) */
 function CogIcon({ className }: { className?: string }) {
@@ -31,10 +32,12 @@ function CogIcon({ className }: { className?: string }) {
 
 /**
  * T1-4: 파트너 어드민 헤더 (TRD §3.5)
- * h-14, bg-black, text-white. 좌측 로고, 우측 링크(파트너 설정, 로그아웃)
+ * 우측: 뉴런 연동 테스트, 파트너 설정(모달), 로그아웃
  * 중앙 집중형: /admin 기준 링크만 사용.
  */
 export function AdminHeader() {
+  const { openPartnerSettings } = usePartnerSettingsModal();
+
   return (
     <header className="flex h-14 shrink-0 items-center justify-between bg-black px-4 text-white">
       <Link href="/admin" className="text-lg font-bold">
@@ -48,13 +51,14 @@ export function AdminHeader() {
           뉴런 연동 테스트
         </Link>
         <span className="text-gray-300">|</span>
-        <Link
-          href="/admin/settings"
+        <button
+          type="button"
+          onClick={openPartnerSettings}
           className="flex items-center gap-1.5 hover:underline"
         >
           <CogIcon className="h-5 w-5" />
           <span>파트너 설정</span>
-        </Link>
+        </button>
         <span className="text-gray-300">|</span>
         <button
           type="button"

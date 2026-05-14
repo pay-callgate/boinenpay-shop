@@ -63,3 +63,24 @@ export function buildFloristShippingDetailText(parts: {
   if (cm) lines.push(`[카드 문구] ${cm}`);
   return lines.join("\n");
 }
+
+/**
+ * shipping_detail에 붙은 `[배달 희망]` 등 내부 이력용 블록은 수령인 카드 등 UI에서는 숨김.
+ * 본문은 `buildFloristShippingDetailText`와 동일한 줄 순서를 가정한다.
+ */
+export function stripFloristShippingDetailMeta(detail: string | null | undefined): string {
+  if (detail == null || detail.trim() === "") return "";
+  const lines = detail.replace(/\r\n/g, "\n").split("\n");
+  const metaIdx = lines.findIndex((line) => {
+    const t = line.trim();
+    return (
+      t.startsWith("[배달 희망]") ||
+      t.startsWith("[주문자]") ||
+      t.startsWith("[보내는 분") ||
+      t.startsWith("[리본 문구]") ||
+      t.startsWith("[카드 문구]")
+    );
+  });
+  const head = metaIdx >= 0 ? lines.slice(0, metaIdx) : lines;
+  return head.join("\n").replace(/\n+$/, "").trim();
+}

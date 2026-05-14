@@ -3,19 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { Calendar, Search } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import {
-  adminNewrunSubmitBadgeClass,
   formatAdminNewrunSubmitLabel,
-  truncateNewrunOrderKey,
   type NewrunSubmitListFilter,
 } from "@/lib/newrun/admin-order-newrun-summary";
-import { formatAdminOrdererListLabel } from "@/lib/admin-orderer-display";
-import {
-  formatDesiredDeliveryDateTimeLine,
-  getAdminLocalTodayYmd,
-  isDesiredDeliveryToday,
-} from "@/lib/admin-florist-order-display";
+import { toDesiredDeliveryYmd } from "@/lib/admin-florist-order-display";
+import { stripFloristShippingDetailMeta } from "@/lib/checkout-florist-fields";
 
 /**
  * T5-1: 주문 목록 페이지 (파트너 어드민) — 중앙 집중형 /admin/orders
@@ -55,9 +50,75 @@ interface Order {
   delivery_request_memo?: string | null;
   ribbon_sender?: string | null;
   ribbon_message?: string | null;
+  shipping_postcode?: string | null;
+  shipping_address?: string | null;
+  shipping_detail?: string | null;
+  order_items?: { product_name?: string | null }[];
   /** Phase 2: /api/orders?withNotify=1 */
   notify_unread_for_me?: boolean;
 }
+
+const ORDER_LIST_DEMO_ROWS: Order[] =
+  process.env.NODE_ENV === "development"
+    ? [
+        {
+          id: "demo-list-1",
+          order_no: "ORD20260511EAC65",
+          status: "received",
+          payment_status: "paid",
+          total_amount: 100000,
+          shipping_name: "홍길동",
+          created_at: "2026-05-11T06:24:00.000Z",
+          client: { id: "c1", name: "데모 거래처", slug: "demo" },
+          user: { id: "u1", name: "주문자", email: "a@b.com" },
+          is_guest: false,
+          orderer_name: "김주문",
+          newrun_submit_status: "success",
+          newrun_rwr_result: null,
+          newrun_rwr_orderkey: "202605-260511DEMOORDERKEY01",
+          newrun_last_submit_at: null,
+          desired_delivery_date: "2026-05-12",
+          delivery_time_slot: "14:00",
+          delivery_method: "quick",
+          delivery_request_memo: null,
+          ribbon_sender: null,
+          ribbon_message: null,
+          shipping_postcode: "13536",
+          shipping_address: "경기 성남시 분당구 데모로 1",
+          shipping_detail: "101호",
+          order_items: [{ product_name: "근조쌀화환10kg" }],
+          notify_unread_for_me: true,
+        },
+        {
+          id: "demo-list-2",
+          order_no: "ORD20260510Z9YXW",
+          status: "confirmed",
+          payment_status: "pending",
+          total_amount: 82600,
+          shipping_name: "이수령",
+          created_at: "2026-05-10T10:00:00.000Z",
+          client: { id: "c1", name: "데모 거래처", slug: "demo" },
+          user: null,
+          is_guest: true,
+          orderer_name: null,
+          newrun_submit_status: null,
+          newrun_rwr_result: null,
+          newrun_rwr_orderkey: null,
+          newrun_last_submit_at: null,
+          desired_delivery_date: "2026-05-13",
+          delivery_time_slot: "오전",
+          delivery_method: null,
+          delivery_request_memo: null,
+          ribbon_sender: null,
+          ribbon_message: null,
+          shipping_postcode: "06234",
+          shipping_address: "서울 강남구 테헤란로",
+          shipping_detail: "",
+          order_items: [{ product_name: "축하화환 대형" }],
+          notify_unread_for_me: false,
+        },
+      ]
+    : [];
 
 const NEWRUN_SUBMIT_FILTER_OPTIONS: { value: NewrunSubmitListFilter; label: string }[] = [
   { value: "all", label: "전체" },
@@ -85,6 +146,139 @@ const PAYMENT_STATUS_LABELS: Record<string, string> = {
   refunded: "환불됨",
 };
 
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function formatOrderListReceivedDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${yy}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function ymdToYyMmDd(ymd: string | null): string | null {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+  return ymd.replace(/^(\d{4})-(\d{2})-(\d{2})$/, (_, y: string, m: string, day: string) =>
+    `${y.slice(-2)}-${m}-${day}`
+  );
+}
+
+function formatDeliveryRequiredListLine(order: Order): string {
+  const ymd = toDesiredDeliveryYmd(order.desired_delivery_date ?? null);
+  const datePart = ymdToYyMmDd(ymd);
+  const slot =
+    typeof order.delivery_time_slot === "string" && order.delivery_time_slot.trim()
+      ? order.delivery_time_slot.trim()
+      : "";
+  if (datePart && slot) return `${datePart} ${slot}`;
+  if (datePart) return datePart;
+  if (slot) return slot;
+  return "—";
+}
+
+function formatAssocDispatchListLabel(order: Order): string {
+  const raw = formatAdminNewrunSubmitLabel({
+    payment_status: order.payment_status,
+    newrun_submit_status: order.newrun_submit_status,
+    newrun_rwr_result: order.newrun_rwr_result,
+  });
+  if (raw === "전송완료") return "협회 발주 완료";
+  if (raw === "전송완료(중복)") return "협회 발주 완료(중복)";
+  return raw;
+}
+
+function orderListAddressLine(order: Order): string {
+  const pc = order.shipping_postcode?.trim();
+  const addr = order.shipping_address?.trim() ?? "";
+  const det = stripFloristShippingDetailMeta(order.shipping_detail ?? null);
+  const head = pc ? `[${pc}] ${addr}` : addr;
+  if (det) return `${head} ${det}`.trim();
+  return head.trim() || "—";
+}
+
+function orderListFirstProductName(order: Order): string {
+  const n = order.order_items?.[0]?.product_name;
+  const s = typeof n === "string" ? n.trim() : "";
+  return s || "—";
+}
+
+function paymentListPill(order: Order): { label: string; className: string } {
+  const base = "inline-block max-w-[11rem] rounded-full px-2.5 py-1 text-xs font-medium";
+  if (order.status === "cancelled" || order.payment_status === "refunded" || order.payment_status === "cancelled") {
+    return { label: "결제취소", className: `${base} bg-gray-200 text-gray-700` };
+  }
+  if (order.payment_status === "paid") {
+    return {
+      label: PAYMENT_STATUS_LABELS.paid,
+      className: `${base} bg-black text-white`,
+    };
+  }
+  return {
+    label: PAYMENT_STATUS_LABELS[order.payment_status] ?? order.payment_status ?? "—",
+    className: `${base} bg-gray-100 text-gray-800`,
+  };
+}
+
+type FilterState = {
+  selectedClient: string;
+  selectedStatus: string;
+  selectedPaymentStatus: string;
+  selectedNewrunSubmit: NewrunSubmitListFilter;
+  startDate: string;
+  endDate: string;
+  desiredDeliveryFrom: string;
+  desiredDeliveryTo: string;
+};
+
+const EMPTY_FILTERS: FilterState = {
+  selectedClient: "",
+  selectedStatus: "",
+  selectedPaymentStatus: "",
+  selectedNewrunSubmit: "all",
+  startDate: "",
+  endDate: "",
+  desiredDeliveryFrom: "",
+  desiredDeliveryTo: "",
+};
+
+function getUnifiedFilterValue(f: FilterState): string {
+  if (f.selectedNewrunSubmit !== "all") return `newrun:${f.selectedNewrunSubmit}`;
+  if (f.selectedPaymentStatus) return `pay:${f.selectedPaymentStatus}`;
+  if (f.selectedStatus) return `order:${f.selectedStatus}`;
+  return "all";
+}
+
+function applyUnifiedPick(value: string): Partial<FilterState> {
+  if (value === "all") {
+    return { selectedStatus: "", selectedPaymentStatus: "", selectedNewrunSubmit: "all" };
+  }
+  if (value.startsWith("order:")) {
+    return {
+      selectedStatus: value.slice(6),
+      selectedPaymentStatus: "",
+      selectedNewrunSubmit: "all",
+    };
+  }
+  if (value.startsWith("pay:")) {
+    return {
+      selectedStatus: "",
+      selectedPaymentStatus: value.slice(4),
+      selectedNewrunSubmit: "all",
+    };
+  }
+  if (value.startsWith("newrun:")) {
+    return {
+      selectedStatus: "",
+      selectedPaymentStatus: "",
+      selectedNewrunSubmit: value.slice(7) as NewrunSubmitListFilter,
+    };
+  }
+  return {};
+}
+
+type QuickTab = "all" | "pending_payment" | "newrun_failed" | "custom";
+
 export default function OrdersPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -95,15 +289,14 @@ export default function OrdersPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const [selectedClient, setSelectedClient] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>("");
-  const [selectedNewrunSubmit, setSelectedNewrunSubmit] =
-    useState<NewrunSubmitListFilter>("all");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-  const [desiredDeliveryFrom, setDesiredDeliveryFrom] = useState<string>("");
-  const [desiredDeliveryTo, setDesiredDeliveryTo] = useState<string>("");
+  const [draft, setDraft] = useState<FilterState>(() => ({ ...EMPTY_FILTERS }));
+  const [applied, setApplied] = useState<FilterState>(() => ({ ...EMPTY_FILTERS }));
+  const [quickTab, setQuickTab] = useState<QuickTab>("all");
+
+  const [countAllOrders, setCountAllOrders] = useState<number | null>(null);
+  const [countPendingPayment, setCountPendingPayment] = useState<number | null>(null);
+  const [countNewrunFailed, setCountNewrunFailed] = useState<number | null>(null);
+
   const [offset, setOffset] = useState(0);
   const limit = 20;
 
@@ -131,21 +324,48 @@ export default function OrdersPage() {
   }, [partnerId]);
 
   useEffect(() => {
+    async function fetchTabCounts() {
+      if (!partnerId) return;
+      const base = `/api/orders?partnerId=${partnerId}&limit=1&offset=0`;
+      try {
+        const [rAll, rPend, rFail] = await Promise.all([
+          adminFetch(`${base}&withNotify=1`),
+          adminFetch(`${base}&paymentStatus=pending&withNotify=1`),
+          adminFetch(`${base}&newrunSubmit=failed&withNotify=1`),
+        ]);
+        const [dAll, dPend, dFail] = await Promise.all([
+          rAll.json().catch(() => ({})),
+          rPend.json().catch(() => ({})),
+          rFail.json().catch(() => ({})),
+        ]);
+        setCountAllOrders(typeof dAll.total === "number" ? dAll.total : null);
+        setCountPendingPayment(typeof dPend.total === "number" ? dPend.total : null);
+        setCountNewrunFailed(typeof dFail.total === "number" ? dFail.total : null);
+      } catch {
+        setCountAllOrders(null);
+        setCountPendingPayment(null);
+        setCountNewrunFailed(null);
+      }
+    }
+    void fetchTabCounts();
+  }, [partnerId]);
+
+  useEffect(() => {
     async function fetchOrders() {
       if (!partnerId) return;
 
       setLoading(true);
       let url = `/api/orders?partnerId=${partnerId}&limit=${limit}&offset=${offset}`;
-      if (selectedClient) url += `&clientId=${selectedClient}`;
-      if (selectedStatus) url += `&status=${selectedStatus}`;
-      if (selectedPaymentStatus) url += `&paymentStatus=${selectedPaymentStatus}`;
-      if (selectedNewrunSubmit && selectedNewrunSubmit !== "all") {
-        url += `&newrunSubmit=${selectedNewrunSubmit}`;
+      if (applied.selectedClient) url += `&clientId=${applied.selectedClient}`;
+      if (applied.selectedStatus) url += `&status=${applied.selectedStatus}`;
+      if (applied.selectedPaymentStatus) url += `&paymentStatus=${applied.selectedPaymentStatus}`;
+      if (applied.selectedNewrunSubmit && applied.selectedNewrunSubmit !== "all") {
+        url += `&newrunSubmit=${applied.selectedNewrunSubmit}`;
       }
-      if (startDate) url += `&startDate=${startDate}`;
-      if (endDate) url += `&endDate=${endDate}`;
-      if (desiredDeliveryFrom) url += `&desiredDeliveryFrom=${desiredDeliveryFrom}`;
-      if (desiredDeliveryTo) url += `&desiredDeliveryTo=${desiredDeliveryTo}`;
+      if (applied.startDate) url += `&startDate=${applied.startDate}`;
+      if (applied.endDate) url += `&endDate=${applied.endDate}`;
+      if (applied.desiredDeliveryFrom) url += `&desiredDeliveryFrom=${applied.desiredDeliveryFrom}`;
+      if (applied.desiredDeliveryTo) url += `&desiredDeliveryTo=${applied.desiredDeliveryTo}`;
       url += "&withNotify=1";
 
       const res = await adminFetch(url);
@@ -160,14 +380,14 @@ export default function OrdersPage() {
     fetchOrders();
   }, [
     partnerId,
-    selectedClient,
-    selectedStatus,
-    selectedPaymentStatus,
-    selectedNewrunSubmit,
-    startDate,
-    endDate,
-    desiredDeliveryFrom,
-    desiredDeliveryTo,
+    applied.selectedClient,
+    applied.selectedStatus,
+    applied.selectedPaymentStatus,
+    applied.selectedNewrunSubmit,
+    applied.startDate,
+    applied.endDate,
+    applied.desiredDeliveryFrom,
+    applied.desiredDeliveryTo,
     offset,
   ]);
 
@@ -175,31 +395,106 @@ export default function OrdersPage() {
     return new Intl.NumberFormat("ko-KR").format(price);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const fmtYmdDot = (v: string) =>
+    v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v.replace(/^(\d{4})-(\d{2})-(\d{2})$/, "$1.$2.$3") : "—";
+
+  const applySearch = () => {
+    const next = { ...draft };
+    setApplied(next);
+    setOffset(0);
+    if (!next.selectedStatus && !next.selectedPaymentStatus && next.selectedNewrunSubmit === "all") {
+      setQuickTab("all");
+    } else if (
+      next.selectedPaymentStatus === "pending" &&
+      !next.selectedStatus &&
+      next.selectedNewrunSubmit === "all"
+    ) {
+      setQuickTab("pending_payment");
+    } else if (
+      next.selectedNewrunSubmit === "failed" &&
+      !next.selectedStatus &&
+      !next.selectedPaymentStatus
+    ) {
+      setQuickTab("newrun_failed");
+    } else {
+      setQuickTab("custom");
+    }
+  };
+
+  const pickQuickAll = () => {
+    const next: FilterState = {
+      ...draft,
+      selectedStatus: "",
+      selectedPaymentStatus: "",
+      selectedNewrunSubmit: "all",
+    };
+    setDraft(next);
+    setApplied(next);
+    setOffset(0);
+    setQuickTab("all");
+  };
+
+  const pickQuickPending = () => {
+    const next: FilterState = {
+      ...draft,
+      selectedStatus: "",
+      selectedPaymentStatus: "pending",
+      selectedNewrunSubmit: "all",
+    };
+    setDraft(next);
+    setApplied(next);
+    setOffset(0);
+    setQuickTab("pending_payment");
+  };
+
+  const pickQuickNewrunFail = () => {
+    const next: FilterState = {
+      ...draft,
+      selectedStatus: "",
+      selectedPaymentStatus: "",
+      selectedNewrunSubmit: "failed",
+    };
+    setDraft(next);
+    setApplied(next);
+    setOffset(0);
+    setQuickTab("newrun_failed");
+  };
+
+  const newrunListBadge = (order: Order) => {
+    const label = formatAssocDispatchListLabel(order);
+    const failed = order.newrun_submit_status === "failed";
+    const ok =
+      order.newrun_submit_status === "success" || order.newrun_submit_status === "duplicate";
+    const base = "inline-block max-w-[11rem] truncate rounded-full px-2.5 py-1 text-xs font-medium";
+    if (order.payment_status !== "paid") {
+      return { label: "—", className: `${base} bg-gray-100 text-gray-600` };
+    }
+    if (failed) {
+      return {
+        label: label.length > 24 ? `${label.slice(0, 24)}…` : label,
+        className: `${base} bg-red-100 font-bold text-red-700`,
+      };
+    }
+    if (ok) {
+      return { label, className: `${base} mt-1 bg-blue-50 text-blue-700` };
+    }
+    return { label, className: `${base} bg-gray-100 text-gray-800` };
   };
 
   const handleExcelDownload = async () => {
     if (!partnerId) return;
 
     let url = `/api/orders/export?partnerId=${partnerId}`;
-    if (selectedClient) url += `&clientId=${selectedClient}`;
-    if (selectedStatus) url += `&status=${selectedStatus}`;
-    if (selectedPaymentStatus) url += `&paymentStatus=${selectedPaymentStatus}`;
-    if (selectedNewrunSubmit && selectedNewrunSubmit !== "all") {
-      url += `&newrunSubmit=${selectedNewrunSubmit}`;
+    if (applied.selectedClient) url += `&clientId=${applied.selectedClient}`;
+    if (applied.selectedStatus) url += `&status=${applied.selectedStatus}`;
+    if (applied.selectedPaymentStatus) url += `&paymentStatus=${applied.selectedPaymentStatus}`;
+    if (applied.selectedNewrunSubmit && applied.selectedNewrunSubmit !== "all") {
+      url += `&newrunSubmit=${applied.selectedNewrunSubmit}`;
     }
-    if (startDate) url += `&startDate=${startDate}`;
-    if (endDate) url += `&endDate=${endDate}`;
-    if (desiredDeliveryFrom) url += `&desiredDeliveryFrom=${desiredDeliveryFrom}`;
-    if (desiredDeliveryTo) url += `&desiredDeliveryTo=${desiredDeliveryTo}`;
+    if (applied.startDate) url += `&startDate=${applied.startDate}`;
+    if (applied.endDate) url += `&endDate=${applied.endDate}`;
+    if (applied.desiredDeliveryFrom) url += `&desiredDeliveryFrom=${applied.desiredDeliveryFrom}`;
+    if (applied.desiredDeliveryTo) url += `&desiredDeliveryTo=${applied.desiredDeliveryTo}`;
 
     try {
       const res = await adminFetch(url);
@@ -222,23 +517,16 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      received: "#64748B",
-      confirmed: "#0284C7",
-      pending_payment: "#F59E0B",
-      paid: "#10B981",
-      preparing: "#3B82F6",
-      shipping: "#8B5CF6",
-      delivered: "#059669",
-      cancelled: "#EF4444",
-    };
-    return colors[status] || "#6B7280";
-  };
-
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const currentPage = total === 0 ? 1 : Math.min(totalPages, Math.floor(offset / limit) + 1);
-  const floristListTodayYmd = getAdminLocalTodayYmd();
+  const monthNum = String(new Date().getMonth() + 1).padStart(2, "0");
+  const listMonthTitle = `[ ${monthNum}월 주문 목록 ]`;
+  const summaryAmountExact =
+    !loading && total > 0 && orders.length === total
+      ? orders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0)
+      : null;
+  const summaryAmountText =
+    summaryAmountExact == null ? "—" : `${formatPrice(summaryAmountExact)} 원`;
 
   if (status === "loading" || !partnerId) {
     return (
@@ -278,276 +566,270 @@ export default function OrdersPage() {
         </div>
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">거래처</label>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-2 rounded-md border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800">
+                <span className="shrink-0 font-medium text-slate-600">기간 설정</span>
+                <span className="text-slate-400" aria-hidden>
+                  :
+                </span>
+                <span className="shrink-0 text-xs text-slate-500">주문</span>
+                <input
+                  type="date"
+                  value={draft.startDate}
+                  onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))}
+                  className="h-9 rounded border border-slate-200 bg-white px-2 text-sm"
+                />
+                <span className="text-slate-400">~</span>
+                <input
+                  type="date"
+                  value={draft.endDate}
+                  onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
+                  className="h-9 rounded border border-slate-200 bg-white px-2 text-sm"
+                />
+                <span className="mx-0.5 text-slate-300 sm:mx-1">·</span>
+                <span className="shrink-0 text-xs text-slate-500">희망배송</span>
+                <input
+                  type="date"
+                  value={draft.desiredDeliveryFrom}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, desiredDeliveryFrom: e.target.value }))
+                  }
+                  className="h-9 rounded border border-slate-200 bg-white px-2 text-sm"
+                />
+                <span className="text-slate-400">~</span>
+                <input
+                  type="date"
+                  value={draft.desiredDeliveryTo}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, desiredDeliveryTo: e.target.value }))
+                  }
+                  className="h-9 rounded border border-slate-200 bg-white px-2 text-sm"
+                />
+                <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+                <span className="sr-only">
+                  {fmtYmdDot(draft.startDate)} ~ {fmtYmdDot(draft.endDate)}, 희망 배송{" "}
+                  {fmtYmdDot(draft.desiredDeliveryFrom)} ~ {fmtYmdDot(draft.desiredDeliveryTo)}
+                </span>
+              </div>
               <select
-                value={selectedClient}
-                onChange={(e) => {
-                  setSelectedClient(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 min-w-[140px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                value={draft.selectedClient}
+                onChange={(e) => setDraft((d) => ({ ...d, selectedClient: e.target.value }))}
+                className="h-10 min-w-[10rem] rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
               >
-                <option value="">전체</option>
+                <option value="">거래처 선택</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">주문 상태</label>
               <select
-                value={selectedStatus}
-                onChange={(e) => {
-                  setSelectedStatus(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 min-w-[120px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                value={getUnifiedFilterValue(draft)}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, ...applyUnifiedPick(e.target.value) }))
+                }
+                className="h-10 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 sm:min-w-[14rem]"
               >
-                <option value="">전체</option>
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
+                <option value="all">상태 통합검색</option>
+                <optgroup label="주문 상태">
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={`order:${value}`}>
+                      {label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="결제">
+                  {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={`pay:${value}`}>
+                      {label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="뉴런 발주">
+                  {NEWRUN_SUBMIT_FILTER_OPTIONS.filter((o) => o.value !== "all").map(
+                    ({ value, label }) => (
+                      <option key={value} value={`newrun:${value}`}>
+                        {label}
+                      </option>
+                    )
+                  )}
+                </optgroup>
               </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">결제 상태</label>
-              <select
-                value={selectedPaymentStatus}
-                onChange={(e) => {
-                  setSelectedPaymentStatus(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 min-w-[120px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+              <button
+                type="button"
+                onClick={applySearch}
+                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
               >
-                <option value="">전체</option>
-                {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                검색
+                <Search className="h-4 w-4" aria-hidden />
+              </button>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">뉴런 발주</label>
-              <select
-                value={selectedNewrunSubmit}
-                onChange={(e) => {
-                  setSelectedNewrunSubmit(e.target.value as NewrunSubmitListFilter);
-                  setOffset(0);
-                }}
-                className="h-10 min-w-[180px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+
+            <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={pickQuickAll}
+                className={`text-sm transition-colors ${
+                  quickTab === "all"
+                    ? "border-b-2 border-black pb-1 font-bold text-black"
+                    : "font-normal text-gray-500 hover:text-black"
+                }`}
               >
-                {NEWRUN_SUBMIT_FILTER_OPTIONS.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">주문일 시작</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">주문일 종료</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">희망 배송일 시작</label>
-              <input
-                type="date"
-                value={desiredDeliveryFrom}
-                onChange={(e) => {
-                  setDesiredDeliveryFrom(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">희망 배송일 종료</label>
-              <input
-                type="date"
-                value={desiredDeliveryTo}
-                onChange={(e) => {
-                  setDesiredDeliveryTo(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
-              />
+                전체{countAllOrders != null ? ` ${countAllOrders}건` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={pickQuickPending}
+                className={`text-sm transition-colors ${
+                  quickTab === "pending_payment"
+                    ? "border-b-2 border-black pb-1 font-bold text-black"
+                    : "font-normal text-gray-500 hover:text-black"
+                }`}
+              >
+                결제대기{countPendingPayment != null ? ` ${countPendingPayment}` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={pickQuickNewrunFail}
+                className={`text-sm font-bold ${
+                  quickTab === "newrun_failed"
+                    ? "rounded-full bg-orange-50 px-3 py-1 text-orange-600 ring-2 ring-orange-300"
+                    : "rounded-full bg-orange-50 px-3 py-1 text-orange-600 hover:bg-orange-100"
+                }`}
+              >
+                뉴런 발주 실패{countNewrunFailed != null ? ` ${countNewrunFailed}` : ""} 🚨
+              </button>
             </div>
           </div>
         </div>
-
-        <p className="mb-3 text-sm text-slate-600">총 {total}건</p>
       </div>
 
       {/* [3] 테이블 카드 + 내부 스크롤 / [4] 하단 고정 페이징 */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        {!loading && (
+          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-3">
+            <span className="text-lg font-bold text-blue-700">{listMonthTitle}</span>
+            <span className="text-sm font-medium text-gray-700">
+              [총발주 수: {total}건 ( {summaryAmountText} )]
+            </span>
+          </div>
+        )}
         <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
+            <thead className="sticky top-0 z-10 bg-gray-50 shadow-[0_1px_0_#e5e7eb]">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문일시</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문번호</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">거래처</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">주문자</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">받는 분</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-rose-800/90">희망 배송일시</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">금액</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">상태</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">결제</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">뉴런 발주</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">협회 주문번호</th>
+                <th className="border-y border-gray-200 px-4 py-3 text-left text-xs font-semibold whitespace-nowrap text-gray-500">
+                  주문번호
+                </th>
+                <th className="border-y border-gray-200 px-4 py-3 text-left text-xs font-semibold whitespace-nowrap text-gray-500">
+                  확인
+                </th>
+                <th className="border-y border-gray-200 px-4 py-3 text-left text-xs font-semibold whitespace-nowrap text-gray-500">
+                  주문접수일 / 배송요구일
+                </th>
+                <th className="border-y border-gray-200 px-4 py-3 text-left text-xs font-semibold whitespace-nowrap text-gray-500">
+                  주문상품명 / 배송지
+                </th>
+                <th className="border-y border-gray-200 px-4 py-3 text-left text-xs font-semibold whitespace-nowrap text-gray-500">
+                  결제금액
+                </th>
+                <th className="border-y border-gray-200 px-4 py-3 text-left text-xs font-semibold whitespace-nowrap text-gray-500">
+                  주문 및 발주 현황
+                </th>
+                <th className="border-y border-gray-200 px-4 py-3 text-left text-xs font-semibold whitespace-nowrap text-gray-500">
+                  협회주문번호
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
+                    불러오는 중…
                   </td>
                 </tr>
-              ) : orders.length === 0 ? (
+              ) : orders.length === 0 &&
+                !(process.env.NODE_ENV === "development" && ORDER_LIST_DEMO_ROWS.length > 0) ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
                     주문 내역이 없습니다.
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => {
-                  const deliveryToday = isDesiredDeliveryToday(
-                    order.desired_delivery_date,
-                    floristListTodayYmd
-                  );
-                  const deliveryLine = formatDesiredDeliveryDateTimeLine(
-                    order.desired_delivery_date,
-                    order.delivery_time_slot
-                  );
+                (orders.length === 0 && process.env.NODE_ENV === "development"
+                  ? ORDER_LIST_DEMO_ROWS
+                  : orders
+                ).map((order) => {
+                  const pay = paymentListPill(order);
+                  const nr = newrunListBadge(order);
                   return (
-                  <tr
-                    key={order.id}
-                    onClick={() => router.push(`/admin/orders/${order.id}`)}
-                    className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-slate-50/50"
-                  >
-                    <td className="px-4 py-3 text-sm text-slate-600">
-                      {formatDate(order.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/admin/orders/${order.id}`);
-                        }}
-                        className="text-left font-medium text-blue-600 underline hover:no-underline"
-                      >
-                        <span className="inline-flex items-center gap-1.5 flex-wrap">
-                          {order.notify_unread_for_me ? (
-                            <span className="rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white no-underline">
-                              NEW
-                            </span>
-                          ) : null}
-                          <span>{order.order_no}</span>
-                        </span>
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">
-                      {order.client?.name ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">
-                      {formatAdminOrdererListLabel(order)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">
-                      {order.shipping_name ?? "-"}
-                    </td>
-                    <td
-                      className={`px-4 py-3 text-sm ${
-                        deliveryToday
-                          ? "font-bold text-red-600"
-                          : "text-slate-700"
-                      }`}
+                    <tr
+                      key={order.id}
+                      onClick={() => {
+                        if (order.id.startsWith("demo-list-")) return;
+                        router.push(`/admin/orders/${order.id}`);
+                      }}
+                      className="cursor-pointer border-b border-gray-100 transition-colors hover:bg-slate-50/50"
                     >
-                      {deliveryToday ? (
-                        <span className="mr-1.5 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
-                          오늘
+                      <td className="px-4 py-3 align-top">
+                        <span className="text-xs font-normal text-gray-500">{order.order_no}</span>
+                      </td>
+                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                        {order.notify_unread_for_me ? (
+                          <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                            New
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">확인O</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-col">
+                          <span className="text-sm text-gray-700">
+                            {formatOrderListReceivedDateTime(order.created_at)}
+                          </span>
+                          <span className="mt-1 text-sm font-bold text-orange-600">
+                            {formatDeliveryRequiredListLine(order)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex max-w-[240px] flex-col">
+                          <span className="text-sm font-medium text-gray-900">
+                            {orderListFirstProductName(order)}
+                          </span>
+                          <span
+                            className="mt-1 max-w-[200px] truncate text-xs text-gray-500"
+                            title={orderListAddressLine(order)}
+                          >
+                            {orderListAddressLine(order)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <span className="block text-right text-sm font-bold text-gray-900">
+                          {formatPrice(Number(order.total_amount) || 0)} 원
                         </span>
-                      ) : null}
-                      {deliveryLine}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-slate-800">
-                      {formatPrice(Number(order.total_amount) || 0)}원
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                        style={{
-                          backgroundColor: `${getStatusColor(order.status)}20`,
-                          color: getStatusColor(order.status),
-                        }}
-                      >
-                        {STATUS_LABELS[order.status] || order.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-slate-600">
-                      {PAYMENT_STATUS_LABELS[order.payment_status] ?? order.payment_status ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${adminNewrunSubmitBadgeClass(
-                          {
-                            payment_status: order.payment_status,
-                            newrun_submit_status: order.newrun_submit_status,
-                            newrun_rwr_result: order.newrun_rwr_result,
-                          }
-                        )}`}
-                      >
-                        {formatAdminNewrunSubmitLabel({
-                          payment_status: order.payment_status,
-                          newrun_submit_status: order.newrun_submit_status,
-                          newrun_rwr_result: order.newrun_rwr_result,
-                        })}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">
-                      {order.newrun_rwr_orderkey ? (
-                        <button
-                          type="button"
-                          title={order.newrun_rwr_orderkey}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/admin/orders/${order.id}`);
-                          }}
-                          className="max-w-[8rem] truncate text-left font-mono text-xs text-blue-600 underline hover:no-underline"
-                        >
-                          {truncateNewrunOrderKey(order.newrun_rwr_orderkey, 14)}
-                        </button>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={pay.className}>{pay.label}</span>
+                          <span
+                            className={nr.className}
+                            title={formatAssocDispatchListLabel(order)}
+                          >
+                            {nr.label}
+                            {order.newrun_submit_status === "failed" ? " 🚨" : ""}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <span className="text-xs text-gray-400">
+                          {order.newrun_rwr_orderkey?.trim() || "—"}
+                        </span>
+                      </td>
+                    </tr>
                   );
                 })
               )}

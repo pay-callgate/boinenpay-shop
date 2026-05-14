@@ -30,7 +30,7 @@ interface Client {
   client_call_070_configs?: { call_070_number: string }[];
 }
 
-import { getBaseUrl, getStorefrontUrl } from "@/lib/app-url";
+import { getStorefrontUrl } from "@/lib/app-url";
 
 /** 테이블 셀: 연관 요소만 타이트하게 그룹 (셀 전체를 채우지 않음) */
 const ORDER_LINK_CHIP_CLASS =
@@ -623,62 +623,16 @@ export default function ClientsLinksPage() {
           )}
         </div>
 
-        {/* 하단 안내 박스: 복사 안내 + 검증용 테스트 링크 */}
-        <div className="mt-4 space-y-3">
-          <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-            <span className="mt-0.5 text-blue-600">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </span>
-            <p className="text-sm text-blue-700">
-              <span className="font-medium">[복사]</span> 버튼을 클릭하면 해당 거래처의 전용 주문 링크가 클립보드에 복사됩니다.
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              검증용 테스트 링크
-            </p>
-            <ul className="space-y-1.5 text-sm text-slate-700">
-              <li>
-                <span className="font-medium text-slate-800">① 파트너 메인 (마스터 템플릿, 주문 불가)</span>
-                <br />
-                <a
-                  href={getStorefrontUrl(partnerSubdomain)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-0.5 break-all text-purple-600 underline hover:text-purple-700"
-                >
-                  {getBaseUrl() || "[현재 도메인]"}/{partnerSubdomain}
-                </a>
-                <br />
-                <span className="text-xs text-slate-500">상품 브라우징만 가능. 주문·장바구니·마이페이지 클릭 시 안내 Alert.</span>
-              </li>
-              <li className="pt-1">
-                <span className="font-medium text-slate-800">② 거래처 전용 쇼핑몰 (주문 가능)</span>
-                <br />
-                <span className="text-xs text-slate-500">
-                  위 테이블의 [복사] 또는 [외부링크]로 각 거래처 URL 확인.
-                  {clients[0] ? ` 예: ${clients[0].name}(${clients[0].slug})` : " 거래처 등록 후 테이블에서 URL 확인."}
-                </span>
-                <br />
-                {clients[0] ? (
-                  <a
-                    href={getStorefrontUrl(partnerSubdomain, clients[0].slug)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block mt-0.5 break-all text-purple-600 underline hover:text-purple-700"
-                  >
-                    {getBaseUrl() || "[현재 도메인]"}/{partnerSubdomain}/{clients[0].slug}
-                  </a>
-                ) : (
-                  <span className="mt-0.5 inline-block text-slate-500">
-                    {getBaseUrl() || "[현재 도메인]"}/{partnerSubdomain}/[거래처슬러그]
-                  </span>
-                )}
-              </li>
-            </ul>
-          </div>
+        {/* 하단 안내: [복사] 버튼 설명 */}
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <span className="mt-0.5 text-blue-600">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <p className="text-sm text-blue-700">
+            <span className="font-medium">[복사]</span> 버튼을 클릭하면 해당 거래처의 전용 주문 링크가 클립보드에 복사됩니다.
+          </p>
         </div>
       </div>
     </>

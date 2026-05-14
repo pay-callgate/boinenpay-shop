@@ -12,11 +12,12 @@ import {
   parseRecipientsFromFile,
   type ParsedRecipient,
 } from "@/lib/parse-alimtalk-recipients";
-
-/** 스냅샷 기준 헤더·수정·발송 CTA 공통 다크 네이비 */
-const HEADER_BG = "bg-[#1e293b]";
-const BTN_DARK =
-  "rounded-lg bg-[#1e293b] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-slate-900";
+import {
+  ADMIN_MODAL_HEADER_BAR_CLASS,
+  ADMIN_MODAL_PRIMARY_BTN_SM_CLASS,
+  ADMIN_MODAL_FOOTER_CANCEL_BTN_CLASS,
+  ADMIN_MODAL_FOOTER_PRIMARY_BTN_CLASS,
+} from "@/lib/admin-dialog-policy";
 
 /** 승인된 카카오 알림톡 템플릿(가변: #{storeName}, #{url}) */
 const KAKAO_ALIMTALK_LINK_TEMPLATE = `안녕하세요.
@@ -361,7 +362,7 @@ export function LinkNotificationModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[92vh] max-w-4xl flex-col overflow-hidden bg-white p-0">
         {/* 헤더: 다크 네이비 (스냅샷 빨간 박스 영역) */}
-        <div className={`relative shrink-0 px-6 pb-4 pt-6 ${HEADER_BG}`}>
+        <div className={ADMIN_MODAL_HEADER_BAR_CLASS}>
           <button
             type="button"
             onClick={onClose}
@@ -472,7 +473,7 @@ export function LinkNotificationModal({
                       <button
                         type="button"
                         onClick={handleSenderEdit}
-                        className={`shrink-0 ${BTN_DARK}`}
+                        className={`shrink-0 ${ADMIN_MODAL_PRIMARY_BTN_SM_CLASS}`}
                       >
                         수정
                       </button>
@@ -501,7 +502,7 @@ export function LinkNotificationModal({
                         <button
                           type="button"
                           onClick={handleReceiverEdit}
-                          className={`shrink-0 ${BTN_DARK}`}
+                          className={`shrink-0 ${ADMIN_MODAL_PRIMARY_BTN_SM_CLASS}`}
                         >
                           수정
                         </button>
@@ -693,7 +694,7 @@ export function LinkNotificationModal({
             type="button"
             onClick={onClose}
             disabled={sending}
-            className="inline-flex h-10 w-[12rem] shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            className={ADMIN_MODAL_FOOTER_CANCEL_BTN_CLASS}
           >
             취소
           </button>
@@ -703,7 +704,7 @@ export function LinkNotificationModal({
               void (sendMode === "single" ? handleSend() : handleBulkSend())
             }
             disabled={sending}
-            className="inline-flex h-10 w-[12rem] shrink-0 items-center justify-center rounded-lg bg-[#1e293b] px-2 text-center text-sm font-bold leading-tight text-white shadow-sm transition-colors hover:bg-slate-900 disabled:opacity-60"
+            className={ADMIN_MODAL_FOOTER_PRIMARY_BTN_CLASS}
           >
             {sending
               ? sendMode === "bulk"

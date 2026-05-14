@@ -8,8 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { adminFetch } from "@/lib/admin-fetch";
 import { Badge } from "@/components/ui/badge";
-
-const HEADER_BG = "bg-[#1A2234]";
+import { ADMIN_MODAL_HEADER_BAR_CLASS } from "@/lib/admin-dialog-policy";
 
 function getByteCount(text: string): number {
   return new TextEncoder().encode(text).length;
@@ -111,7 +110,7 @@ export function AlimtalkHistoryDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[92vh] max-w-4xl flex-col overflow-hidden bg-white p-0">
-        <div className={`relative shrink-0 px-6 pb-4 pt-6 ${HEADER_BG}`}>
+        <div className={ADMIN_MODAL_HEADER_BAR_CLASS}>
           <button
             type="button"
             onClick={onClose}

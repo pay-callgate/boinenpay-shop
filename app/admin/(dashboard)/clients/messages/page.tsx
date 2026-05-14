@@ -283,7 +283,7 @@ export default function AdminAlimtalkMessagesPage() {
             </div>
             <button
               type="submit"
-              className="h-10 rounded-md bg-[#1A2234] px-5 text-sm font-medium text-white transition-colors hover:opacity-90"
+              className="h-10 rounded-md bg-[#1e293b] px-5 text-sm font-medium text-white transition-colors hover:bg-slate-900"
             >
               조회
             </button>

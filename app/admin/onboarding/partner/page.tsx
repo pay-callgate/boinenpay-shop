@@ -50,7 +50,7 @@ export default function PartnerOnboardingPage() {
               </span>
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
             <PartnerRegistrationForm
               subdomain=""
               onSuccess={handleSuccess}

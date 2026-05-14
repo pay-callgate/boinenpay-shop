@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Camera } from "lucide-react";
 import { openDaumPostcode } from "@/lib/daum-postcode";
 import {
@@ -12,7 +12,10 @@ import {
   DialogBody,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ADMIN_MODAL_CANCEL_BTN_CLASS,
+  ADMIN_MODAL_PRIMARY_BTN_CLASS,
+} from "@/lib/admin-dialog-policy";
 import { adminFetch } from "@/lib/admin-fetch";
 
 /**
@@ -47,20 +50,36 @@ interface ClientRegistrationModalProps {
   onSuccess?: () => void;
 }
 
-const STATUS_OPTIONS = [
-  { value: "pending", label: "심사중" },
-  { value: "verified", label: "정상" },
-  { value: "rejected", label: "중지" },
-] as const;
+/** 섹션 래퍼: 박스 없음, 구분선 + 세로 여백만 */
+function FormSection({
+  title,
+  children,
+  isLast,
+}: {
+  title: string;
+  children: ReactNode;
+  isLast?: boolean;
+}) {
+  return (
+    <section
+      className={`py-4 ${isLast ? "" : "border-b border-gray-200"}`}
+    >
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
 
 export function ClientRegistrationModal({
   open,
   onOpenChange,
   partnerId,
-  subdomain,
+  subdomain: _subdomain,
   initialData = null,
   onSuccess,
 }: ClientRegistrationModalProps) {
+  void _subdomain;
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -77,8 +96,6 @@ export function ClientRegistrationModal({
     zipCode: "",
     address: "",
     addressDetail: "",
-    calllinkId: "",
-    commissionRate: "",
     verificationStatus: "pending",
   });
   const [logoUploading, setLogoUploading] = useState(false);
@@ -114,8 +131,6 @@ export function ClientRegistrationModal({
         zipCode: initialData.zip_code ?? "",
         address: initialData.address ?? "",
         addressDetail: initialData.address_detail ?? "",
-        calllinkId: "",
-        commissionRate: "",
         verificationStatus: initialData.verification_status ?? "pending",
       });
     } else {
@@ -134,8 +149,6 @@ export function ClientRegistrationModal({
         zipCode: "",
         address: "",
         addressDetail: "",
-        calllinkId: "",
-        commissionRate: "",
         verificationStatus: "pending",
       });
     }
@@ -229,14 +242,15 @@ export function ClientRegistrationModal({
   };
 
   const inputClass =
-    "h-10 w-full rounded-md border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
-  const labelClass = "mb-1.5 block text-sm font-semibold text-slate-700";
-  const selectClass =
-    "h-10 w-full rounded-md border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white";
+    "h-8 w-full rounded border border-slate-300 px-2 text-[13px] leading-tight focus:border-[#1e293b] focus:outline-none focus:ring-1 focus:ring-[#1e293b]";
+  const labelClass = "mb-1 block text-xs font-semibold text-slate-700";
+
+  const logoBoxButtonClass =
+    "relative flex h-28 w-32 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl flex max-h-[90vh] flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{initialData ? "거래처 수정" : "거래처 등록"}</DialogTitle>
           <p className="mt-1 text-sm text-slate-300">
@@ -245,284 +259,222 @@ export function ClientRegistrationModal({
           <DialogClose />
         </DialogHeader>
 
-        <DialogBody className="flex-1 min-h-0 overflow-y-auto">
-          <form id="client-reg-form" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-6 p-6">
-              {/* 기본 정보 */}
-              <Card className="col-span-2 border-none bg-transparent shadow-none">
-                <CardHeader className="p-0 pb-2 mb-4 border-b border-slate-100">
-                  <CardTitle className="text-base">기본 정보</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-0">
-                  {/* 거래처 로고 (Avatar Upload Style: 좌 미리보기 / 우 컨트롤) */}
-                  <div className="col-span-2">
-                    <label className={labelClass}>거래처 로고</label>
-                    <div className="flex items-center gap-5">
-                      <div className="h-20 w-20 shrink-0 rounded-xl border border-slate-200 bg-slate-50 object-contain shadow-sm overflow-hidden flex items-center justify-center">
-                        {formData.logoUrl ? (
-                          <img
-                            src={formData.logoUrl}
-                            alt="로고 미리보기"
-                            className="h-full w-full object-contain"
-                          />
-                        ) : (
-                          <Camera className="h-8 w-8 text-slate-300" aria-hidden />
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-2 shrink-0">
-                        <label className="cursor-pointer inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 w-fit">
-                          {/* logoUploading ? "업로드 중..." : */}이미지 선택
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            disabled={logoUploading}
-                            onChange={handleLogoFileChange}
-                          />
-                        </label>
-                        {formData.logoUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => setFormData((prev) => ({ ...prev, logoUrl: "" }))}
-                            className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                          >
-                            이미지 삭제
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
+        <DialogBody className="min-h-0 flex-1 overflow-y-auto bg-white">
+          <form id="client-reg-form" onSubmit={handleSubmit} className="px-6 pb-1">
+            <FormSection title="기본 정보">
+              <div className="grid grid-cols-2 gap-x-5 gap-y-2">
+                <div className="col-span-2 flex items-end gap-6">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={logoUploading}
+                    onChange={handleLogoFileChange}
+                  />
+                  <div className="flex shrink-0 flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      className={logoBoxButtonClass}
+                      disabled={logoUploading || !partnerId}
+                      onClick={() => logoInputRef.current?.click()}
+                      aria-label="거래처 로고 업로드"
+                    >
+                      {formData.logoUrl ? (
+                        <img
+                          src={formData.logoUrl}
+                          alt=""
+                          className="h-full w-full object-contain p-1"
+                        />
+                      ) : (
+                        <Camera className="h-7 w-7" aria-hidden />
+                      )}
+                    </button>
+                    {formData.logoUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, logoUrl: "" }))}
+                        className="text-[11px] font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline"
+                      >
+                        삭제
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">로고</span>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>거래처명 *</label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className={inputClass}
-                        placeholder="거래처명 입력"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Slug (URL용) *</label>
-                      <input
-                        type="text"
-                        value={formData.slug}
-                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                        className={inputClass}
-                        placeholder="예: abc-company"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>사업자등록번호</label>
-                      <input
-                        type="text"
-                        value={formData.businessRegistrationNumber}
-                        onChange={(e) =>
-                          setFormData({ ...formData, businessRegistrationNumber: e.target.value })
-                        }
-                        className={inputClass}
-                        placeholder="000-00-00000"
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>대표자명</label>
-                      <input
-                        type="text"
-                        value={formData.representativeName}
-                        onChange={(e) =>
-                          setFormData({ ...formData, representativeName: e.target.value })
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className={labelClass}>업태/종목</label>
-                      <input
-                        type="text"
-                        value={formData.businessType}
-                        onChange={(e) =>
-                          setFormData({ ...formData, businessType: e.target.value })
-                        }
-                        className={inputClass}
-                        placeholder="예: 도소매 / 꽃 판매"
-                      />
-                    </div>
+                  <div className="min-w-0 flex-1 pl-2 sm:pl-5">
+                    <label className={labelClass} htmlFor="client-reg-name">
+                      거래처명 *
+                    </label>
+                    <input
+                      id="client-reg-name"
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className={inputClass}
+                      placeholder="거래처명 입력"
+                      required
+                    />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              {/* 연락처 정보 */}
-              <Card className="col-span-2 border-none bg-transparent shadow-none">
-                <CardHeader className="p-0 pb-2 mb-4 border-b border-slate-100">
-                  <CardTitle className="text-base">연락처 정보</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>대표 이메일</label>
-                      <input
-                        type="email"
-                        value={formData.representativeEmail}
-                        onChange={(e) =>
-                          setFormData({ ...formData, representativeEmail: e.target.value })
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>대표 연락처</label>
-                      <input
-                        type="tel"
-                        value={formData.representativePhone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, representativePhone: e.target.value })
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>담당자명</label>
-                      <input
-                        type="text"
-                        value={formData.contactName}
-                        onChange={(e) =>
-                          setFormData({ ...formData, contactName: e.target.value })
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>담당자 연락처</label>
-                      <input
-                        type="tel"
-                        value={formData.contactPhone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, contactPhone: e.target.value })
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className={labelClass}>담당자 이메일</label>
-                      <input
-                        type="email"
-                        value={formData.contactEmail}
-                        onChange={(e) =>
-                          setFormData({ ...formData, contactEmail: e.target.value })
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                <div>
+                  <label className={labelClass}>Slug (URL용) *</label>
+                  <input
+                    type="text"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    className={inputClass}
+                    placeholder="예: abc-company"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>사업자등록번호</label>
+                  <input
+                    type="text"
+                    value={formData.businessRegistrationNumber}
+                    onChange={(e) =>
+                      setFormData({ ...formData, businessRegistrationNumber: e.target.value })
+                    }
+                    className={inputClass}
+                    placeholder="000-00-00000"
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>대표자명</label>
+                  <input
+                    type="text"
+                    value={formData.representativeName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, representativeName: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>업태/종목</label>
+                  <input
+                    type="text"
+                    value={formData.businessType}
+                    onChange={(e) =>
+                      setFormData({ ...formData, businessType: e.target.value })
+                    }
+                    className={inputClass}
+                    placeholder="예: 도소매 / 꽃 판매"
+                  />
+                </div>
+              </div>
+            </FormSection>
 
-              {/* 주소 정보 */}
-              <Card className="col-span-2 border-none bg-transparent shadow-none">
-                <CardHeader className="p-0 pb-2 mb-4 border-b border-slate-100">
-                  <CardTitle className="text-base">주소 정보</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-0">
-                  <div className="flex gap-2 items-center">
+            <FormSection title="연락처/담당자 정보">
+              <div className="grid grid-cols-2 gap-x-5 gap-y-2">
+                <div>
+                  <label className={labelClass}>담당자명</label>
+                  <input
+                    type="text"
+                    value={formData.contactName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, contactName: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>담당자 연락처</label>
+                  <input
+                    type="tel"
+                    value={formData.contactPhone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, contactPhone: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>담당자 이메일</label>
+                  <input
+                    type="email"
+                    value={formData.contactEmail}
+                    onChange={(e) =>
+                      setFormData({ ...formData, contactEmail: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>회사 대표 연락처</label>
+                  <input
+                    type="tel"
+                    value={formData.representativePhone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, representativePhone: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>회사 대표 이메일</label>
+                  <input
+                    type="email"
+                    value={formData.representativeEmail}
+                    onChange={(e) =>
+                      setFormData({ ...formData, representativeEmail: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection title="주소 정보" isLast>
+              <div className="grid grid-cols-2 gap-x-5 gap-y-2">
+                <div className="col-span-2 flex flex-wrap items-end gap-2">
+                  <div className="w-28">
+                    <label className={labelClass}>우편번호</label>
                     <input
                       type="text"
                       value={formData.zipCode}
                       onChange={(e) =>
                         setFormData({ ...formData, zipCode: e.target.value })
                       }
-                      className={`${inputClass} w-24`}
+                      className={inputClass}
                       placeholder="우편번호"
                       readOnly
                     />
-                    <button
-                      type="button"
-                      onClick={openPostcodeSearch}
-                      className="h-10 shrink-0 rounded-md border border-blue-200 bg-white px-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
-                    >
-                      우편번호 찾기
-                    </button>
                   </div>
-                  <div>
-                    <label className={labelClass}>기본 주소</label>
-                    <input
-                      type="text"
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address: e.target.value })
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>상세 주소</label>
-                    <input
-                      type="text"
-                      value={formData.addressDetail}
-                      onChange={(e) =>
-                        setFormData({ ...formData, addressDetail: e.target.value })
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 계약 정보 */}
-              <Card className="col-span-2 border-none bg-transparent shadow-none">
-                <CardHeader className="p-0 pb-2 mb-4 border-b border-slate-100">
-                  <CardTitle className="text-base">계약 정보</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-0">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>CallLink 연동 ID</label>
-                      <input
-                        type="text"
-                        value={formData.calllinkId}
-                        onChange={(e) =>
-                          setFormData({ ...formData, calllinkId: e.target.value })
-                        }
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>수수료율 (%)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        value={formData.commissionRate}
-                        onChange={(e) =>
-                          setFormData({ ...formData, commissionRate: e.target.value })
-                        }
-                        className={inputClass}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>거래 상태</label>
-                      <select
-                        value={formData.verificationStatus}
-                        onChange={(e) =>
-                          setFormData({ ...formData, verificationStatus: e.target.value })
-                        }
-                        className={selectClass}
-                      >
-                        {STATUS_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <button
+                    type="button"
+                    onClick={openPostcodeSearch}
+                    className="mb-0.5 h-8 shrink-0 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    우편번호 찾기
+                  </button>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className={labelClass}>기본 주소</label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className={labelClass}>상세 주소</label>
+                  <input
+                    type="text"
+                    value={formData.addressDetail}
+                    onChange={(e) =>
+                      setFormData({ ...formData, addressDetail: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </FormSection>
           </form>
         </DialogBody>
 
@@ -530,7 +482,7 @@ export function ClientRegistrationModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className={ADMIN_MODAL_CANCEL_BTN_CLASS}
           >
             취소
           </button>
@@ -538,8 +490,7 @@ export function ClientRegistrationModal({
             type="submit"
             form="client-reg-form"
             disabled={saving}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
-            style={{ backgroundColor: "#1e293b" }}
+            className={`${ADMIN_MODAL_PRIMARY_BTN_CLASS} whitespace-nowrap`}
           >
             {initialData ? "수정 저장" : "거래처 등록"}
           </button>
