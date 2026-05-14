@@ -23,12 +23,12 @@ export const ADMIN_MODAL_PRIMARY_BTN_SM_CLASS =
 export const ADMIN_MODAL_CANCEL_BTN_CLASS =
   "rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50";
 
-/** Link 안내 모달 하단: 긴 한글 레이블이 잘리지 않도록 whitespace-nowrap + 최소 너비 */
+/** Link 안내 모달 하단: 긴 한글 레이블 + 충분한 터치/시각 높이 (py 명시) */
 export const ADMIN_MODAL_FOOTER_PRIMARY_BTN_CLASS =
-  "inline-flex min-h-10 w-max min-w-[12rem] max-w-full shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#1e293b] px-4 text-center text-sm font-bold text-white shadow-sm transition-colors hover:bg-slate-900 disabled:opacity-60";
+  "inline-flex h-11 min-h-11 w-max min-w-[12rem] max-w-full shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#1e293b] px-5 text-center text-sm font-bold text-white shadow-sm transition-colors hover:bg-slate-900 disabled:opacity-60";
 
 export const ADMIN_MODAL_FOOTER_CANCEL_BTN_CLASS =
-  "inline-flex min-h-10 w-max min-w-[12rem] max-w-full shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50";
+  "inline-flex h-11 min-h-11 w-max min-w-[12rem] max-w-full shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50";
 
 /** Partner 온보딩 등 h-11 제출 버튼 */
 export const ADMIN_MODAL_PRIMARY_FORM_SUBMIT_CLASS =

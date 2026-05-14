@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Link2, Link as LinkIcon, Phone, Settings } from "lucide-react";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
-import { Call070Modal } from "@/components/admin/Call070Modal";
+import { CallcloudIntegrationModal, type CallcloudModalEntry } from "@/components/admin/CallcloudIntegrationModal";
 import { getStorefrontUrl } from "@/lib/app-url";
 import { adminFetch } from "@/lib/admin-fetch";
 
@@ -46,7 +46,7 @@ const STATUS_FILTER_OPTIONS = [
 const CALLLINK_PRIMARY_BTN =
   "inline-flex h-9 w-[180px] min-w-[180px] max-w-[180px] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors";
 const CALLLINK_COMPLETE_BTN =
-  "inline-flex h-9 min-w-[180px] w-max shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2 text-xs font-medium transition-colors";
+  "inline-flex h-9 w-max shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2 text-xs font-medium transition-colors";
 const CALLLINK_GEAR_BTN =
   "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200/90 bg-white text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800";
 
@@ -67,6 +67,7 @@ export default function ClientsPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [show070Modal, setShow070Modal] = useState(false);
+  const [callcloudModalEntry, setCallcloudModalEntry] = useState<CallcloudModalEntry>("connect");
   const [selected070Client, setSelected070Client] = useState<Client | null>(null);
 
   useEffect(() => {
@@ -150,8 +151,9 @@ export default function ClientsPage() {
     alert("링크가 복사되었습니다.");
   };
 
-  const open070Modal = (client: Client) => {
+  const openCallcloudModal = (client: Client, entry: CallcloudModalEntry) => {
     setSelected070Client(client);
+    setCallcloudModalEntry(entry);
     setShow070Modal(true);
   };
   // 070 번호 표시 포맷: 07045070414 → 070-4507-0414
@@ -204,7 +206,7 @@ export default function ClientsPage() {
         onSuccess={fetchClients}
       />
       {show070Modal && selected070Client && (
-        <Call070Modal
+        <CallcloudIntegrationModal
           clientId={selected070Client.id}
           clientName={selected070Client.name}
           serviceUrl={getStorefrontUrl(partnerSubdomain, selected070Client.slug)}
@@ -212,6 +214,7 @@ export default function ClientsPage() {
           contactPhone={selected070Client.contact_phone ?? ""}
           contactEmail={selected070Client.contact_email ?? ""}
           isOpen={show070Modal}
+          entry={callcloudModalEntry}
           onClose={close070Modal}
           onSuccess={fetchClients}
         />
@@ -416,15 +419,15 @@ export default function ClientsPage() {
                                 <div className="inline-flex items-center justify-start gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => open070Modal(c)}
+                                    onClick={() => openCallcloudModal(c, "connect")}
                                     className={`${CALLLINK_PRIMARY_BTN} border-slate-200/90 bg-slate-50 text-slate-700 hover:bg-slate-100/90`}
                                   >
                                     <LinkIcon className="h-3.5 w-3.5 shrink-0 text-slate-600" strokeWidth={2} />
-                                    <span className="truncate">연동 정보</span>
+                                    <span className="truncate">Callcloud 연동하기</span>
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => open070Modal(c)}
+                                    onClick={() => openCallcloudModal(c, "connect")}
                                     className={CALLLINK_GEAR_BTN}
                                     title="연동 설정"
                                   >
@@ -440,20 +443,20 @@ export default function ClientsPage() {
                                 <div className="inline-flex items-center justify-start gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => open070Modal(c)}
+                                    onClick={() => openCallcloudModal(c, "pending")}
                                     className={`${CALLLINK_PRIMARY_BTN} border-amber-200/90 bg-amber-50/95 text-amber-950 hover:bg-amber-100/90`}
-                                    title="C2W(Call2Web)에 등록된 뒤 시트에서 진행상태를 완료로 바꾸면 070 번호가 표시됩니다."
+                                    title="Callcloud에 등록된 뒤 시트에서 진행상태를 완료로 바꾸면 070 번호가 표시됩니다."
                                   >
                                     <Link2
                                       className="h-3.5 w-3.5 shrink-0 text-amber-600 animate-pulse"
                                       strokeWidth={2}
                                       aria-hidden
                                     />
-                                    <span className="truncate">[C2W 시스템 등록 중]</span>
+                                    <span className="truncate">Callcloud 연동 중</span>
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => open070Modal(c)}
+                                    onClick={() => openCallcloudModal(c, "pending")}
                                     className={CALLLINK_GEAR_BTN}
                                     title="연동 설정·요청"
                                   >
@@ -468,7 +471,7 @@ export default function ClientsPage() {
                               <div className="inline-flex items-center justify-start gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => open070Modal(c)}
+                                  onClick={() => openCallcloudModal(c, "connect")}
                                   className={`${CALLLINK_COMPLETE_BTN} border-emerald-200/85 bg-emerald-50/90 text-emerald-950 hover:bg-emerald-100/90`}
                                 >
                                   <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-700" strokeWidth={2} />
@@ -484,7 +487,7 @@ export default function ClientsPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => open070Modal(c)}
+                                  onClick={() => openCallcloudModal(c, "connect")}
                                   className={CALLLINK_GEAR_BTN}
                                   title="연동 수정"
                                 >

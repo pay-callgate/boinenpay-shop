@@ -8,18 +8,29 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { adminFetch } from "@/lib/admin-fetch";
+import { Link as LinkIcon, Link2 } from "lucide-react";
 import {
   ADMIN_MODAL_HEADER_BAR_CLASS,
-  ADMIN_MODAL_PRIMARY_BTN_CLASS,
   ADMIN_MODAL_CANCEL_BTN_CLASS,
 } from "@/lib/admin-dialog-policy";
 
 /**
- * T3-4: 070번호 연결 팝업 (TRD §7.2)
- * 접수: 구글 시트 행 추가 + 슬랙 알림 → 담당자 CallCloud 수동 등록 → 시트 "완료" 시 웹훅으로 DB 동기화
+ * Callcloud 연동 전용 모달 (UI/카피 분리).
+ * API는 기존 `/api/clients/:id/070` 계열과 동일 — 번호 체계는 070 서비스 번호 유지.
+ *
+ * `entry`: 테이블에서 연 버튼과 동일한 하단 CTA 스타일·레이블
+ * - connect — 「Callcloud 연동하기」(흰 배경·회색 테두리)
+ * - pending — 「Callcloud 연동 중」(앰버 톤)
  */
 
-interface Call070Config {
+export type CallcloudModalEntry = "connect" | "pending";
+
+const FOOTER_BTN_CONNECT =
+  "inline-flex min-h-[2.5rem] items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-slate-200 bg-white px-5 text-xs font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
+const FOOTER_BTN_PENDING =
+  "inline-flex min-h-[2.5rem] items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-amber-200/90 bg-amber-50/95 px-5 text-xs font-medium text-amber-950 transition-colors hover:bg-amber-100/90 disabled:cursor-not-allowed disabled:opacity-60";
+
+interface CallcloudFormConfig {
   call_070_number: string;
   greeting_message: string;
   industry: string;
@@ -30,17 +41,16 @@ interface Call070Config {
   callcloud_registered?: boolean;
 }
 
-interface Props {
+export interface CallcloudIntegrationModalProps {
   clientId: string;
   clientName: string;
   serviceUrl: string;
-  /** 거래처 담당자명 → 관리자명 자동 세팅 */
   contactName?: string;
-  /** 거래처 담당자 연락처 → 관리자 전화번호 자동 세팅 */
   contactPhone?: string;
-  /** 거래처 담당자 이메일 → 관리자 이메일 자동 세팅 */
   contactEmail?: string;
   isOpen: boolean;
+  /** 테이블 '연동하기' vs '연동 중' 버튼과 매칭 */
+  entry: CallcloudModalEntry;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -50,7 +60,7 @@ const inputCls =
   "h-11 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1e293b] focus:outline-none focus:ring-1 focus:ring-[#1e293b]";
 const readOnlyInputCls = `${inputCls} cursor-not-allowed bg-slate-50`;
 
-export function Call070Modal({
+export function CallcloudIntegrationModal({
   clientId,
   clientName,
   serviceUrl,
@@ -58,10 +68,11 @@ export function Call070Modal({
   contactPhone = "",
   contactEmail = "",
   isOpen,
+  entry,
   onClose,
   onSuccess,
-}: Props) {
-  const [formData, setFormData] = useState<Call070Config>({
+}: CallcloudIntegrationModalProps) {
+  const [formData, setFormData] = useState<CallcloudFormConfig>({
     call_070_number: "",
     greeting_message: `안녕하세요 ${clientName}에 전화 주셔서 감사합니다.`,
     industry: "화훼",
@@ -117,7 +128,7 @@ export function Call070Modal({
 
     if (
       !confirm(
-        "070 연동 요청을 접수합니다.\n\n구글 시트에 행이 추가되고 슬랙으로 알림이 갑니다.\n콜게이트 담당자가 CallCloud에 등록한 뒤, 시트에서 진행 상태를 「완료」로 바꾸면 연동 완료로 반영됩니다.\n\n계속할까요?"
+        "Callcloud 연동을 요청합니다.\n\n구글 시트에 행이 추가되고 슬랙으로 알림이 갑니다.\n담당자가 Callcloud에 등록한 뒤, 시트에서 진행 상태를 「완료」로 바꾸면 연동 완료로 반영됩니다.\n\n계속할까요?"
       )
     ) {
       return;
@@ -155,10 +166,10 @@ export function Call070Modal({
 
       alert(
         (data.error as string) ||
-          `070 연동 요청 처리 실패 (HTTP ${res.status}). 다시 시도하거나 관리자에게 문의해 주세요.`
+          `Callcloud 연동 요청 처리 실패 (HTTP ${res.status}). 다시 시도하거나 관리자에게 문의해 주세요.`
       );
     } catch (error) {
-      console.error("070 request-queue error:", error);
+      console.error("Callcloud request-queue error:", error);
       alert("요청 전송에 실패했습니다. 네트워크를 확인해 주세요.");
     } finally {
       setRequestingQueue(false);
@@ -177,7 +188,7 @@ export function Call070Modal({
           >
             ✕
           </button>
-          <h2 className="pr-10 text-lg font-bold text-white">070 번호 연동</h2>
+          <h2 className="pr-10 text-lg font-bold text-white">Callcloud 연동</h2>
         </div>
 
         <DialogBody className="min-h-0 flex-1 overflow-y-auto bg-gray-50 px-6 py-6">
@@ -329,13 +340,29 @@ export function Call070Modal({
               type="button"
               onClick={() => void handleRequestQueue()}
               disabled={requestingQueue}
-              className={`${ADMIN_MODAL_PRIMARY_BTN_CLASS} whitespace-nowrap px-5`}
+              className={entry === "pending" ? FOOTER_BTN_PENDING : FOOTER_BTN_CONNECT}
             >
-              {requestingQueue ? "접수 중…" : "070 연동 요청"}
+              {requestingQueue ? (
+                "접수 중…"
+              ) : entry === "pending" ? (
+                <>
+                  <Link2
+                    className="h-3.5 w-3.5 shrink-0 text-amber-600 animate-pulse"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                  Callcloud 연동 중
+                </>
+              ) : (
+                <>
+                  <LinkIcon className="h-3.5 w-3.5 shrink-0 text-slate-600" strokeWidth={2} aria-hidden />
+                  Callcloud 연동하기
+                </>
+              )}
             </button>
           ) : (
-            <div className="flex items-center whitespace-nowrap rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white">
-              ✓ CallCloud 연동 완료
+            <div className="inline-flex min-h-[2.5rem] items-center justify-center whitespace-nowrap rounded-lg border border-emerald-200/85 bg-emerald-50/90 px-5 text-sm font-medium text-emerald-950">
+              Callcloud 정보 변경
             </div>
           )}
         </DialogFooter>

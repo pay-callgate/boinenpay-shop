@@ -23,7 +23,6 @@ import {
   DEFAULT_PRODUCT_DELIVERY_METHODS,
   normalizeDeliveryMethodsForDb,
 } from "@/lib/product-delivery-methods";
-import { PRODUCT_IMAGE_UPLOAD_NOTICE } from "@/lib/product-image-guidance";
 
 /** 노출 순서: 당일배송 → 새벽배송 → 퀵서비스 → 택배 → 매장픽업 */
 const deliveryOptions = [
@@ -283,12 +282,9 @@ export function ProductRegistrationModal({
         <DialogBody className="flex-1 min-h-0 bg-gray-50">
           <form id="product-reg-form" onSubmit={handleSubmit(onSubmit)} className="h-full">
             <div className="grid grid-cols-12 gap-6 p-6">
-              {/* 좌측: 미디어 전용 - 갤러리 형태 (메인 크게, 추가 이미지 하단) */}
+              {/* 좌측: 미디어 — 대표 이미지 + 업로드 가이드 */}
               <div className="col-span-5 flex flex-col gap-4">
                 <p className="text-sm font-semibold text-slate-700">미디어</p>
-                <p className="text-xs leading-relaxed text-slate-500 whitespace-pre-line">
-                  {PRODUCT_IMAGE_UPLOAD_NOTICE}
-                </p>
                 {/* 메인 이미지: 쇼핑몰 상세와 동일 3:4 + cover 미리보기 */}
                 <label className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/50 transition-colors hover:bg-slate-100/50">
                   {imagePreview || thumbnailUrl ? (
@@ -308,16 +304,27 @@ export function ProductRegistrationModal({
                   )}
                   <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
                 </label>
-                {/* 추가 이미지: 메인 바로 아래, 3열 그리드 */}
-                <div className="grid grid-cols-3 gap-2">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="flex aspect-square items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-400"
-                    >
-                      <span className="text-lg">+</span>
-                    </div>
-                  ))}
+                <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 px-3 py-3">
+                  <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-blue-600 text-xs font-bold text-white">
+                      i
+                    </span>
+                    대표 이미지 업로드 가이드
+                  </p>
+                  <ul className="space-y-1.5 text-xs leading-relaxed text-slate-700">
+                    <li className="flex gap-2">
+                      <span className="shrink-0 text-slate-500">•</span>
+                      <span>권장: 1080 x 1440px (3:4 비율)</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="shrink-0 text-slate-500">•</span>
+                      <span>주의: 가로 1080px 미만 시 화질 저하</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="shrink-0 text-slate-500">•</span>
+                      <span>형식: JPG, PNG, GIF, WebP (최대 10MB)</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
 
