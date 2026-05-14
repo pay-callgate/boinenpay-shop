@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import type { ReactNode } from "react";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -18,25 +20,46 @@ import {
   ADMIN_MODAL_FOOTER_CANCEL_BTN_CLASS,
   ADMIN_MODAL_FOOTER_PRIMARY_BTN_CLASS,
 } from "@/lib/admin-dialog-policy";
+import { resolveLinkAlimtalkMessage } from "@/lib/alimtalk-link-template";
 
-/** 승인된 카카오 알림톡 템플릿(가변: #{storeName}, #{url}) */
-const KAKAO_ALIMTALK_LINK_TEMPLATE = `안녕하세요.
+/** `public/images` — repo의 카카오톡 채널 CI PNG 복사본 */
+const CALLLINK_KAKAO_CHANNEL_PROFILE_SRC = "/images/calllink-kakao-channel-ci.png";
 
-화면으로 바로 주문하는
-#{storeName} 콜링크 쇼핑입니다.
+/**
+ * 알림톡 본문 미리보기: http(s) 및 www… 를 카카오톡과 같이 파란 밑줄 링크 스타일로 표시.
+ */
+function alimtalkPreviewBodyWithLinks(text: string): ReactNode {
+  const t = text.trim();
+  if (!t) return "메시지가 여기에 표시됩니다.";
+  const re = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  const out: ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  re.lastIndex = 0;
+  while ((m = re.exec(t)) !== null) {
+    if (m.index > last) {
+      out.push(t.slice(last, m.index));
+    }
+    out.push(
+      <span
+        key={`${m.index}-${m[0].slice(0, 24)}`}
+        className="text-[#1264d4] underline underline-offset-1"
+      >
+        {m[0]}
+      </span>
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < t.length) out.push(t.slice(last));
+  return out.length ? out : t;
+}
 
-요청하신 서비스 이용을 위해 아래의 링크를 눌러 접속해 주세요.
-#{url}
-
-감사합니다.`;
-
-function resolveKakaoLinkTemplate(storeName: string, orderUrl: string): string {
-  const name = storeName?.trim() || "파트너";
-  const url = orderUrl?.trim() || "(링크 준비 중)";
-  return KAKAO_ALIMTALK_LINK_TEMPLATE.replace(/#\{storeName\}/g, name).replace(
-    /#\{url\}/g,
-    url
-  );
+function formatKakaoPreviewClock(): string {
+  return new Date().toLocaleTimeString("ko-KR", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 /** 입력 시 하이픈 자동 삽입 (010-1234-1234 형태 유지) */
@@ -113,10 +136,9 @@ export function LinkNotificationModal({
   partnerContact,
   clientId,
   clientSlug,
-  assigned070Number: _assigned070Number,
+  assigned070Number,
   recipientPhone,
 }: Props) {
-  void _assigned070Number;
 
   const [sendMode, setSendMode] = useState<"single" | "bulk">("single");
   const [message, setMessage] = useState("");
@@ -137,6 +159,7 @@ export function LinkNotificationModal({
   const bulkProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(
     null
   );
+  const [alimtalkPreviewClock, setAlimtalkPreviewClock] = useState("");
 
   const partnerDisplayName =
     partnerName?.trim() || partnerSubdomain?.trim() || "파트너";
@@ -147,7 +170,13 @@ export function LinkNotificationModal({
       typeof window !== "undefined" && partnerSubdomain && clientSlug
         ? `${window.location.origin}/${partnerSubdomain}/${clientSlug}`
         : "";
-    setMessage(resolveKakaoLinkTemplate(partnerDisplayName, orderUrl));
+    setMessage(
+      resolveLinkAlimtalkMessage({
+        storeName: partnerDisplayName,
+        orderUrl,
+        callLinkNumFormatted: assigned070Number?.trim() || undefined,
+      })
+    );
     setSenderNumber(
       partnerContact?.trim() ? formatPhoneInput(partnerContact.trim()) : ""
     );
@@ -162,6 +191,7 @@ export function LinkNotificationModal({
     setBulkFileLabel(null);
     setBulkProgress(0);
     setBulkDragging(false);
+    setAlimtalkPreviewClock(formatKakaoPreviewClock());
   }, [
     isOpen,
     partnerDisplayName,
@@ -169,6 +199,7 @@ export function LinkNotificationModal({
     partnerSubdomain,
     clientSlug,
     recipientPhone,
+    assigned070Number,
   ]);
 
   useEffect(() => {
@@ -389,17 +420,56 @@ export function LinkNotificationModal({
                   알림톡 미리보기
                 </h3>
                 <div
-                  className="flex min-h-[320px] max-h-[400px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-[#f3f4f6] shadow-sm"
-                  style={{ boxShadow: "inset 0 0 16px rgba(0,0,0,0.04)" }}
+                  className="h-[400px] max-w-sm overflow-y-auto rounded-xl bg-[#bacee0] p-4 shadow-inner"
+                  aria-label="카카오톡 알림톡 미리보기"
                 >
-                  <div className="flex shrink-0 justify-center border-b border-gray-200/80 py-2">
-                    <div className="h-4 w-12 rounded-full bg-gray-300" />
-                  </div>
-                  <div className="min-h-[220px] min-w-0 flex-1 overflow-y-auto p-4">
-                    <div className="min-w-0 max-w-full rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-                      <p className="min-w-0 whitespace-pre-wrap text-sm leading-relaxed text-gray-800 [overflow-wrap:anywhere]">
-                        {message || "메시지가 여기에 표시됩니다."}
-                      </p>
+                  <div className="flex items-start gap-2">
+                    <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-[#1a2b4a] ring-1 ring-black/10">
+                      <Image
+                        src={CALLLINK_KAKAO_CHANNEL_PROFILE_SRC}
+                        alt="콜링크쇼핑"
+                        width={36}
+                        height={36}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1">
+                        <span className="text-[15px] font-normal leading-tight text-black">
+                          콜링크쇼핑
+                        </span>
+                      </div>
+
+                      <div className="relative pt-0.5">
+                        <div
+                          className="absolute -right-0.5 -top-0.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[#191919] shadow-sm ring-2 ring-[#bacee0]"
+                          aria-hidden
+                        >
+                          <span className="text-[7.5px] font-normal lowercase leading-none tracking-tighter text-white">
+                            kakao
+                          </span>
+                        </div>
+                        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.06]">
+                          <div className="rounded-t-2xl bg-[#ffeb00] px-3.5 py-2.5">
+                            <span className="text-[15px] font-bold leading-snug text-black">
+                              알림톡 도착
+                            </span>
+                          </div>
+                          <div className="px-3.5 py-3">
+                            <div className="whitespace-pre-wrap break-all text-[15px] leading-[1.5] text-black">
+                              {alimtalkPreviewBodyWithLinks(message)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {alimtalkPreviewClock ? (
+                        <div className="mt-1 flex justify-end">
+                          <span className="text-[11px] leading-none text-[#576575]">
+                            {alimtalkPreviewClock}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

@@ -7,6 +7,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { logger, extractIpFromRequest } from "@/lib/logger";
+import {
+  getMsgagentTemplateCodeForLinkKakao,
+  resolveLinkKakaoAlimtalkCase,
+} from "@/lib/alimtalk-link-template";
 import { prepareAlimtalkLinkMessage } from "@/lib/alimtalk-public-url";
 import { sendKakaoAlimtalkAt } from "@/lib/msgagent-kakao";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -115,8 +119,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const alimtalkCase = await resolveLinkKakaoAlimtalkCase(supabase, clientId);
+    const templateCode = getMsgagentTemplateCodeForLinkKakao(alimtalkCase);
+    if (!templateCode) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message:
+            "MSGAGENT_TEMPLATE_CODE_C1(링크만)이 비었습니다. .env에 설정하거나, 레거시 MSGAGENT_TEMPLATE_CODE를 넣어 주세요.",
+        },
+        { status: 500 }
+      );
+    }
+
     const tranId = randomBytes(14).toString("hex").slice(0, 29);
-    const templateCode = process.env.MSGAGENT_TEMPLATE_CODE?.trim() ?? "";
 
     const baseRow = {
       partner_id: partnerId,
@@ -136,6 +152,7 @@ export async function POST(request: NextRequest) {
         callback: callback || undefined,
         msg: msgToSend,
         tranId,
+        templateCode,
       });
 
       const r =
