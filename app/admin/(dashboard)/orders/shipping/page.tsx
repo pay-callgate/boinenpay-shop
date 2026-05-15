@@ -142,7 +142,7 @@ export default function OrdersShippingPage() {
       if (endDate) url += `&endDate=${endDate}`;
       if (desiredDeliveryFrom) url += `&desiredDeliveryFrom=${desiredDeliveryFrom}`;
       if (desiredDeliveryTo) url += `&desiredDeliveryTo=${desiredDeliveryTo}`;
-      url += "&withNotify=1";
+      url += "&withNotify=1&excludePaymentPending=1";
 
       const res = await adminFetch(url);
       if (res.ok) {

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { executeOrderCancel } from "@/lib/orders/execute-order-cancel";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/admin/orders/[id]/cancel
@@ -53,21 +54,51 @@ export async function POST(
       .maybeSingle();
 
     if (!admin) {
+      logger.warn("[API:AdminOrderCancel] 파트너 권한 없음", {
+        action: "admin_order_cancel_forbidden",
+        userId: session.user.id,
+        data: { orderId },
+      });
       return NextResponse.json({ error: "해당 주문에 대한 권한이 없습니다." }, { status: 403 });
     }
+
+    logger.info("[API:AdminOrderCancel] 요청 수신", {
+      action: "admin_order_cancel_post",
+      userId: session.user.id,
+      data: { orderId, reasonChars: reason.length },
+    });
+
+    const partnerOperatorLabel =
+      session.user.email?.trim() || session.user.name?.trim() || session.user.id;
 
     const result = await executeOrderCancel(supabase, {
       orderId,
       reason,
       actor: "partner",
+      partnerOperatorLabel,
     });
 
     if (!result.ok) {
+      logger.warn("[API:AdminOrderCancel] 처리 실패", {
+        action: "admin_order_cancel_failed",
+        userId: session.user.id,
+        data: {
+          orderId,
+          code: result.code,
+          status: result.status ?? 400,
+        },
+      });
       return NextResponse.json(
         { error: result.message, code: result.code },
         { status: result.status ?? 400 }
       );
     }
+
+    logger.info("[API:AdminOrderCancel] 성공", {
+      action: "admin_order_cancel_ok",
+      userId: session.user.id,
+      data: { orderId, idempotent: result.idempotent === true },
+    });
 
     return NextResponse.json({
       success: true,

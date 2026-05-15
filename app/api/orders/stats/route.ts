@@ -59,6 +59,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "통계 조회 실패" }, { status: 500 });
     }
 
+    /** 최근 6개월(rolling) 월별 매출 — 결제완료만, KPI 기간 필터와 무관 */
+    const sixMonthsStart = new Date();
+    sixMonthsStart.setMonth(sixMonthsStart.getMonth() - 6);
+    sixMonthsStart.setHours(0, 0, 0, 0);
+
+    const { data: ordersMonthly, error: monthlyErr } = await supabase
+      .from("orders")
+      .select("total_amount, payment_status, created_at")
+      .eq("partner_id", partnerId)
+      .gte("created_at", sixMonthsStart.toISOString());
+
+    if (monthlyErr) {
+      console.error("Orders stats monthly fetch error:", monthlyErr);
+    }
+
+    const monthlyRevenueByYm: Record<string, number> = {};
+    (ordersMonthly || []).forEach(
+      (row: { payment_status: string; total_amount: number; created_at: string }) => {
+        if (row.payment_status === "paid") {
+          const ym = row.created_at.slice(0, 7);
+          monthlyRevenueByYm[ym] = (monthlyRevenueByYm[ym] || 0) + row.total_amount;
+        }
+      }
+    );
+
     // 통계 계산
     const stats = {
       totalOrders: orders?.length || 0,
@@ -66,6 +91,7 @@ export async function GET(request: NextRequest) {
       byStatus: {} as Record<string, number>,
       byPaymentStatus: {} as Record<string, number>,
       dailyRevenue: {} as Record<string, number>,
+      monthlyRevenueByYm,
     };
 
     (orders || []).forEach((order: {

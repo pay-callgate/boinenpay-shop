@@ -75,6 +75,49 @@ async function loadUserFlags(userId: string): Promise<{
 }
 
 /**
+ * redirect 콜백에서 절대 URL(https://ngrok…)에 baseUrl을 문자열로 붙이면
+ * `http://localhost:3000https://…` 가 되어 INVALID_CALLBACK_URL_ERROR 가 난다.
+ */
+function collectAuthRedirectAllowedOrigins(baseUrl: string): Set<string> {
+  const origins = new Set<string>();
+  const add = (raw: string | undefined) => {
+    const t = raw?.trim();
+    if (!t) return;
+    try {
+      origins.add(new URL(t).origin);
+    } catch {
+      /* ignore */
+    }
+  };
+  add(baseUrl);
+  add(process.env.NEXTAUTH_URL);
+  add(process.env.NEXT_PUBLIC_APP_URL);
+  add(process.env.ALIMTALK_PUBLIC_ORIGIN);
+  return origins;
+}
+
+function authRedirectCallback({ url, baseUrl }: { url: string; baseUrl: string }): string {
+  if (url.startsWith("/")) {
+    return `${baseUrl}${url}`;
+  }
+  let target: URL;
+  try {
+    target = new URL(url);
+  } catch {
+    logger.warn("auth_redirect_invalid_url", { data: { url: url.slice(0, 200), baseUrl } });
+    return baseUrl;
+  }
+  const allowed = collectAuthRedirectAllowedOrigins(baseUrl);
+  if (allowed.has(target.origin)) {
+    return url;
+  }
+  logger.warn("auth_redirect_origin_rejected", {
+    data: { origin: target.origin, baseUrl, urlPreview: url.slice(0, 120) },
+  });
+  return baseUrl;
+}
+
+/**
  * NextAuth: 카카오·네이버 OAuth + 이메일/비밀번호(Credentials).
  * 로그인 시 public.users upsert/조회 (Supabase Service Role).
  */
@@ -334,7 +377,7 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       console.log("[Auth] redirect callback", { url, baseUrl });
-      return url.startsWith(baseUrl) ? url : baseUrl + url;
+      return authRedirectCallback({ url, baseUrl });
     },
     async session({ session, token }) {
       const t = token as JwtExt;

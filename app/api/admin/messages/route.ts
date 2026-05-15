@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { totalSuccessCount, estimatedSettlementWon } =
+    const { totalSuccessCount, totalFailCount, estimatedSettlementWon } =
       summarizeAlimtalkSettlement(filtered);
 
     const total = filtered.length;
@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
         total,
         summary: {
           totalSuccessCount,
+          totalFailCount,
           unitWon: 4,
           estimatedSettlementWon,
         },

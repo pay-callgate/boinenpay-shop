@@ -35,6 +35,11 @@ export async function GET(request: NextRequest) {
     /** 쉼표 구분 — 취소/반품 목록 등 복수 상태 (Phase 8.4). `status`와 동시 지정 시 이쪽 우선 */
     const statusIn = searchParams.get("statusIn");
     const paymentStatus = searchParams.get("paymentStatus");
+    /**
+     * 어드민 기본 목록: 카드 단일 결제 운영 시 pending 제외(?excludePaymentPending=1).
+     * `paymentStatus`를 명시하면 그 필터가 우선(결제대기 탭 등).
+     */
+    const excludePaymentPending = searchParams.get("excludePaymentPending") === "1";
     /** Phase 8.1: not_sent | ok | failed | needs_attention */
     const newrunSubmit = searchParams.get("newrunSubmit");
     const startDate = searchParams.get("startDate");
@@ -102,6 +107,8 @@ export async function GET(request: NextRequest) {
 
     if (paymentStatus) {
       query = query.eq("payment_status", paymentStatus);
+    } else if (excludePaymentPending) {
+      query = query.neq("payment_status", "pending");
     }
 
     if (newrunSubmit && newrunSubmit !== "all") {
@@ -190,6 +197,20 @@ function normalizeOrderPostcode(raw: unknown): string {
   const s = String(raw).trim();
   if (!s) return "00000";
   return s.length > 10 ? s.slice(0, 10) : s;
+}
+
+/** 미결제 재주문 멱등: orders에 저장된 예약 cart_item id 집합과 요청 집합이 동일한지 */
+function checkoutCartItemIdsEqual(
+  stored: string[] | null | undefined,
+  requested: string[]
+): boolean {
+  const norm = (ids: string[]) =>
+    [...new Set(ids.map((id) => String(id).trim()).filter(Boolean))].sort();
+  if (!stored?.length) return false;
+  const a = norm(stored);
+  const b = norm(requested);
+  if (a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
 }
 
 /** 이미 `request.json()`으로 파싱한 본문만 사용 — 본문 소비 후 `clone().json()` 호출 시 TypeError: unusable */
@@ -349,6 +370,65 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const cartItemIdList = cartItemIds as string[];
+
+    if (isGuestFlow && cartSessionId) {
+      const { data: pendingCandidates } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("is_guest", true)
+        .eq("payment_status", "pending")
+        .eq("guest_cart_session_id", cartSessionId)
+        .order("created_at", { ascending: false })
+        .limit(25);
+
+      const reuse = pendingCandidates?.find((row) =>
+        checkoutCartItemIdsEqual(
+          (row as { checkout_cart_item_ids?: string[] | null }).checkout_cart_item_ids,
+          cartItemIdList
+        )
+      );
+
+      if (reuse) {
+        const guestTok = (reuse as { guest_checkout_token?: string | null }).guest_checkout_token;
+        if (guestTok) {
+          return NextResponse.json({
+            order: reuse,
+            message: "진행 중인 주문이 있어 동일 주문으로 결제를 이어갑니다.",
+            idempotentReorder: true,
+            guestCheckoutToken: guestTok,
+            paymentSignature: signGuestCheckout(String((reuse as { id: string }).id), guestTok),
+          });
+        }
+      }
+    } else if (!isGuestFlow && session?.user?.id) {
+      const { data: pendingCandidates } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("user_id", session.user.id)
+        .eq("is_guest", false)
+        .eq("payment_status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(25);
+
+      const reuse = pendingCandidates?.find((row) =>
+        checkoutCartItemIdsEqual(
+          (row as { checkout_cart_item_ids?: string[] | null }).checkout_cart_item_ids,
+          cartItemIdList
+        )
+      );
+
+      if (reuse) {
+        return NextResponse.json({
+          order: reuse,
+          message: "진행 중인 주문이 있어 동일 주문으로 결제를 이어갑니다.",
+          idempotentReorder: true,
+        });
+      }
+    }
+
     const notPurchasable = cartItems.filter(
       (item: { product: { status: string } }) => item.product.status !== "active"
     );
@@ -428,6 +508,8 @@ export async function POST(request: NextRequest) {
         guest_password_hash: guestPasswordHash,
         orderer_name: ordererNameFinal || null,
         guest_orderer_email: guestEmailTrim || null,
+        checkout_cart_item_ids: cartItemIdList,
+        guest_cart_session_id: isGuestFlow ? cartSessionId : null,
         ...floristPayload,
       })
       .select()
@@ -533,8 +615,6 @@ export async function POST(request: NextRequest) {
         console.error("Order notification error:", err);
       });
     }
-
-    await supabase.from("cart_items").delete().in("id", cartItemIds);
 
     const baseJson: Record<string, unknown> = {
       order,

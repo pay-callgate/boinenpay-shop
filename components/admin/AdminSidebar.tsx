@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, LayoutDashboard, Package, Building2, ClipboardList, BarChart3, MessageSquare, User } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useToast } from "@/components/shop/ToastContext";
+import { ADMIN_ORDER_NOTIFY_POLL_MS } from "@/lib/admin-order-notify-poll";
 
 const BRAND_BLUE = "#2B78C5"; // 로그인 화면 신뢰감 파란색
 
@@ -26,6 +27,8 @@ export function AdminSidebar({
   const { toast } = useToast();
   const [unreadOrderNotify, setUnreadOrderNotify] = useState<number | null>(null);
   const partnerIdRef = useRef<string | null>(null);
+  /** 이전 폴링 미확인 건수 — setState 업데이터 안에서 toast 호출 시 ToastProvider와 렌더 단계 충돌 */
+  const lastUnreadPollRef = useRef<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -52,12 +55,15 @@ export function AdminSidebar({
         if (!res.ok || !alive) return;
         const j = await res.json();
         const n = typeof j.unreadCount === "number" ? j.unreadCount : 0;
-        setUnreadOrderNotify((prev) => {
-          if (prev !== null && n > prev) {
-            toast(`미확인 주문 알림이 ${n - prev}건 늘었습니다.`, "default");
-          }
-          return n;
-        });
+        const last = lastUnreadPollRef.current;
+        if (last !== null && n > last) {
+          const delta = n - last;
+          window.setTimeout(() => {
+            toast(`미확인 결제 완료 알림이 ${delta}건 늘었습니다.`, "default");
+          }, 0);
+        }
+        lastUnreadPollRef.current = n;
+        setUnreadOrderNotify(n);
       } catch {
         /* adminFetch가 401 시 리다이렉트 */
       }
@@ -65,7 +71,7 @@ export function AdminSidebar({
     void poll();
     const intervalId = window.setInterval(() => {
       void poll();
-    }, 45000);
+    }, ADMIN_ORDER_NOTIFY_POLL_MS);
     return () => {
       alive = false;
       window.clearInterval(intervalId);
@@ -220,7 +226,7 @@ export function AdminSidebar({
                     {key === "orders" && unreadOrderNotify !== null && unreadOrderNotify > 0 ? (
                       <span
                         className="shrink-0 rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white"
-                        title="미확인 주문 알림"
+                        title="미확인 결제 완료 알림(주문 건수)"
                       >
                         {unreadOrderNotify > 99 ? "99+" : unreadOrderNotify}
                       </span>

@@ -5,6 +5,8 @@ import { AlertTriangle } from "lucide-react";
 type PartnerPaymentCancel = {
   allowed: boolean;
   message: string | null;
+  /** 서버에 PARTNER_PAYMENT_CANCEL_TEST_BYPASS=true 일 때 */
+  test_bypass?: boolean;
 } | null;
 
 type Props = {
@@ -26,16 +28,22 @@ export function OrderPaymentCancelCard({
   orderPaymentStatus,
   orderStatus,
 }: Props) {
+  const testBypass = partnerPaymentCancel?.test_bypass === true;
   const isDelivered = orderStatus === "delivered";
   const isCancelled = orderStatus === "cancelled";
   const isPaid = orderPaymentStatus === "paid";
-  const showReasonField = isPaid && !isCancelled && !isDelivered && partnerPaymentCancel?.allowed;
+  const allowCancel =
+    partnerPaymentCancel?.allowed === true || testBypass;
+  const showReasonField =
+    allowCancel &&
+    !isCancelled &&
+    (isPaid || testBypass) &&
+    (!isDelivered || testBypass);
   const orderCancelDisabled =
     paymentCancelSubmitting ||
-    isDelivered ||
     isCancelled ||
-    !isPaid ||
-    !partnerPaymentCancel?.allowed ||
+    (!testBypass && (isDelivered || !isPaid)) ||
+    (!allowCancel) ||
     (showReasonField && paymentCancelReason.trim().length < 4);
 
   return (
@@ -45,11 +53,18 @@ export function OrderPaymentCancelCard({
         결제 취소
       </h2>
 
-      {partnerPaymentCancel && !partnerPaymentCancel.allowed && (
+      {testBypass ? (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950">
+          테스트 모드: 상태·결제 검증이 우회됩니다. 운영 배포 전{' '}
+          <code className="rounded bg-amber-100/80 px-1">PARTNER_PAYMENT_CANCEL_TEST_BYPASS</code> 를 제거하세요.
+        </p>
+      ) : null}
+
+      {partnerPaymentCancel && !partnerPaymentCancel.allowed && !testBypass ? (
         <p className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-900">
           {partnerPaymentCancel.message ?? "현재 결제 취소할 수 없습니다."}
         </p>
-      )}
+      ) : null}
 
       {showReasonField ? (
         <label className="mb-3 block">

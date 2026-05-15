@@ -1,0 +1,24 @@
+-- 미확인 주문 알림: '결제 완료(order_paid)' 통지만 집계 (사이드바·목록 New = 신규 매출 미확인 건수)
+-- 취소(order_cancelled) 알림은 목록 New/건수에 포함하지 않음 — 취소/반품·상태 컬럼으로 확인
+CREATE OR REPLACE FUNCTION count_unread_partner_order_notifications(
+  p_partner_id UUID,
+  p_user_id UUID
+)
+RETURNS BIGINT
+LANGUAGE SQL
+STABLE
+AS $$
+  SELECT COUNT(*)::BIGINT
+  FROM (
+    SELECT DISTINCT e.order_id
+    FROM order_partner_notify_events e
+    WHERE e.partner_id = p_partner_id
+      AND e.kind = 'order_paid'::order_partner_notify_event_kind
+      AND NOT EXISTS (
+        SELECT 1
+        FROM order_partner_notify_acks a
+        WHERE a.event_id = e.id
+          AND a.user_id = p_user_id
+      )
+  ) u;
+$$;

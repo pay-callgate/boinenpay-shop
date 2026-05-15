@@ -104,7 +104,7 @@ export default function OrdersReturnsPage() {
       if (selectedClient) url += `&clientId=${selectedClient}`;
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
-      url += "&withNotify=1";
+      url += "&withNotify=1&excludePaymentPending=1";
 
       const res = await adminFetch(url);
       if (res.ok) {

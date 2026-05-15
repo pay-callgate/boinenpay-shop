@@ -100,15 +100,22 @@ export async function finalizeViewpayOrderPaid(
   const { orderId, orderNo, totalAmount, cgTid } = params;
   const amount = Number(totalAmount) || 0;
 
-  const { data: paidRow } = await supabase
+  const { data: preRow } = await supabase
     .from("orders")
-    .select("payment_status")
+    .select("payment_status, checkout_cart_item_ids")
     .eq("id", orderId)
     .maybeSingle();
-  if (paidRow?.payment_status === "paid") {
+  if (preRow?.payment_status === "paid") {
     logger.info(`${LOG} 이미 paid — finalize 생략`, { action: "viewpay_finalize_skip_paid", data: { orderId } });
     return {};
   }
+
+  const reservedCartIds =
+    Array.isArray(preRow?.checkout_cart_item_ids) && preRow.checkout_cart_item_ids.length > 0
+      ? (preRow.checkout_cart_item_ids as unknown[])
+          .map((id) => String(id).trim())
+          .filter(Boolean)
+      : [];
 
   try {
     logger.info(`${LOG} set-payment-info(STORE_SUCCESS)`, {
@@ -180,6 +187,30 @@ export async function finalizeViewpayOrderPaid(
       action: "viewpay_finalize_payment_insert_failed",
       data: { orderId, error: String(paymentInsertError.message) },
     });
+  }
+
+  if (reservedCartIds.length > 0) {
+    const { error: cartDelErr } = await supabase.from("cart_items").delete().in("id", reservedCartIds);
+    if (cartDelErr) {
+      logger.warn(`${LOG} 결제 완료 후 장바구니 삭제 실패(무시)`, {
+        action: "viewpay_finalize_cart_delete_failed",
+        data: { orderId, error: String(cartDelErr.message) },
+      });
+    }
+    const { error: reserveClearErr } = await supabase
+      .from("orders")
+      .update({
+        checkout_cart_item_ids: null,
+        guest_cart_session_id: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+    if (reserveClearErr) {
+      logger.warn(`${LOG} 주문 예약 카트 필드 클리어 실패(무시)`, {
+        action: "viewpay_finalize_reserve_clear_failed",
+        data: { orderId, error: String(reserveClearErr.message) },
+      });
+    }
   }
 
   let newrun: { success: boolean; message?: string; skipped?: boolean } | undefined;

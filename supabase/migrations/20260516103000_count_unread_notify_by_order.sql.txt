@@ -1,0 +1,23 @@
+-- 사이드바·목록 New: 미확인 '주문' 건수(같은 주문에 이벤트 여러 개여도 1건).
+-- 이후 20260516120000 마이그레이션에서 order_paid(결제 완료 통지)만 집계하도록 좁힘.
+CREATE OR REPLACE FUNCTION count_unread_partner_order_notifications(
+  p_partner_id UUID,
+  p_user_id UUID
+)
+RETURNS BIGINT
+LANGUAGE SQL
+STABLE
+AS $$
+  SELECT COUNT(*)::BIGINT
+  FROM (
+    SELECT DISTINCT e.order_id
+    FROM order_partner_notify_events e
+    WHERE e.partner_id = p_partner_id
+      AND NOT EXISTS (
+        SELECT 1
+        FROM order_partner_notify_acks a
+        WHERE a.event_id = e.id
+          AND a.user_id = p_user_id
+      )
+  ) u;
+$$;

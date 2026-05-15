@@ -26,6 +26,8 @@ export async function executeOrderCancel(
     orderId: string;
     reason: string;
     actor: ExecuteOrderCancelActor;
+    /** 파트너(actor=partner) 취소 시 상태 이력에 기록할 로그인 식별자(이메일·이름 등) */
+    partnerOperatorLabel?: string | null;
   }
 ): Promise<
   | { ok: true; idempotent?: boolean }
@@ -42,12 +44,32 @@ export async function executeOrderCancel(
     .maybeSingle();
 
   if (fetchErr || !order) {
+    logger.warn(`${LOG} 주문 없음`, {
+      action: "order_cancel_order_missing",
+      data: { orderId: opts.orderId, actor: opts.actor },
+    });
     return { ok: false, code: "not_found", message: "주문을 찾을 수 없습니다.", status: 404 };
   }
 
   const row = order as OrderCancelRow;
 
+  logger.info(`${LOG} 시작`, {
+    action: "order_cancel_start",
+    data: {
+      orderId: opts.orderId,
+      actor: opts.actor,
+      orderNo: row.order_no ?? null,
+      paymentStatus: row.payment_status ?? null,
+      orderStatus: row.status ?? null,
+      cgTidLen: String(row.cg_tid ?? "").trim().length,
+    },
+  });
+
   if (row.payment_status === "refunded" && row.status === "cancelled") {
+    logger.info(`${LOG} 이미 취소됨(멱등)`, {
+      action: "order_cancel_idempotent",
+      data: { orderId: opts.orderId, actor: opts.actor },
+    });
     return { ok: true, idempotent: true };
   }
 
@@ -56,6 +78,14 @@ export async function executeOrderCancel(
       ? canCustomerRequestCancel(row)
       : canPartnerAdminCancelOrder(row);
   if (!eligibility.ok) {
+    logger.warn(`${LOG} 취소 불가(정책)`, {
+      action: "order_cancel_ineligible",
+      data: {
+        orderId: opts.orderId,
+        actor: opts.actor,
+        code: eligibility.code,
+      },
+    });
     return {
       ok: false,
       code: eligibility.code,
@@ -66,6 +96,10 @@ export async function executeOrderCancel(
 
   const cgTid = String(row.cg_tid ?? "").trim();
   if (!cgTid) {
+    logger.warn(`${LOG} cg_tid 없음`, {
+      action: "order_cancel_no_cg_tid",
+      data: { orderId: opts.orderId, actor: opts.actor },
+    });
     return {
       ok: false,
       code: "no_cg_tid",
@@ -77,6 +111,15 @@ export async function executeOrderCancel(
   const orderNoFallback = String(
     row.viewpay_merchant_order_no ?? row.order_no ?? ""
   ).trim();
+
+  logger.info(`${LOG} ViewPay 전액 취소 호출`, {
+    action: "order_cancel_viewpay_start",
+    data: {
+      orderId: opts.orderId,
+      cgTidPreview: cgTid.slice(0, 12),
+      hasOrderNoFallback: Boolean(orderNoFallback),
+    },
+  });
 
   try {
     await viewpayCancelFullPayment({
@@ -154,13 +197,17 @@ export async function executeOrderCancel(
     }
   }
 
+  const cancelMemo =
+    opts.actor === "customer"
+      ? `고객 주문 취소 · ${reason}`
+      : opts.partnerOperatorLabel?.trim()
+        ? `파트너(${opts.partnerOperatorLabel.trim()}) 결제 직접 취소 : ${reason}`
+        : `파트너 결제 직접 취소 : ${reason}`;
+
   await supabase.from("order_status_history").insert({
     order_id: opts.orderId,
     status: "cancelled",
-    memo:
-      opts.actor === "customer"
-        ? `고객 주문 취소 · ${reason}`
-        : `파트너 결제 취소 · ${reason}`,
+    memo: cancelMemo,
   });
 
   await supabase
@@ -180,9 +227,9 @@ export async function executeOrderCancel(
     payload: { reason, previousPaymentStatus: row.payment_status, previousStatus: row.status },
   });
 
-  logger.info(`${LOG} 완료`, {
+  logger.info(`${LOG} 완료(DB·이력 반영)`, {
     action: "order_cancel_success",
-    data: { orderId: opts.orderId, actor: opts.actor },
+    data: { orderId: opts.orderId, actor: opts.actor, orderNo: row.order_no ?? null },
   });
 
   return { ok: true };

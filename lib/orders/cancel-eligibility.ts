@@ -11,6 +11,14 @@ export type OrderRowForCancelEligibility = {
   newrun_delivery_info?: unknown;
 };
 
+/**
+ * 로컬/스테이징에서 PG 결제 취소 플로우만 검증할 때 사용.
+ * `.env` 에 `PARTNER_PAYMENT_CANCEL_TEST_BYPASS=true` — 운영에서는 설정하지 말 것.
+ */
+export function isPartnerPaymentCancelTestBypassEnabled(): boolean {
+  return String(process.env.PARTNER_PAYMENT_CANCEL_TEST_BYPASS ?? "").trim() === "true";
+}
+
 /** 협회 주문 접수(수동 발주 처리 완료) 이후 콜백 state — 뉴런 가이드 2:주문접수 */
 const POST_ACCEPTANCE_STATES = new Set(["2", "3", "4"]);
 
@@ -47,16 +55,24 @@ export function canCustomerRequestCancel(order: OrderRowForCancelEligibility): {
   return { ok: true };
 }
 
-/** 어드민 ViewPay 전액 취소: 결제완료·배송준비중·배송중만 (배송완료 제외) */
-const PARTNER_ADMIN_CANCEL_STATUSES = new Set(["paid", "preparing", "shipping"]);
+/** 어드민 ViewPay 전액 취소: 결제완료(received)·배송준비중·배송중·레거시 paid */
+const PARTNER_ADMIN_CANCEL_STATUSES = new Set([
+  "received",
+  "paid",
+  "preparing",
+  "shipping",
+]);
 
 /**
- * 파트너 어드민: 결제 완료 + 주문 상태가 결제완료/배송준비중/배송중일 때만 전액 취소.
+ * 파트너 어드민: 결제 완료 + 주문 상태가 결제완료(received 등)·배송준비중·배송중일 때만 전액 취소.
  * 배송완료(delivered 또는 뉴런 state 4)는 불가.
  */
 export function canPartnerAdminCancelOrder(order: OrderRowForCancelEligibility): {
   ok: true;
 } | { ok: false; code: string; message: string } {
+  if (isPartnerPaymentCancelTestBypassEnabled()) {
+    return { ok: true };
+  }
   const pay = String(order.payment_status ?? "").trim();
   if (pay !== "paid") {
     return { ok: false, code: "not_paid", message: "결제 완료된 주문만 결제 취소할 수 있습니다." };

@@ -151,6 +151,7 @@ export default function OrderDetailPage() {
   const [partnerPaymentCancel, setPartnerPaymentCancel] = useState<{
     allowed: boolean;
     message: string | null;
+    test_bypass?: boolean;
   } | null>(null);
   const [paymentCancelReason, setPaymentCancelReason] = useState("");
   const [paymentCancelSubmitting, setPaymentCancelSubmitting] = useState(false);
@@ -433,7 +434,8 @@ export default function OrderDetailPage() {
 
   const handlePaymentCancel = async () => {
     if (!order || paymentCancelSubmitting) return;
-    if (!partnerPaymentCancel?.allowed) {
+    const paymentTestBypass = partnerPaymentCancel?.test_bypass === true;
+    if (!partnerPaymentCancel?.allowed && !paymentTestBypass) {
       alert(partnerPaymentCancel?.message || "지금은 결제 취소를 할 수 없습니다.");
       return;
     }
@@ -448,11 +450,7 @@ export default function OrderDetailPage() {
       );
       if (!okShip) return;
     }
-    if (
-      !window.confirm(
-        "ViewPay 전액 취소 후 주문이 취소됩니다. 재고가 복구됩니다. 계속할까요?"
-      )
-    ) {
+    if (!window.confirm("주문이 취소됩니다. 진행하시겠습니까?")) {
       return;
     }
     setPaymentCancelSubmitting(true);

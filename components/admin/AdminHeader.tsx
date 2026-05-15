@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import { useCallback, useEffect, useState } from "react";
 import { usePartnerSettingsModal } from "@/components/admin/PartnerSettingsModalContext";
+import { adminFetch } from "@/lib/admin-fetch";
 
 /** Heroicons Cog-6-tooth (outline) */
 function CogIcon({ className }: { className?: string }) {
@@ -37,6 +39,57 @@ function CogIcon({ className }: { className?: string }) {
  */
 export function AdminHeader() {
   const { openPartnerSettings } = usePartnerSettingsModal();
+  const [devAutoSubmit, setDevAutoSubmit] = useState<{
+    toggleAvailable: boolean;
+    enabled: boolean;
+  } | null>(null);
+  const [devAutoSaving, setDevAutoSaving] = useState(false);
+
+  const loadDevAuto = useCallback(async () => {
+    try {
+      const res = await adminFetch("/api/admin/dev/newrun-auto-submit");
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        toggleAvailable?: boolean;
+        autoSubmitEnabled?: boolean;
+      };
+      setDevAutoSubmit({
+        toggleAvailable: data.toggleAvailable === true,
+        enabled: data.autoSubmitEnabled !== false,
+      });
+    } catch {
+      setDevAutoSubmit(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDevAuto();
+  }, [loadDevAuto]);
+
+  const toggleDevAuto = async () => {
+    if (!devAutoSubmit?.toggleAvailable || devAutoSaving) return;
+    const next = !devAutoSubmit.enabled;
+    setDevAutoSaving(true);
+    try {
+      const res = await adminFetch("/api/admin/dev/newrun-auto-submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        alert(data.error || "설정 저장에 실패했습니다.");
+        return;
+      }
+      setDevAutoSubmit((s) =>
+        s ? { ...s, enabled: next } : { toggleAvailable: true, enabled: next }
+      );
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setDevAutoSaving(false);
+    }
+  };
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between bg-black px-4 text-white">
@@ -50,6 +103,33 @@ export function AdminHeader() {
         >
           뉴런 연동 테스트
         </Link>
+        {devAutoSubmit?.toggleAvailable ? (
+          <>
+            <span className="text-gray-300">|</span>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline text-gray-300">우리부고 자동발주</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={devAutoSubmit.enabled}
+                disabled={devAutoSaving}
+                onClick={() => void toggleDevAuto()}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-50 ${
+                  devAutoSubmit.enabled ? "bg-emerald-600" : "bg-gray-600"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                    devAutoSubmit.enabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+              <span className="text-xs text-gray-300">
+                {devAutoSubmit.enabled ? "ON" : "OFF"}
+              </span>
+            </div>
+          </>
+        ) : null}
         <span className="text-gray-300">|</span>
         <button
           type="button"

@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const paymentStatus = searchParams.get("paymentStatus");
     const newrunSubmit = searchParams.get("newrunSubmit");
+    const excludePaymentPending = searchParams.get("excludePaymentPending") === "1";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const desiredDeliveryFrom = searchParams.get("desiredDeliveryFrom");
@@ -94,7 +95,11 @@ export async function GET(request: NextRequest) {
     // 필터 적용 (목록 API와 동일 AND)
     if (clientId) query = query.eq("client_id", clientId);
     if (status) query = query.eq("status", status);
-    if (paymentStatus) query = query.eq("payment_status", paymentStatus);
+    if (paymentStatus) {
+      query = query.eq("payment_status", paymentStatus);
+    } else if (excludePaymentPending) {
+      query = query.neq("payment_status", "pending");
+    }
     if (newrunSubmit && newrunSubmit !== "all") {
       switch (newrunSubmit) {
         case "not_sent":

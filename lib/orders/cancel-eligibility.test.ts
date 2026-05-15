@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canCustomerRequestCancel, canPartnerAdminCancelOrder } from "./cancel-eligibility";
 
 describe("canCustomerRequestCancel", () => {
@@ -42,6 +42,15 @@ describe("canPartnerAdminCancelOrder", () => {
     expect(r).toEqual({ ok: true });
   });
 
+  it("결제 직후 received + paid → 허용", () => {
+    const r = canPartnerAdminCancelOrder({
+      payment_status: "paid",
+      status: "received",
+      newrun_delivery_info: null,
+    });
+    expect(r).toEqual({ ok: true });
+  });
+
   it("접수·주문확정 등(결제완료 상태 아님) → 거절", () => {
     const r = canPartnerAdminCancelOrder({
       payment_status: "paid",
@@ -70,5 +79,23 @@ describe("canPartnerAdminCancelOrder", () => {
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe("newrun_delivered");
+  });
+});
+
+describe("canPartnerAdminCancelOrder (PARTNER_PAYMENT_CANCEL_TEST_BYPASS)", () => {
+  beforeEach(() => {
+    vi.stubEnv("PARTNER_PAYMENT_CANCEL_TEST_BYPASS", "true");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("테스트 우회 시 미결제·비정상 상태도 허용", () => {
+    const r = canPartnerAdminCancelOrder({
+      payment_status: "pending",
+      status: "confirmed",
+      newrun_delivery_info: { state: "4" },
+    });
+    expect(r).toEqual({ ok: true });
   });
 });

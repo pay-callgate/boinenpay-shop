@@ -48,7 +48,10 @@ export async function recordOrderPartnerNotifyEventSafe(
   }
 }
 
-/** 파트너·현재 로그인 사용자 기준 미확인 알림 건수 */
+/**
+ * 파트너·현재 로그인 사용자 기준 미확인 알림 건수.
+ * DB RPC와 동일: **order_paid(결제 완료 통지)** 만 집계 — 주문(건) 단위.
+ */
 export async function countUnreadPartnerOrderNotifications(
   supabase: SupabaseClient,
   partnerId: string,
@@ -108,7 +111,10 @@ export async function ackAllPartnerNotifyEventsForOrder(
   }
 }
 
-/** 목록용: 페이지 내 주문 id들에 대해 현재 사용자 미확인 이벤트 존재 여부 */
+/**
+ * 목록 New 배지: **order_paid** 미확인만 반영 (사이드바 건수·정책과 동일).
+ * order_cancelled만 있는 주문은 New 없음.
+ */
 export async function getUnreadNotifyOrderIdsForPartnerUser(
   supabase: SupabaseClient,
   partnerId: string,
@@ -122,6 +128,7 @@ export async function getUnreadNotifyOrderIdsForPartnerUser(
     .from("order_partner_notify_events")
     .select("id, order_id")
     .eq("partner_id", partnerId)
+    .eq("kind", "order_paid")
     .in("order_id", orderIds);
 
   if (evErr || !events?.length) return unsettled;

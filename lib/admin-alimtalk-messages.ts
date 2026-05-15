@@ -368,11 +368,14 @@ export function filterAdminAlimtalkRows(
 
 export function summarizeAlimtalkSettlement(rows: AdminAlimtalkMessageRow[]): {
   totalSuccessCount: number;
+  totalFailCount: number;
   estimatedSettlementWon: number;
 } {
   const totalSuccessCount = rows.reduce((s, r) => s + r.successCount, 0);
+  const totalFailCount = rows.reduce((s, r) => s + r.failCount, 0);
   return {
     totalSuccessCount,
+    totalFailCount,
     estimatedSettlementWon: totalSuccessCount * ADMIN_ALIMTALK_UNIT_WON,
   };
 }

@@ -11,6 +11,13 @@ import {
 } from "@/lib/newrun/admin-order-newrun-summary";
 import { toDesiredDeliveryYmd } from "@/lib/admin-florist-order-display";
 import { stripFloristShippingDetailMeta } from "@/lib/checkout-florist-fields";
+import { ADMIN_ORDER_NOTIFY_POLL_MS } from "@/lib/admin-order-notify-poll";
+
+/**
+ * 카드 단일 결제 운영: 어드민 기본 목록·집계에서 payment_status=pending 제외(API excludePaymentPending).
+ * 무통장 입금 등으로 결제대기 탭을 다시 쓸 때 false로 바꿉니다.
+ */
+const ADMIN_ORDER_LIST_EXCLUDE_PENDING = true;
 
 /**
  * T5-1: 주문 목록 페이지 (파트너 어드민) — 중앙 집중형 /admin/orders
@@ -328,10 +335,11 @@ export default function OrdersPage() {
       if (!partnerId) return;
       const base = `/api/orders?partnerId=${partnerId}&limit=1&offset=0`;
       try {
+        const ex = ADMIN_ORDER_LIST_EXCLUDE_PENDING ? "&excludePaymentPending=1" : "";
         const [rAll, rPend, rFail] = await Promise.all([
-          adminFetch(`${base}&withNotify=1`),
+          adminFetch(`${base}&withNotify=1${ex}`),
           adminFetch(`${base}&paymentStatus=pending&withNotify=1`),
-          adminFetch(`${base}&newrunSubmit=failed&withNotify=1`),
+          adminFetch(`${base}&newrunSubmit=failed&withNotify=1${ex}`),
         ]);
         const [dAll, dPend, dFail] = await Promise.all([
           rAll.json().catch(() => ({})),
@@ -351,10 +359,14 @@ export default function OrdersPage() {
   }, [partnerId]);
 
   useEffect(() => {
-    async function fetchOrders() {
-      if (!partnerId) return;
+    if (!partnerId) return;
 
-      setLoading(true);
+    let alive = true;
+
+    async function fetchOrders(silent: boolean) {
+      if (!partnerId) return;
+      if (!silent) setLoading(true);
+
       let url = `/api/orders?partnerId=${partnerId}&limit=${limit}&offset=${offset}`;
       if (applied.selectedClient) url += `&clientId=${applied.selectedClient}`;
       if (applied.selectedStatus) url += `&status=${applied.selectedStatus}`;
@@ -366,18 +378,33 @@ export default function OrdersPage() {
       if (applied.endDate) url += `&endDate=${applied.endDate}`;
       if (applied.desiredDeliveryFrom) url += `&desiredDeliveryFrom=${applied.desiredDeliveryFrom}`;
       if (applied.desiredDeliveryTo) url += `&desiredDeliveryTo=${applied.desiredDeliveryTo}`;
+      if (ADMIN_ORDER_LIST_EXCLUDE_PENDING && !applied.selectedPaymentStatus) {
+        url += "&excludePaymentPending=1";
+      }
       url += "&withNotify=1";
 
-      const res = await adminFetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setOrders(data.orders || []);
-        setTotal(data.total ?? 0);
+      try {
+        const res = await adminFetch(url);
+        if (!alive) return;
+        if (res.ok) {
+          const data = await res.json();
+          setOrders(data.orders || []);
+          setTotal(data.total ?? 0);
+        }
+      } finally {
+        if (alive && !silent) setLoading(false);
       }
-      setLoading(false);
     }
 
-    fetchOrders();
+    void fetchOrders(false);
+    const intervalId = window.setInterval(() => {
+      void fetchOrders(true);
+    }, ADMIN_ORDER_NOTIFY_POLL_MS);
+
+    return () => {
+      alive = false;
+      window.clearInterval(intervalId);
+    };
   }, [
     partnerId,
     applied.selectedClient,
@@ -495,6 +522,9 @@ export default function OrdersPage() {
     if (applied.endDate) url += `&endDate=${applied.endDate}`;
     if (applied.desiredDeliveryFrom) url += `&desiredDeliveryFrom=${applied.desiredDeliveryFrom}`;
     if (applied.desiredDeliveryTo) url += `&desiredDeliveryTo=${applied.desiredDeliveryTo}`;
+    if (ADMIN_ORDER_LIST_EXCLUDE_PENDING && !applied.selectedPaymentStatus) {
+      url += "&excludePaymentPending=1";
+    }
 
     try {
       const res = await adminFetch(url);
@@ -678,17 +708,19 @@ export default function OrdersPage() {
               >
                 전체{countAllOrders != null ? ` ${countAllOrders}건` : ""}
               </button>
-              <button
-                type="button"
-                onClick={pickQuickPending}
-                className={`text-sm transition-colors ${
-                  quickTab === "pending_payment"
-                    ? "border-b-2 border-black pb-1 font-bold text-black"
-                    : "font-normal text-gray-500 hover:text-black"
-                }`}
-              >
-                결제대기{countPendingPayment != null ? ` ${countPendingPayment}` : ""}
-              </button>
+              {!ADMIN_ORDER_LIST_EXCLUDE_PENDING ? (
+                <button
+                  type="button"
+                  onClick={pickQuickPending}
+                  className={`text-sm transition-colors ${
+                    quickTab === "pending_payment"
+                      ? "border-b-2 border-black pb-1 font-bold text-black"
+                      : "font-normal text-gray-500 hover:text-black"
+                  }`}
+                >
+                  결제대기{countPendingPayment != null ? ` ${countPendingPayment}` : ""}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={pickQuickNewrunFail}

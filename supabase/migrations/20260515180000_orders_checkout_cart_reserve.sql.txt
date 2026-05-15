@@ -1,0 +1,15 @@
+-- 결제 완료 전까지 장바구니 유지 + 동일 세션 미결제 재주문 시 주문 중복·재고 이중 차감 방지
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS checkout_cart_item_ids UUID[] NULL,
+  ADD COLUMN IF NOT EXISTS guest_cart_session_id VARCHAR(100) NULL;
+
+COMMENT ON COLUMN orders.checkout_cart_item_ids IS '주문 생성 시 예약한 cart_items.id; ViewPay 결제 완료 확정 시에만 삭제';
+COMMENT ON COLUMN orders.guest_cart_session_id IS '비회원 장바구니 carts.session_id; 미결제 재시도 시 기존 주문 재사용 키';
+
+CREATE INDEX IF NOT EXISTS idx_orders_guest_pending_session
+  ON orders (client_id, guest_cart_session_id)
+  WHERE is_guest = TRUE AND payment_status = 'pending';
+
+CREATE INDEX IF NOT EXISTS idx_orders_member_pending_cart
+  ON orders (client_id, user_id)
+  WHERE is_guest = FALSE AND payment_status = 'pending' AND user_id IS NOT NULL;

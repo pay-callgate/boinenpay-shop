@@ -14,6 +14,7 @@ import { readIntranetPostResponseBodyText } from "@/lib/newrun/intranet-post-res
 import { parseIntranetPostResponse } from "@/lib/newrun/parse-intranet-post-response";
 import { appendNewrunPoReturnTokenToReturnUrl } from "@/lib/newrun/po-return-signing";
 import { fireNewrunErrorWebhook } from "@/lib/newrun/error-webhook";
+import { getDevNewrunAutoSubmitEnabled } from "@/lib/dev-newrun-auto-submit";
 
 const LOG = "[Newrun:Submit]";
 
@@ -259,6 +260,31 @@ export async function submitNewrunOrder(
     });
     hookSubmitFailure(orderNoHook, orderId, "NOT_PAID", msg);
     return { ok: false, skipped: false, duplicate: false, message: msg };
+  }
+
+  if (options.source === "viewpay_complete" && !getDevNewrunAutoSubmitEnabled()) {
+    const msg =
+      "개발 설정: 우리부고 자동 발주가 꺼져 있어 건너뜁니다. 파트너 어드민 헤더에서 다시 켤 수 있습니다.";
+    logger.info(`${LOG} skipped dev auto-submit off`, {
+      action: "newrun_submit_skipped_dev_toggle",
+      data: { orderId },
+    });
+    await persistSubmitResultAndHistory(
+      supabase,
+      orderId,
+      {
+        newrun_submit_status: "skipped",
+        newrun_rwr_result: null,
+        newrun_rwr_orderkey: null,
+        newrun_last_submit_error: msg,
+      },
+      {
+        orderStatus: historyStatus,
+        source: options.source,
+        forceRetry: options.forceRetry,
+      }
+    );
+    return { ok: true, skipped: true, duplicate: false, message: msg };
   }
 
   if (
