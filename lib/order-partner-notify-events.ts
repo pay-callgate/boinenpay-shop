@@ -50,7 +50,8 @@ export async function recordOrderPartnerNotifyEventSafe(
 
 /**
  * 파트너·현재 로그인 사용자 기준 미확인 알림 건수.
- * DB RPC와 동일: **order_paid(결제 완료 통지)** 만 집계 — 주문(건) 단위.
+ * DB RPC와 동일: **order_paid(결제 완료 통지)** 미읽음만 집계 — 주문(건) 단위.
+ * 주문 상태가 `cancelled`인 건은 제외(RPC와 동일).
  */
 export async function countUnreadPartnerOrderNotifications(
   supabase: SupabaseClient,
@@ -112,8 +113,9 @@ export async function ackAllPartnerNotifyEventsForOrder(
 }
 
 /**
- * 목록 New 배지: **order_paid** 미확인만 반영 (사이드바 건수·정책과 동일).
- * order_cancelled만 있는 주문은 New 없음.
+ * 목록 New 배지: **order_paid** 미확인만 반영 (사이드바 건수·RPC와 동일 정책).
+ * - `order_cancelled`만 있는 주문은 여기서부터 제외(쿼리가 order_paid만 봄).
+ * - 주문 상태가 `cancelled`인 건은 결제 알림을 아직 안 읽었어도 New 없음.
  */
 export async function getUnreadNotifyOrderIdsForPartnerUser(
   supabase: SupabaseClient,
@@ -144,5 +146,32 @@ export async function getUnreadNotifyOrderIdsForPartnerUser(
   for (const e of events) {
     if (!acked.has(e.id)) unsettled.add(e.order_id);
   }
-  return unsettled;
+
+  if (unsettled.size === 0) return unsettled;
+
+  const candidateIds = [...unsettled];
+  const { data: orderRows, error: ordErr } = await supabase
+    .from("orders")
+    .select("id, status")
+    .eq("partner_id", partnerId)
+    .in("id", candidateIds);
+
+  if (ordErr) {
+    logger.warn(`${LOG} 목록 New: 주문 상태 조회 실패 — 취소 제외 스킵`, {
+      action: "order_partner_notify_list_filter_orders_failed",
+      data: { partnerId, message: ordErr.message },
+    });
+    return unsettled;
+  }
+
+  const cancelledIds = new Set(
+    (orderRows ?? []).filter((r) => r.status === "cancelled").map((r) => String(r.id))
+  );
+  if (cancelledIds.size === 0) return unsettled;
+
+  const filtered = new Set<string>();
+  for (const id of unsettled) {
+    if (!cancelledIds.has(id)) filtered.add(id);
+  }
+  return filtered;
 }

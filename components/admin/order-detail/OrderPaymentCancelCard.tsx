@@ -45,6 +45,8 @@ export function OrderPaymentCancelCard({
     (!testBypass && (isDelivered || !isPaid)) ||
     (!allowCancel) ||
     (showReasonField && paymentCancelReason.trim().length < 4);
+  const reasonTooShort =
+    showReasonField && allowCancel && paymentCancelReason.trim().length < 4;
 
   return (
     <section className="rounded-xl border border-blue-100 bg-white p-6 shadow-sm ring-1 ring-blue-100/80">
@@ -76,6 +78,11 @@ export function OrderPaymentCancelCard({
             className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-900 outline-none focus:border-black focus:ring-2 focus:ring-black"
             placeholder="예: 고객 전화 요청, 품절 확인 등"
           />
+          {reasonTooShort ? (
+            <p className="mt-1.5 text-xs text-gray-500">
+              취소 사유를 4자 이상 입력하면 &quot;주문 취소&quot; 버튼이 활성화됩니다.
+            </p>
+          ) : null}
         </label>
       ) : null}
 
