@@ -220,6 +220,18 @@ export function buildMerchantViewpayOrderNo(baseOrderNo: string): string {
 }
 
 /**
+ * ViewPay→PG 경로에서 가맹점/중계 DB가 MySQL `utf8`(3바이트)인 경우,
+ * 구매자명 등에 이모지(U+10000 이상)가 들어가면 저장 단계에서 실패하고
+ * 그 오류 문구가 pay 페이지 `JSON.parse('...')` 안에 끼어 들어가며 스크립트 문법 오류가 날 수 있습니다.
+ */
+export function stripNonBmpCharsForViewpay(s: string): string {
+  if (!s) return s;
+  return Array.from(s)
+    .filter((ch) => (ch.codePointAt(0) ?? 0) <= 0xffff)
+    .join("");
+}
+
+/**
  * startpay 요청 Body 생성 (연동가이드 필수값 + 샘플 검증 형식)
  * - pgId: "", items: null, language: "", metaData: ""
  * - messageChannel: "VIEWPAY" (웹 결제창 이동)
@@ -247,16 +259,26 @@ export function buildStartpayBody(params: ViewpayStartpayParams): Record<string,
     merchantOrderNo?.trim() ||
     `${String(orderNo).trim()}_${Date.now().toString().slice(-8)}`;
 
+  const cmmd =
+    stripNonBmpCharsForViewpay(productName.trim()) || "주문상품";
+  const buyr =
+    stripNonBmpCharsForViewpay(buyerName.trim()) || "구매자";
+  const buyrTelSafe = stripNonBmpCharsForViewpay(buyerPhone.trim());
+  const sendTelSafe = stripNonBmpCharsForViewpay(sendTel.trim());
+  const buyrMailSafe =
+    stripNonBmpCharsForViewpay(buyerEmail.trim()) || "noreply@calllink.com";
+  const metaSafe = metaData != null ? stripNonBmpCharsForViewpay(metaData.trim()) : "";
+
   return {
     products: {
       orderNo: orderNoWithTs,
-      cmmdName: productName.trim() || "주문상품",
+      cmmdName: cmmd,
     },
     customer: {
-      buyrName: buyerName.trim() || "구매자",
-      buyrTel: buyerPhone.trim() || "",
-      sendTel: sendTel.trim(),
-      buyrMail: buyerEmail.trim() || "noreply@calllink.com",
+      buyrName: buyr,
+      buyrTel: buyrTelSafe,
+      sendTel: sendTelSafe,
+      buyrMail: buyrMailSafe,
     },
     channelId: channelId,
     storeId: merchantId,
@@ -268,7 +290,7 @@ export function buildStartpayBody(params: ViewpayStartpayParams): Record<string,
     cardQuota: "2:3:4:5:6:7:8:9:10:11:12",
     currency: "KRW",
     language: "",
-    metaData: metaData?.trim() ?? "",
+    metaData: metaSafe,
     redirectUrl: returnUrl,
     webhookUrl: (process.env.VIEWPAY_WEBHOOK_URL ?? "").trim() || "",
     items: null,
