@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { InfoTemplatePdpPreview } from "@/components/admin/InfoTemplatePdpPreview";
 
 /**
  * PDP 탭2용 안내 템플릿(info_templates) CRUD — 배송/환불/상품고시 3분할
@@ -156,27 +157,34 @@ export default function InfoTemplatesPage() {
       <div className="mb-4">
         <h1 className="text-xl font-bold text-slate-800">안내 템플릿</h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          배송 안내·취소/환불·상품 고시를 템플릿으로 저장하고, 카테고리 기본값 또는 상품별로 연결합니다.
+          배송 안내·취소/환불·상품 고시를 템플릿으로 저장하고, 카테고리 기본값 또는 상품별로 연결합니다. 줄 앞에{" "}
+          <code className="rounded bg-slate-100 px-1">- </code> 또는 <code className="rounded bg-slate-100 px-1">• </code>
+          를 붙이면 목록이 되고, 앞에 공백 2칸마다 한 단계 들여쓰기(하위 목록)가 됩니다.{" "}
+          <code className="rounded bg-slate-100 px-1">제목: 내용</code> 형태는 제목이 굵게 보이고,{" "}
+          <code className="rounded bg-slate-100 px-1">※</code> 로 시작하는 줄은 강조 박스로 표시됩니다.{" "}
+          <code className="rounded bg-slate-100 px-1">**굵게**</code> 도 사용할 수 있습니다. HTML을 직접 넣으면 그대로
+          렌더링합니다.
         </p>
       </div>
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-4 py-2.5 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">템플릿 목록</h2>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-4">
+          <div className="flex min-w-0 flex-col rounded-lg border border-slate-200 bg-white shadow-sm lg:w-[15.75rem] lg:max-w-[15.75rem] lg:shrink-0">
+          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5">
+            <h2 className="truncate text-xs font-semibold text-slate-700">템플릿 목록</h2>
             <button
               type="button"
               onClick={() => resetForm()}
-              className="text-xs font-medium text-blue-600 hover:underline"
+              className="shrink-0 text-[10px] font-medium text-blue-600 hover:underline sm:text-xs"
             >
               새로 만들기
             </button>
           </div>
-          <div className="max-h-[calc(100vh-260px)] overflow-y-auto p-2">
+          <div className="flex-1 overflow-y-auto p-1.5 min-h-[10rem] lg:min-h-0">
             {templates.length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-500">등록된 템플릿이 없습니다.</p>
+              <p className="py-6 text-center text-xs text-slate-500">등록된 템플릿이 없습니다.</p>
             ) : (
               <ul className="space-y-0.5">
                 {templates.map((t) => (
@@ -184,9 +192,10 @@ export default function InfoTemplatesPage() {
                     <button
                       type="button"
                       onClick={() => handleSelect(t)}
-                      className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                      title={t.name}
+                      className={`w-full truncate rounded-md px-2 py-2 text-left text-xs transition-colors sm:text-sm ${
                         selectedId === t.id
-                          ? "bg-slate-100 text-blue-600 font-medium"
+                          ? "bg-slate-100 font-medium text-blue-600"
                           : "text-slate-700 hover:bg-slate-50"
                       }`}
                     >
@@ -199,13 +208,13 @@ export default function InfoTemplatesPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-4 py-2.5">
             <h2 className="text-sm font-semibold text-slate-700">
               {selectedId ? "템플릿 수정" : "템플릿 추가"}
             </h2>
           </div>
-          <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-3 p-4">
             <div>
               <label className={labelClass}>템플릿 이름 *</label>
               <input
@@ -217,30 +226,30 @@ export default function InfoTemplatesPage() {
               />
             </div>
             <div>
+              <label className={labelClass}>상품 고시·유의사항</label>
+              <textarea
+                className={`${inputClass} min-h-[152px]`}
+                value={productNotice}
+                onChange={(e) => setProductNotice(e.target.value)}
+                rows={7}
+              />
+            </div>
+            <div>
               <label className={labelClass}>배송 안내</label>
               <textarea
-                className={`${inputClass} min-h-[100px]`}
+                className={`${inputClass} min-h-[152px]`}
                 value={deliveryInfo}
                 onChange={(e) => setDeliveryInfo(e.target.value)}
-                rows={4}
+                rows={7}
               />
             </div>
             <div>
               <label className={labelClass}>취소·환불 안내</label>
               <textarea
-                className={`${inputClass} min-h-[100px]`}
+                className={`${inputClass} min-h-[152px]`}
                 value={refundPolicy}
                 onChange={(e) => setRefundPolicy(e.target.value)}
-                rows={4}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>상품 고시·유의사항</label>
-              <textarea
-                className={`${inputClass} min-h-[100px]`}
-                value={productNotice}
-                onChange={(e) => setProductNotice(e.target.value)}
-                rows={4}
+                rows={7}
               />
             </div>
 
@@ -271,6 +280,92 @@ export default function InfoTemplatesPage() {
             </div>
           </form>
         </div>
+        </div>
+
+        <aside className="min-h-0 w-full shrink-0 lg:sticky lg:top-4 lg:min-w-[17.5rem] lg:w-[min(23rem,100%)]">
+          <div className="mb-2 px-0.5">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              쇼핑몰 미리보기
+            </h2>
+            <p className="mt-0.5 text-[11px] leading-snug text-slate-400">
+              고객 상품 상세의 「상품 고시 · 배송 안내 · 환불·취소」 탭과 같은 형태로 표시됩니다.
+            </p>
+          </div>
+          <InfoTemplatePdpPreview
+            productNotice={productNotice}
+            deliveryInfo={deliveryInfo}
+            refundPolicy={refundPolicy}
+          />
+          <div
+            className="mt-3 rounded-lg border border-blue-200 bg-blue-50 py-3 pl-2 pr-2.5 text-blue-900 shadow-sm"
+            role="note"
+            aria-label="입력 형식 안내"
+          >
+            <div className="flex gap-1.5">
+              <span
+                className="mt-0.5 shrink-0 text-blue-600"
+                aria-hidden
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path strokeLinecap="round" d="M12 16v-4M12 8h.01" />
+                </svg>
+              </span>
+              <div className="min-w-0 space-y-2 text-[12px] leading-snug text-blue-900">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-800">
+                  입력 형식 안내
+                </p>
+                <ul className="list-inside list-disc space-y-2 pl-0 marker:text-blue-500">
+                  <li>
+                    <span className="font-medium text-blue-900">최상위 항목:</span> 줄 맨 앞에서{" "}
+                    <code className="rounded bg-white/70 px-1 py-0.5 text-[11px] text-blue-900 ring-1 ring-blue-100">- </code>
+                    로 시작합니다.{" "}
+                    <span className="text-blue-800/90">(앞에 공백 없음)</span>
+                  </li>
+                  <li>
+                    <span className="font-medium text-blue-900">한 단계 들여쓴 하위:</span>{" "}
+                    <code className="rounded bg-white/70 px-1 py-0.5 text-[11px] text-blue-900 ring-1 ring-blue-100">
+                      {"  - "}
+                    </code>
+                    <span className="text-blue-800/90">
+                      {" "}
+                      (스페이스 2개 + 하이픈 + 공백). 한 단계만 들일 때 이 형태만 쓰면 됩니다.
+                    </span>
+                  </li>
+                  <li>
+                    <span className="font-medium text-blue-900">굵게:</span>{" "}
+                    <code className="rounded bg-white/70 px-1 py-0.5 text-[11px] text-blue-900 ring-1 ring-blue-100">
+                      **내용**
+                    </code>
+                  </li>
+                  <li>
+                    <span className="font-medium text-blue-900">큰 덩어리 사이 빈 줄:</span> 쇼핑몰에서는
+                    문단 간격(
+                    <code className="rounded bg-white/70 px-1 py-0.5 text-[11px] text-blue-900 ring-1 ring-blue-100">
+                      policy-para-gap
+                    </code>
+                    )으로 표시됩니다.
+                  </li>
+                  <li>
+                    <span className="font-medium text-blue-900">※ 안내 문구:</span> 목록 안에 넣을 때는{" "}
+                    <code className="rounded bg-white/70 px-1 py-0.5 text-[11px] text-blue-900 ring-1 ring-blue-100">
+                      {"  - ※ …"}
+                    </code>
+                    처럼 하위 항목으로 쓰면 들여쓰기가 유지됩니다. 반면{" "}
+                    <strong className="font-semibold text-blue-950">별도 줄 맨 앞이 ※</strong>로만
+                    시작하면 강조 박스로 처리되며, 그때는 목록 안이 아니라 블록으로 분리됩니다.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

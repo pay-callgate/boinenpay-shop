@@ -20,12 +20,15 @@ import {
   effectiveGuestUnitPrice,
   effectiveMemberUnitPrice,
 } from "@/lib/product-pricing";
-import type { ProductPolicyTabPayload } from "@/components/shop/pdp/ProductPolicyPanels";
+import {
+  ProductPolicyPanels,
+  type ProductPolicyTabPayload,
+} from "@/components/shop/pdp/ProductPolicyPanels";
 import { PdpInfoAccordion } from "@/components/shop/pdp/PdpInfoAccordion";
 
 /**
  * T4-3: 상품 상세 페이지 (PDP) - Snowfox Flowers 스타일
- * Design: #D6A8E0, #1F2937, #6B7280, #F43F5E, 하단 아코디언 상품 정보 + sticky CTA
+ * Design: #D6A8E0, #1F2937, #6B7280, #F43F5E — 정책 3탭 메인 블록 + 하단 아코디언 + sticky CTA
  */
 
 interface Category {
@@ -571,7 +574,13 @@ export default function ProductDetailPage() {
       requireAuth={false}
       blockAffiliationMismatch={false}
     >
-      <div className="mx-auto max-w-[430px] min-h-screen bg-white tracking-tight">
+      <div
+        className="mx-auto max-w-[430px] bg-white tracking-tight"
+        style={{
+          /** 고정 CTA 바 높이만큼만 추가 (하단 탭: ShopGlobalLayout main padding) */
+          paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 56px)`,
+        }}
+      >
         {/* Hero: 고정 3:4 + object-cover (업로드 가이드와 동일 비율 권장) */}
         <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
           {images.length > 0 ? (
@@ -780,12 +789,22 @@ export default function ProductDetailPage() {
         {/* 구분선 */}
         <div className="h-2 bg-gray-50" />
 
-        {/* 하단 상품 정보: 아코디언 (구매 안내 3탭 + 상세/후기/Q&A) */}
-        <div className="px-0 pb-2">
+        {/* 고시·배송·환불 스냅샷 (구 상단 스크롤 탭 자리 — 메인 노출) */}
+        <div className="border-t border-gray-200 bg-white px-5 py-5">
+          <ProductPolicyPanels
+            key={product.id}
+            policyTab={product.policy_tab}
+            accentColor={PRIMARY}
+          />
+        </div>
+
+        <div className="h-2 bg-gray-50" />
+
+        {/* 상품 상세 / 후기 / Q&A */}
+        <div className="px-0">
           <PdpInfoAccordion
             productId={product.id}
             descriptionHtml={product.description_html}
-            policyTab={product.policy_tab}
             accentColor={PRIMARY}
             reviewCount={0}
           />
@@ -878,12 +897,8 @@ export default function ProductDetailPage() {
             )}
           </div>
         </div>
-
-        {/* 하단 네비 + CTA 바 높이만큼 패딩 */}
-        <div style={{ height: BOTTOM_NAV_HEIGHT + 64 }} />
       </div>
 
-      {/* 관심상품담기 모달 — 컴팩트 슬림 UI, 브랜드 컬러(PRIMARY) 유지 */}
       {showWishlistModal && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"

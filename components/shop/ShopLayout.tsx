@@ -377,8 +377,8 @@ export function ShopLayout({
   return (
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>
-      <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
-        <div className="relative mx-auto flex min-h-screen w-full max-w-[430px] flex-1 flex-col overflow-hidden bg-white shadow-2xl">
+      <div className="flex min-h-[100dvh] flex-col bg-[#F3F4F6]">
+        <div className="relative mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-[430px] flex-col overflow-hidden bg-white shadow-2xl">
           <SideMenu
             isOpen={menuOpen}
             onClose={() => setMenuOpen(false)}
@@ -405,7 +405,7 @@ export function ShopLayout({
             clientSlug={clientSlug}
           />
           <main
-            className="flex-1 overflow-auto"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
             style={{
               paddingTop: HEADER_HEIGHT,
               paddingBottom: mainScrollPaddingBottom(
@@ -474,8 +474,8 @@ export function ShopGlobalLayout({
   return (
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>
-      <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
-        <div className="relative mx-auto flex min-h-screen w-full max-w-[430px] flex-1 flex-col overflow-hidden bg-white shadow-2xl">
+      <div className="flex min-h-[100dvh] flex-col bg-[#F3F4F6]">
+        <div className="relative mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-[430px] flex-col overflow-hidden bg-white shadow-2xl">
           {partner && (
             <SideMenu
               isOpen={menuOpen}
@@ -504,7 +504,7 @@ export function ShopGlobalLayout({
             clientSlug={clientSlug}
           />
           <main
-            className="flex-1 overflow-auto"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
             style={{
               paddingTop: HEADER_HEIGHT,
               paddingBottom: mainScrollPaddingBottom(

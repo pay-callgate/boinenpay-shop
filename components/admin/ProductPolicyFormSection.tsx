@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { PolicyPlainPreview } from "@/components/admin/PolicyPlainPreview";
 
 export type ProductPolicySourceUi = "category_default" | "template" | "custom";
 
@@ -53,7 +54,7 @@ export function ProductPolicyFormSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryIds, values.primaryCategoryId]);
 
-  const taStyle = { ...inputStyle, resize: "vertical" as const, minHeight: "80px" };
+  const taStyle = { ...inputStyle, resize: "vertical" as const, minHeight: "182px" };
 
   return (
     <div
@@ -70,7 +71,13 @@ export function ProductPolicyFormSection({
       </h2>
       <p style={{ fontSize: "12px", color: "#64748B", marginBottom: "16px", lineHeight: 1.5 }}>
         카테고리에 연결한 「기본 안내 템플릿」을 쓰거나, 특정 템플릿을 지정·직접 입력할 수 있습니다.
-        다중 카테고리일 때는 대표 카테고리를 정하면 동일 깊이에서 우선합니다.
+        다중 카테고리일 때는 대표 카테고리를 정하면 동일 깊이에서 우선합니다. 직접 입력 시 줄 앞{" "}
+        <code style={{ fontSize: "11px", background: "#F1F5F9", padding: "1px 5px", borderRadius: 4 }}>- </code> 또는{" "}
+        <code style={{ fontSize: "11px", background: "#F1F5F9", padding: "1px 5px", borderRadius: 4 }}>• </code> 는
+        목록, 공백 2칸마다 하위 목록,{" "}
+        <code style={{ fontSize: "11px", background: "#F1F5F9", padding: "1px 5px", borderRadius: 4 }}>제목: 내용</code>{" "}
+        은 굵은 제목, <code style={{ fontSize: "11px", background: "#F1F5F9", padding: "1px 5px", borderRadius: 4 }}>※</code>{" "}
+        는 강조 박스로 쇼핑몰에 표시됩니다.
       </p>
 
       <div style={{ display: "grid", gap: "16px" }}>
@@ -112,31 +119,40 @@ export function ProductPolicyFormSection({
         {values.policySource === "custom" && (
           <>
             <div>
+              <label style={labelStyle}>상품 고시·유의사항</label>
+              <textarea
+                value={values.customNotice}
+                onChange={(e) => onChange({ customNotice: e.target.value })}
+                rows={9}
+                style={taStyle}
+              />
+              <div style={{ marginTop: 8 }}>
+                <PolicyPlainPreview text={values.customNotice} subtitle="상품 고시" />
+              </div>
+            </div>
+            <div>
               <label style={labelStyle}>배송 안내</label>
               <textarea
                 value={values.customDelivery}
                 onChange={(e) => onChange({ customDelivery: e.target.value })}
-                rows={4}
+                rows={9}
                 style={taStyle}
               />
+              <div style={{ marginTop: 8 }}>
+                <PolicyPlainPreview text={values.customDelivery} subtitle="배송 안내" />
+              </div>
             </div>
             <div>
               <label style={labelStyle}>취소·환불 안내</label>
               <textarea
                 value={values.customRefund}
                 onChange={(e) => onChange({ customRefund: e.target.value })}
-                rows={4}
+                rows={9}
                 style={taStyle}
               />
-            </div>
-            <div>
-              <label style={labelStyle}>상품 고시·유의사항</label>
-              <textarea
-                value={values.customNotice}
-                onChange={(e) => onChange({ customNotice: e.target.value })}
-                rows={4}
-                style={taStyle}
-              />
+              <div style={{ marginTop: 8 }}>
+                <PolicyPlainPreview text={values.customRefund} subtitle="취소·환불" />
+              </div>
             </div>
           </>
         )}

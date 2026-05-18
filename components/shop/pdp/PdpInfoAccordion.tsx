@@ -2,10 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { ProductPolicyPanels, type ProductPolicyTabPayload } from "@/components/shop/pdp/ProductPolicyPanels";
 import { PdpPlaceholderBlock } from "@/components/shop/pdp/PdpPlaceholderBlock";
 
-type SectionKey = "purchase" | "detail" | "review" | "qna";
+type SectionKey = "detail" | "review" | "qna";
 
 function AccordionRow({
   sectionKey,
@@ -55,26 +54,22 @@ function AccordionRow({
   );
 }
 
-/**
- * PDP 하단: 구매 안내(정책 3탭) + 상세/후기/Q&A 아코디언 (sticky 탭 대체)
- */
+/** PDP: 상품 상세 / 후기 / Q&A 아코디언 (정책 3탭은 페이지 상단에서 별도 표시) */
 export function PdpInfoAccordion({
   productId,
   descriptionHtml,
-  policyTab,
   accentColor,
   reviewCount = 0,
 }: {
   productId: string;
   descriptionHtml: string | null;
-  policyTab?: ProductPolicyTabPayload | null;
   accentColor: string;
   reviewCount?: number;
 }) {
-  const [openKey, setOpenKey] = useState<SectionKey | null>("purchase");
+  const [openKey, setOpenKey] = useState<SectionKey | null>("detail");
 
   useEffect(() => {
-    setOpenKey("purchase");
+    setOpenKey("detail");
   }, [productId]);
 
   const toggle = (key: SectionKey) => {
@@ -85,29 +80,9 @@ export function PdpInfoAccordion({
 
   return (
     <div className="overflow-hidden rounded-t-xl border border-gray-100 bg-white shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.08)]">
-      <div className="border-b border-gray-100 bg-white px-5 py-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-          상품 정보
-        </h2>
-      </div>
-
-      <AccordionRow
-        sectionKey="purchase"
-        title="구매 안내"
-        open={openKey === "purchase"}
-        onToggle={toggle}
-      >
-        <ProductPolicyPanels
-          key={productId}
-          policyTab={policyTab}
-          accentColor={accentColor}
-          embedded
-        />
-      </AccordionRow>
-
       <AccordionRow
         sectionKey="detail"
-        title="상세정보"
+        title="상품 상세"
         open={openKey === "detail"}
         onToggle={toggle}
       >

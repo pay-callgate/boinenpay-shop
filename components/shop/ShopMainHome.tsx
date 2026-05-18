@@ -106,6 +106,20 @@ function getDiscountRate(basePrice: number, salePrice: number | null): number | 
   return Math.round(((basePrice - salePrice) / basePrice) * 100);
 }
 
+/** 글로벌 레이아웃 스크롤 루트(`main` overflow-y-auto) 기준으로 섹션 이동 */
+function scrollShopMainToElement(target: HTMLElement, offsetPx = 8) {
+  if (typeof document === "undefined") return;
+  const main = document.querySelector("main");
+  if (!main) {
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  const rootRect = main.getBoundingClientRect();
+  const elRect = target.getBoundingClientRect();
+  const nextTop = main.scrollTop + (elRect.top - rootRect.top) - offsetPx;
+  main.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+}
+
 /** 메인 홈 전용 — 글로벌 레이아웃 서브 경로에는 노출하지 않음 */
 function ShopBusinessInfoAccordion() {
   const [isBusinessInfoOpen, setIsBusinessInfoOpen] = useState(false);
@@ -428,34 +442,35 @@ function ShopMainHomeWithCategoryUrl({
     <>
       <HeroCarousel />
 
-      {/* 카테고리 탭: 리프 노드만 노출(부모 숨김, 하위·단일만), 가로 스크롤/슬라이딩 + 데스크톱 드래그 투 스크롤 */}
+      {/* 카테고리 탭: sticky는 바깥(overflow 없음), 가로 스크롤은 안쪽 — 스크롤 컨테이너가 main일 때도 top-0 기준으로 고정 */}
       {displayCategories.length > 0 && (
-        <div
-          ref={categoryTabsRef}
-          id="category-tabs"
-          className="sticky top-14 z-[9] w-full min-w-0 select-none border-b border-gray-200 bg-white"
-          style={{
-            overflowX: "scroll",
-            overflowY: "hidden",
-            whiteSpace: "nowrap",
-            WebkitOverflowScrolling: "touch",
-            touchAction: "pan-x",
-            msOverflowStyle: "none",
-            scrollbarWidth: "none",
-            userSelect: "none",
-          }}
-          onMouseDown={handleCategoryTabsMouseDown}
-          onMouseLeave={handleCategoryTabsMouseLeave}
-          onMouseUp={handleCategoryTabsMouseUp}
-          onMouseMove={handleCategoryTabsMouseMove}
-        >
+        <div className="sticky top-0 z-20 w-full min-w-0 border-b border-gray-200 bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+          <div
+            ref={categoryTabsRef}
+            id="category-tabs"
+            className="w-full min-w-0 select-none"
+            style={{
+              overflowX: "scroll",
+              overflowY: "hidden",
+              whiteSpace: "nowrap",
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-x",
+              msOverflowStyle: "none",
+              scrollbarWidth: "none",
+              userSelect: "none",
+            }}
+            onMouseDown={handleCategoryTabsMouseDown}
+            onMouseLeave={handleCategoryTabsMouseLeave}
+            onMouseUp={handleCategoryTabsMouseUp}
+            onMouseMove={handleCategoryTabsMouseMove}
+          >
           <style
             dangerouslySetInnerHTML={{
               __html: "#category-tabs::-webkit-scrollbar { display: none; }",
             }}
           />
           <ul
-            className="flex p-0 m-0 list-none"
+            className="m-0 flex list-none p-0"
             style={{ width: "max-content" }}
             role="tablist"
             onDragStart={(e) => e.preventDefault()}
@@ -480,13 +495,7 @@ function ShopMainHomeWithCategoryUrl({
                         { scroll: false }
                       );
                       const el = document.getElementById(cat.id);
-                      if (el) {
-                        const y =
-                          el.getBoundingClientRect().top +
-                          window.scrollY -
-                          100;
-                        window.scrollTo({ top: y, behavior: "smooth" });
-                      }
+                      if (el) scrollShopMainToElement(el, 12);
                     }}
                     className={`block px-5 py-[9px] text-[15px] transition-colors ${
                       isActive
@@ -503,6 +512,7 @@ function ShopMainHomeWithCategoryUrl({
               );
             })}
           </ul>
+          </div>
         </div>
       )}
 

@@ -3,6 +3,12 @@
 import React, { useMemo, useState } from "react";
 import { ClipboardList, Truck, Undo2 } from "lucide-react";
 import { PdpPlaceholderBlock } from "@/components/shop/pdp/PdpPlaceholderBlock";
+import {
+  looksLikePolicyHtml,
+  policyPlainTextToSafeHtml,
+  stripLeadingPolicyScaffold,
+} from "@/lib/policy-plain-format";
+import { POLICY_PLAIN_HTML_CLASS } from "@/lib/policy-plain-html-classes";
 
 /** Shop API `product.policy_tab` 형태 */
 export type ProductPolicyTabPayload = {
@@ -42,8 +48,9 @@ const SUB_TABS: {
 ];
 
 function PolicyRichText({ text, accentColor }: { text: string; accentColor: string }) {
-  const t = text.trim();
-  if (!t) {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/^\uFEFF/, "");
+  const stripped = stripLeadingPolicyScaffold(normalized).trim();
+  if (!stripped) {
     return (
       <PdpPlaceholderBlock
         accentColor={accentColor}
@@ -52,27 +59,38 @@ function PolicyRichText({ text, accentColor }: { text: string; accentColor: stri
       />
     );
   }
-  if (/<[a-z][\s\S]*>/i.test(t)) {
+  if (looksLikePolicyHtml(stripped)) {
     return (
       <div
-        className="prose prose-sm max-w-none text-gray-800 prose-p:my-2 prose-p:leading-relaxed prose-headings:text-gray-900 prose-ul:my-2 prose-li:my-0.5 [&_img]:h-auto [&_img]:max-w-full"
-        dangerouslySetInnerHTML={{ __html: t }}
+        className={POLICY_PLAIN_HTML_CLASS}
+        dangerouslySetInnerHTML={{ __html: stripped }}
+      />
+    );
+  }
+  const html = policyPlainTextToSafeHtml(normalized);
+  if (!html) {
+    return (
+      <PdpPlaceholderBlock
+        accentColor={accentColor}
+        title="안내 준비 중"
+        description="판매자가 배송·환불·상품 고시 안내를 등록하면 이곳에 표시됩니다."
       />
     );
   }
   return (
-    <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{t}</div>
+    <div
+      className={POLICY_PLAIN_HTML_CLASS}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
 
 export function ProductPolicyPanels({
   policyTab,
   accentColor,
-  embedded = false,
 }: {
   policyTab: ProductPolicyTabPayload | null | undefined;
   accentColor: string;
-  embedded?: boolean;
 }) {
   const [subTab, setSubTab] = useState<SubTabKey>("notice");
 
@@ -88,13 +106,7 @@ export function ProductPolicyPanels({
   const activeBody = activeDef.pick(payload);
 
   return (
-    <div className={embedded ? "bg-transparent" : "bg-white"}>
-      {!embedded ? (
-        <p className="mb-3 px-1 text-xs text-gray-500">
-          상품·배송·환불 정책은 쇼핑몰 설정에 따라 표기됩니다.
-        </p>
-      ) : null}
-
+    <div>
       <div
         className="-mx-1 flex overflow-x-auto border-b border-gray-200 bg-white scrollbar-none"
         role="tablist"
@@ -124,7 +136,7 @@ export function ProductPolicyPanels({
       </div>
 
       <div
-        className="mt-4 rounded-xl border border-purple-100/80 bg-gradient-to-b from-[#FAF8FC] to-white p-4 shadow-sm"
+        className="mt-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm ring-1 ring-black/[0.04]"
         role="tabpanel"
       >
         <div className="mb-3 flex items-center gap-3">
