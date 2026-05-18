@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Calendar, Search } from "lucide-react";
+import { Calendar, Check, Search } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import {
   formatAdminNewrunSubmitLabel,
@@ -813,7 +813,13 @@ export default function OrdersPage() {
                             New
                           </span>
                         ) : (
-                          <span className="text-xs text-gray-400">확인O</span>
+                          <span
+                            className="inline-flex items-center justify-center rounded-full border border-slate-200/90 bg-slate-50 px-1.5 py-1 text-slate-400"
+                            title="확인 완료"
+                            aria-label="확인 완료"
+                          >
+                            <Check className="h-3 w-3 shrink-0" strokeWidth={2.25} aria-hidden />
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-3 align-top">
