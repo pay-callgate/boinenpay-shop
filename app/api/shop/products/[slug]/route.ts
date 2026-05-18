@@ -81,9 +81,10 @@ export async function GET(
       | undefined;
 
     const categories =
-      rawMappings?.map((m) => m.category).filter(
-        (c): c is { id: string; name: string; slug: string } => c != null
-      ) ?? [];
+      rawMappings
+        ?.map((m) => m.category)
+        .filter((c): c is NonNullable<typeof c> => c != null)
+        .map((c) => ({ id: c.id, name: c.name, slug: c.slug })) ?? [];
 
     const policy_tab = await resolveShopProductPolicyTab(supabase, {
       partner_id: product.partner_id as string,

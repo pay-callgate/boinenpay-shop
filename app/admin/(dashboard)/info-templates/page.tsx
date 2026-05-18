@@ -157,13 +157,7 @@ export default function InfoTemplatesPage() {
       <div className="mb-4">
         <h1 className="text-xl font-bold text-slate-800">안내 템플릿</h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          배송 안내·취소/환불·상품 고시를 템플릿으로 저장하고, 카테고리 기본값 또는 상품별로 연결합니다. 줄 앞에{" "}
-          <code className="rounded bg-slate-100 px-1">- </code> 또는 <code className="rounded bg-slate-100 px-1">• </code>
-          를 붙이면 목록이 되고, 앞에 공백 2칸마다 한 단계 들여쓰기(하위 목록)가 됩니다.{" "}
-          <code className="rounded bg-slate-100 px-1">제목: 내용</code> 형태는 제목이 굵게 보이고,{" "}
-          <code className="rounded bg-slate-100 px-1">※</code> 로 시작하는 줄은 강조 박스로 표시됩니다.{" "}
-          <code className="rounded bg-slate-100 px-1">**굵게**</code> 도 사용할 수 있습니다. HTML을 직접 넣으면 그대로
-          렌더링합니다.
+          배송 안내·취소/환불·상품 고시를 템플릿으로 저장하고, 카테고리 기본값 또는 상품별로 연결합니다.
         </p>
       </div>
 
