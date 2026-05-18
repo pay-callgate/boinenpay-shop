@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { adminFetch } from "@/lib/admin-fetch";
 import { PRODUCT_IMAGE_UPLOAD_NOTICE } from "@/lib/product-image-guidance";
+import { ProductPolicyFormSection } from "@/components/admin/ProductPolicyFormSection";
 
 /**
  * T2-3: 상품 등록 페이지
@@ -20,6 +21,7 @@ export default function ProductNewPage() {
 
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [infoTemplates, setInfoTemplates] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
   // 폼 상태
@@ -36,6 +38,15 @@ export default function ProductNewPage() {
     status: "draft",
     allowDeliveryDate: false,
     categoryIds: [] as string[],
+    policySource: "category_default" as
+      | "category_default"
+      | "template"
+      | "custom",
+    overrideTemplateId: "",
+    primaryCategoryId: "",
+    customDelivery: "",
+    customRefund: "",
+    customNotice: "",
   });
 
   // 파트너 정보 조회
@@ -62,6 +73,20 @@ export default function ProductNewPage() {
       }
     }
     fetchCategories();
+  }, [partnerId]);
+
+  useEffect(() => {
+    async function fetchInfoTemplates() {
+      if (!partnerId) return;
+      const res = await adminFetch(`/api/info-templates?partnerId=${partnerId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = Array.isArray(data.templates) ? data.templates : [];
+      setInfoTemplates(
+        list.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name }))
+      );
+    }
+    fetchInfoTemplates();
   }, [partnerId]);
 
   // 이미지 업로드
@@ -112,6 +137,21 @@ export default function ProductNewPage() {
         status: formData.status,
         allowDeliveryDate: formData.allowDeliveryDate,
         categoryIds: formData.categoryIds,
+        policySource: formData.policySource,
+        overrideTemplateId:
+          formData.policySource === "template"
+            ? formData.overrideTemplateId || null
+            : null,
+        customPolicyData:
+          formData.policySource === "custom"
+            ? {
+                delivery_info: formData.customDelivery,
+                refund_policy: formData.customRefund,
+                product_notice: formData.customNotice,
+              }
+            : null,
+        primaryCategoryId:
+          formData.categoryIds.length > 1 ? formData.primaryCategoryId : undefined,
       }),
     });
 
@@ -403,6 +443,23 @@ export default function ProductNewPage() {
             )}
           </div>
         </div>
+
+        <ProductPolicyFormSection
+          values={{
+            policySource: formData.policySource,
+            overrideTemplateId: formData.overrideTemplateId,
+            primaryCategoryId: formData.primaryCategoryId,
+            customDelivery: formData.customDelivery,
+            customRefund: formData.customRefund,
+            customNotice: formData.customNotice,
+          }}
+          onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+          categoryIds={formData.categoryIds}
+          categories={categories}
+          infoTemplates={infoTemplates}
+          labelStyle={labelStyle}
+          inputStyle={inputStyle}
+        />
 
         {/* 상태/옵션 */}
         <div

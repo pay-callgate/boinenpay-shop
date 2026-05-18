@@ -3,6 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { normalizeDeliveryMethodsForDb } from "@/lib/product-delivery-methods";
+import {
+  buildProductCategoryMappingRows,
+  normalizeCustomPolicyDataPayload,
+  parsePolicySource,
+} from "@/lib/product-policy-admin";
 
 /**
  * T2-3: 상품 상세 API
@@ -32,6 +37,7 @@ export async function GET(
         *,
         product_category_mappings(
           category_id,
+          is_primary,
           product_categories(id, name)
         ),
         product_images(id, url, sort_order),
@@ -87,6 +93,10 @@ export async function PUT(
       deliveryMethods,
       allowDeliveryDate,
       categoryIds,
+      primaryCategoryId,
+      policySource,
+      overrideTemplateId,
+      customPolicyData,
       /** T3.4: 뉴런 상품·옵션 기본 draft (`null`이면 비움) */
       newrunDefaultProductDraft,
       newrunDefaultOptionDraft,
@@ -170,6 +180,88 @@ export async function PUT(
       updateData.newrun_default_option_draft = newrunDefaultOptionDraft;
     }
 
+    async function assertInfoTemplateOwned(
+      templateId: string,
+      partnerId: string
+    ): Promise<boolean> {
+      const { data } = await supabase
+        .from("info_templates")
+        .select("id")
+        .eq("id", templateId)
+        .eq("partner_id", partnerId)
+        .maybeSingle();
+      return Boolean(data);
+    }
+
+    if (policySource !== undefined) {
+      const parsed = parsePolicySource(policySource);
+      if (!parsed) {
+        return NextResponse.json(
+          {
+            error:
+              "policySource는 category_default, template, custom 중 하나여야 합니다.",
+          },
+          { status: 400 }
+        );
+      }
+      updateData.policy_source = parsed;
+    }
+
+    if (overrideTemplateId !== undefined) {
+      if (overrideTemplateId === null || overrideTemplateId === "") {
+        updateData.override_template_id = null;
+      } else {
+        const tid = String(overrideTemplateId);
+        const ok = await assertInfoTemplateOwned(tid, existing.partner_id as string);
+        if (!ok) {
+          return NextResponse.json(
+            { error: "overrideTemplateId가 유효하지 않습니다." },
+            { status: 400 }
+          );
+        }
+        updateData.override_template_id = tid;
+      }
+    }
+
+    if (customPolicyData !== undefined) {
+      if (customPolicyData === null) {
+        updateData.custom_policy_data = null;
+      } else {
+        const normalized = normalizeCustomPolicyDataPayload(customPolicyData);
+        if (!normalized) {
+          return NextResponse.json(
+            {
+              error:
+                "customPolicyData는 객체(문자열 키 delivery_info, refund_policy, product_notice)여야 합니다.",
+            },
+            { status: 400 }
+          );
+        }
+        updateData.custom_policy_data = normalized;
+      }
+    }
+
+    const existingPol = existing as {
+      policy_source?: string | null;
+      override_template_id?: string | null;
+    };
+    const mergedSource =
+      (updateData.policy_source as string | undefined) ??
+      (existingPol.policy_source || "category_default");
+    const mergedOverride =
+      updateData.override_template_id !== undefined
+        ? updateData.override_template_id
+        : (existingPol.override_template_id ?? null);
+
+    if (mergedSource === "template" && !mergedOverride) {
+      return NextResponse.json(
+        {
+          error: "정책 소스가 template이면 유효한 overrideTemplateId가 필요합니다.",
+        },
+        { status: 400 }
+      );
+    }
+
     const { data: product, error } = await supabase
       .from("products")
       .update(updateData)
@@ -195,10 +287,11 @@ export async function PUT(
 
       // 새 매핑 추가
       if (categoryIds.length > 0) {
-        const mappings = categoryIds.map((catId: string) => ({
-          product_id: id,
-          category_id: catId,
-        }));
+        const mappings = buildProductCategoryMappingRows(
+          id,
+          categoryIds as string[],
+          primaryCategoryId as string | null | undefined
+        );
 
         await supabase.from("product_category_mappings").insert(mappings);
       }

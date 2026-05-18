@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { logApiRequest } from "@/lib/logger";
 import { normalizeDeliveryMethodsForDb } from "@/lib/product-delivery-methods";
+import {
+  buildProductCategoryMappingRows,
+  normalizeCustomPolicyDataPayload,
+  parsePolicySource,
+} from "@/lib/product-policy-admin";
 
 /**
  * T2-2, T2-3: 상품 API
@@ -199,6 +204,10 @@ export async function POST(request: NextRequest) {
       deliveryMethods,
       allowDeliveryDate,
       categoryIds,
+      primaryCategoryId,
+      policySource,
+      overrideTemplateId,
+      customPolicyData,
     } = body;
 
     if (!partnerId || !name) {
@@ -233,6 +242,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    async function assertInfoTemplateOwned(
+      templateId: string,
+      partnerId: string
+    ): Promise<boolean> {
+      const { data } = await supabase
+        .from("info_templates")
+        .select("id")
+        .eq("id", templateId)
+        .eq("partner_id", partnerId)
+        .maybeSingle();
+      return Boolean(data);
+    }
+
+    const src = parsePolicySource(policySource) ?? "category_default";
+    let overrideUuid: string | null = null;
+    if (overrideTemplateId != null && overrideTemplateId !== "") {
+      const tid = String(overrideTemplateId);
+      const ok = await assertInfoTemplateOwned(tid, partnerId);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "overrideTemplateId가 유효하지 않습니다." },
+          { status: 400 }
+        );
+      }
+      overrideUuid = tid;
+    }
+    if (src === "template" && !overrideUuid) {
+      return NextResponse.json(
+        { error: "정책 소스가 template이면 overrideTemplateId가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    let customJson: Record<string, string> | null = null;
+    if (src === "custom") {
+      const normalized = normalizeCustomPolicyDataPayload(customPolicyData ?? {});
+      if (!normalized) {
+        return NextResponse.json(
+          { error: "customPolicyData 형식이 올바르지 않습니다." },
+          { status: 400 }
+        );
+      }
+      customJson = normalized;
+    }
+
     // 상품 생성
     const { data: product, error } = await supabase
       .from("products")
@@ -252,6 +306,9 @@ export async function POST(request: NextRequest) {
         sticker_options: stickerOptions || null,
         delivery_methods: normalizeDeliveryMethodsForDb(deliveryMethods),
         allow_delivery_date: allowDeliveryDate ?? false,
+        policy_source: src,
+        override_template_id: src === "template" ? overrideUuid : null,
+        custom_policy_data: src === "custom" ? customJson : null,
       })
       .select()
       .single();
@@ -266,10 +323,11 @@ export async function POST(request: NextRequest) {
 
     // 카테고리 매핑
     if (categoryIds && categoryIds.length > 0) {
-      const mappings = categoryIds.map((catId: string) => ({
-        product_id: product.id,
-        category_id: catId,
-      }));
+      const mappings = buildProductCategoryMappingRows(
+        product.id,
+        categoryIds as string[],
+        primaryCategoryId as string | null | undefined
+      );
 
       const { error: mappingError } = await supabase
         .from("product_category_mappings")

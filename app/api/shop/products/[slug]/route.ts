@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { SHOP_PRODUCT_DETAIL_ALLOWED_STATUSES } from "@/lib/shop-product-visibility";
+import { resolveShopProductPolicyTab } from "@/lib/shop-product-policy-resolve";
+import type { ShopProductCategoryMappingRow } from "@/lib/shop-product-policy-resolve";
 
 /**
  * T4-3: 상품 상세 조회 API
@@ -34,11 +36,15 @@ export async function GET(
       .select(
         `
         *,
-        product_category_mappings!inner (
+        product_category_mappings (
+          created_at,
+          is_primary,
           category:product_categories (
             id,
+            parent_id,
             name,
-            slug
+            slug,
+            default_template_id
           )
         )
       `
@@ -69,17 +75,38 @@ export async function GET(
       .eq("product_id", product.id)
       .order("sort_order", { ascending: true });
 
-    // 카테고리 정보 평탄화
-    const categories = product.product_category_mappings?.map(
-      (m: { category: { id: string; name: string; slug: string } }) => m.category
-    ) || [];
+    const rawMappings = product.product_category_mappings as
+      | ShopProductCategoryMappingRow[]
+      | null
+      | undefined;
+
+    const categories =
+      rawMappings?.map((m) => m.category).filter(
+        (c): c is { id: string; name: string; slug: string } => c != null
+      ) ?? [];
+
+    const policy_tab = await resolveShopProductPolicyTab(supabase, {
+      partner_id: product.partner_id as string,
+      policy_source: (product.policy_source as "category_default" | "template" | "custom" | null) ?? null,
+      override_template_id: (product.override_template_id as string | null) ?? null,
+      custom_policy_data: product.custom_policy_data,
+      product_category_mappings: rawMappings,
+    });
+
+    const {
+      custom_policy_data: _customPolicy,
+      override_template_id: _overrideTpl,
+      product_category_mappings: _mappings,
+      ...productRest
+    } = product;
 
     return NextResponse.json({
       product: {
-        ...product,
+        ...productRest,
         categories,
         options: options || [],
         gallery: gallery || [],
+        policy_tab,
       },
     });
   } catch (err) {

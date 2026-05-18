@@ -108,6 +108,7 @@ export function AdminSidebar({
       items: [
         { href: `${base}/products`, label: "상품 관리" },
         { href: `${base}/categories`, label: "카테고리 관리" },
+        { href: `${base}/info-templates`, label: "안내 템플릿" },
         { href: `${base}/products/inventory`, label: "재고 관리" },
       ],
     },

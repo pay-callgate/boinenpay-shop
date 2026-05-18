@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { partnerId, name, slug, parentId, sortOrder, mobileVisible } = body;
+    const { partnerId, name, slug, parentId, sortOrder, mobileVisible, defaultTemplateId } =
+      body;
 
     if (!partnerId || !name) {
       return NextResponse.json(
@@ -107,6 +108,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let defaultTemplateUuid: string | null = null;
+    if (defaultTemplateId != null && defaultTemplateId !== "") {
+      const tid = String(defaultTemplateId);
+      const { data: tpl } = await supabase
+        .from("info_templates")
+        .select("id")
+        .eq("id", tid)
+        .eq("partner_id", partnerId)
+        .maybeSingle();
+      if (!tpl) {
+        return NextResponse.json(
+          { error: "선택한 안내 템플릿을 찾을 수 없습니다." },
+          { status: 400 }
+        );
+      }
+      defaultTemplateUuid = tid;
+    }
+
     const { data: category, error } = await supabase
       .from("product_categories")
       .insert({
@@ -117,6 +136,7 @@ export async function POST(request: NextRequest) {
         sort_order: sortOrder ?? 0,
         mobile_visible:
           typeof mobileVisible === "boolean" ? mobileVisible : true,
+        default_template_id: defaultTemplateUuid,
       })
       .select()
       .single();

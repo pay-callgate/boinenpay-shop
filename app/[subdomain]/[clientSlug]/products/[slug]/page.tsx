@@ -20,6 +20,10 @@ import {
   effectiveGuestUnitPrice,
   effectiveMemberUnitPrice,
 } from "@/lib/product-pricing";
+import {
+  ProductPolicyPanels,
+  type ProductPolicyTabPayload,
+} from "@/components/shop/pdp/ProductPolicyPanels";
 
 /**
  * T4-3: 상품 상세 페이지 (PDP) - Snowfox Flowers 스타일
@@ -63,6 +67,7 @@ interface Product {
   categories: Category[];
   options: ProductOption[];
   gallery: GalleryImage[];
+  policy_tab?: ProductPolicyTabPayload;
 }
 
 const PRIMARY = "#D6A8E0";
@@ -802,7 +807,7 @@ export default function ProductDetailPage() {
               { key: "detail" as const, label: "상세정보" },
               { key: "review" as const, label: "후기(0)" },
               { key: "qna" as const, label: "Q&A" },
-              { key: "delivery" as const, label: "배송안내" },
+              { key: "delivery" as const, label: "구매 안내" },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -848,9 +853,11 @@ export default function ProductDetailPage() {
         <div className="h-2 bg-gray-50" />
 
         <div ref={sectionDeliveryRef} className="py-8 px-5">
-          <p className="text-sm leading-relaxed text-gray-600">
-            배송 안내 내용입니다. 새벽배송, 전국 택배 등 안내를 입력할 수 있습니다.
-          </p>
+          <ProductPolicyPanels
+            key={product.id}
+            policyTab={product.policy_tab}
+            accentColor={PRIMARY}
+          />
         </div>
 
         {/* 하단 액션 바: ♡ | 장바구니 | (비회원가·회원가 또는 로그인 시 바로 구매만) */}

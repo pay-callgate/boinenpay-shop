@@ -18,8 +18,14 @@ interface Category {
   slug: string;
   sort_order: number;
   mobile_visible?: boolean | null;
+  default_template_id?: string | null;
   created_at: string;
   children?: Category[];
+}
+
+interface InfoTemplateOption {
+  id: string;
+  name: string;
 }
 
 function GripVerticalIcon({ className }: { className?: string }) {
@@ -53,8 +59,10 @@ export default function CategoriesPage() {
     slug: "",
     parentId: "",
     sortOrder: 0,
+    defaultTemplateId: "",
   });
   const [mobileVisible, setMobileVisible] = useState(true);
+  const [infoTemplates, setInfoTemplates] = useState<InfoTemplateOption[]>([]);
 
   useEffect(() => {
     async function fetchPartner() {
@@ -99,6 +107,20 @@ export default function CategoriesPage() {
     fetchCategories();
   }, [fetchCategories]);
 
+  useEffect(() => {
+    async function loadTemplates() {
+      if (!partnerId) return;
+      const res = await adminFetch(`/api/info-templates?partnerId=${partnerId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = Array.isArray(data.templates) ? data.templates : [];
+      setInfoTemplates(
+        list.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name }))
+      );
+    }
+    void loadTemplates();
+  }, [partnerId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!partnerId || !formData.name.trim()) return;
@@ -118,6 +140,7 @@ export default function CategoriesPage() {
         parentId: formData.parentId || null,
         sortOrder: formData.sortOrder,
         mobileVisible,
+        defaultTemplateId: formData.defaultTemplateId || null,
       }),
     });
 
@@ -151,6 +174,7 @@ export default function CategoriesPage() {
       slug: cat.slug,
       parentId: cat.parent_id || "",
       sortOrder: cat.sort_order,
+      defaultTemplateId: cat.default_template_id || "",
     });
   };
 
@@ -158,14 +182,14 @@ export default function CategoriesPage() {
     setSelectedId(null);
     setEditingCategory(null);
     setMobileVisible(true);
-    setFormData({ name: "", slug: "", parentId: "", sortOrder: 0 });
+    setFormData({ name: "", slug: "", parentId: "", sortOrder: 0, defaultTemplateId: "" });
   };
 
   const handleAddNew = () => {
     setSelectedId(null);
     setEditingCategory(null);
     setMobileVisible(true);
-    setFormData({ name: "", slug: "", parentId: "", sortOrder: flatCategories.length });
+    setFormData({ name: "", slug: "", parentId: "", sortOrder: flatCategories.length, defaultTemplateId: "" });
   };
 
   if (loading) {
@@ -308,6 +332,27 @@ export default function CategoriesPage() {
                   <p className="text-xs text-slate-500">끄면 메뉴에서 숨깁니다</p>
                 </div>
                 <Switch checked={mobileVisible} onCheckedChange={setMobileVisible} />
+              </div>
+
+              <div>
+                <label className={labelClass}>기본 안내 템플릿 (PDP 배송/환불 탭)</label>
+                <select
+                  value={formData.defaultTemplateId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, defaultTemplateId: e.target.value })
+                  }
+                  className={inputClass}
+                >
+                  <option value="">없음</option>
+                  {infoTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  템플릿은 「안내 템플릿」 메뉴에서 먼저 등록할 수 있습니다.
+                </p>
               </div>
 
               {/* 대표 이미지 - 슬림 높이 */}

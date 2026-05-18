@@ -60,7 +60,8 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, slug, parentId, sortOrder, mobileVisible } = body;
+    const { name, slug, parentId, sortOrder, mobileVisible, defaultTemplateId } =
+      body;
 
     const supabase = createServerSupabase();
 
@@ -103,6 +104,27 @@ export async function PUT(
     if (sortOrder !== undefined) updateData.sort_order = sortOrder;
     if (typeof mobileVisible === "boolean")
       updateData.mobile_visible = mobileVisible;
+
+    if (defaultTemplateId !== undefined) {
+      if (defaultTemplateId === null || defaultTemplateId === "") {
+        updateData.default_template_id = null;
+      } else {
+        const tid = String(defaultTemplateId);
+        const { data: tpl } = await supabase
+          .from("info_templates")
+          .select("id")
+          .eq("id", tid)
+          .eq("partner_id", existing.partner_id as string)
+          .maybeSingle();
+        if (!tpl) {
+          return NextResponse.json(
+            { error: "선택한 안내 템플릿을 찾을 수 없습니다." },
+            { status: 400 }
+          );
+        }
+        updateData.default_template_id = tid;
+      }
+    }
 
     const { data: category, error } = await supabase
       .from("product_categories")
