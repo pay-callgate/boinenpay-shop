@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { ClipboardList, Truck, Undo2 } from "lucide-react";
+import { PdpPlaceholderBlock } from "@/components/shop/pdp/PdpPlaceholderBlock";
 
 /** Shop API `product.policy_tab` 형태 */
 export type ProductPolicyTabPayload = {
@@ -40,10 +41,16 @@ const SUB_TABS: {
   },
 ];
 
-function PolicyRichText({ text }: { text: string }) {
+function PolicyRichText({ text, accentColor }: { text: string; accentColor: string }) {
   const t = text.trim();
   if (!t) {
-    return <p className="text-sm text-gray-500">등록된 안내가 없습니다.</p>;
+    return (
+      <PdpPlaceholderBlock
+        accentColor={accentColor}
+        title="안내 준비 중"
+        description="판매자가 배송·환불·상품 고시 안내를 등록하면 이곳에 표시됩니다."
+      />
+    );
   }
   if (/<[a-z][\s\S]*>/i.test(t)) {
     return (
@@ -61,9 +68,11 @@ function PolicyRichText({ text }: { text: string }) {
 export function ProductPolicyPanels({
   policyTab,
   accentColor,
+  embedded = false,
 }: {
   policyTab: ProductPolicyTabPayload | null | undefined;
   accentColor: string;
+  embedded?: boolean;
 }) {
   const [subTab, setSubTab] = useState<SubTabKey>("notice");
 
@@ -79,10 +88,12 @@ export function ProductPolicyPanels({
   const activeBody = activeDef.pick(payload);
 
   return (
-    <div className="bg-white">
-      <p className="mb-3 px-1 text-xs text-gray-500">
-        상품·배송·환불 정책은 쇼핑몰 설정에 따라 표기됩니다.
-      </p>
+    <div className={embedded ? "bg-transparent" : "bg-white"}>
+      {!embedded ? (
+        <p className="mb-3 px-1 text-xs text-gray-500">
+          상품·배송·환불 정책은 쇼핑몰 설정에 따라 표기됩니다.
+        </p>
+      ) : null}
 
       <div
         className="-mx-1 flex overflow-x-auto border-b border-gray-200 bg-white scrollbar-none"
@@ -126,7 +137,7 @@ export function ProductPolicyPanels({
           </span>
           <h3 className="text-base font-bold text-gray-900">{activeDef.label}</h3>
         </div>
-        <PolicyRichText text={activeBody} />
+        <PolicyRichText text={activeBody} accentColor={accentColor} />
       </div>
     </div>
   );

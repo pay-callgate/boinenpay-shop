@@ -20,14 +20,12 @@ import {
   effectiveGuestUnitPrice,
   effectiveMemberUnitPrice,
 } from "@/lib/product-pricing";
-import {
-  ProductPolicyPanels,
-  type ProductPolicyTabPayload,
-} from "@/components/shop/pdp/ProductPolicyPanels";
+import type { ProductPolicyTabPayload } from "@/components/shop/pdp/ProductPolicyPanels";
+import { PdpInfoAccordion } from "@/components/shop/pdp/PdpInfoAccordion";
 
 /**
  * T4-3: 상품 상세 페이지 (PDP) - Snowfox Flowers 스타일
- * Design: #D6A8E0, #1F2937, #6B7280, #F43F5E, sticky header/bottom, 탭 스크롤 연동
+ * Design: #D6A8E0, #1F2937, #6B7280, #F43F5E, 하단 아코디언 상품 정보 + sticky CTA
  */
 
 interface Category {
@@ -96,17 +94,12 @@ export default function ProductDetailPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<"detail" | "review" | "qna" | "delivery">("detail");
   const [addingToCart, setAddingToCart] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [wishlistItemId, setWishlistItemId] = useState<string | null>(null);
   const [showWishlistModal, setShowWishlistModal] = useState(false);
   const [wishlistChecking, setWishlistChecking] = useState(false);
 
-  const sectionDetailRef = useRef<HTMLDivElement>(null);
-  const sectionReviewRef = useRef<HTMLDivElement>(null);
-  const sectionQnaRef = useRef<HTMLDivElement>(null);
-  const sectionDeliveryRef = useRef<HTMLDivElement>(null);
   const memberBuyHandledRef = useRef(false);
 
   useEffect(() => {
@@ -511,19 +504,6 @@ export default function ProductDetailPage() {
     }
   };
 
-  const scrollToSection = (key: "detail" | "review" | "qna" | "delivery") => {
-    setActiveTab(key);
-    const ref =
-      key === "detail"
-        ? sectionDetailRef
-        : key === "review"
-          ? sectionReviewRef
-          : key === "qna"
-            ? sectionQnaRef
-            : sectionDeliveryRef;
-    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   const images =
     product?.gallery?.length
       ? product.gallery.map((g) => g.image_url)
@@ -800,63 +780,14 @@ export default function ProductDetailPage() {
         {/* 구분선 */}
         <div className="h-2 bg-gray-50" />
 
-        {/* (6) Sticky 탭: 상세정보, 후기, Q&A, 배송안내 */}
-        <div className="sticky top-14 z-40 h-12 border-b border-gray-200 bg-white">
-          <div className="flex h-full">
-            {[
-              { key: "detail" as const, label: "상세정보" },
-              { key: "review" as const, label: "후기(0)" },
-              { key: "qna" as const, label: "Q&A" },
-              { key: "delivery" as const, label: "구매 안내" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => scrollToSection(tab.key)}
-                className={`flex-1 text-sm transition-colors ${
-                  activeTab === tab.key ? "font-bold border-b-2" : "text-gray-500"
-                }`}
-                style={activeTab === tab.key ? { color: PRIMARY, borderBottomColor: PRIMARY } : undefined}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* (7) 상세 콘텐츠 (탭별 스크롤 타겟) */}
-        <div ref={sectionDetailRef} className="px-0">
-          <div className="py-6 px-5">
-            {product.description_html ? (
-              <div
-                className="leading-relaxed text-gray-700 [&_img]:w-full [&_img]:h-auto"
-                dangerouslySetInnerHTML={{ __html: product.description_html }}
-              />
-            ) : (
-              <p className="text-gray-500">상세 정보가 없습니다.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="h-2 bg-gray-50" />
-
-        <div ref={sectionReviewRef} className="py-8 text-center">
-          <p className="text-sm text-gray-500">후기가 없습니다.</p>
-        </div>
-
-        <div className="h-2 bg-gray-50" />
-
-        <div ref={sectionQnaRef} className="py-8 text-center">
-          <p className="text-sm text-gray-500">문의가 없습니다.</p>
-        </div>
-
-        <div className="h-2 bg-gray-50" />
-
-        <div ref={sectionDeliveryRef} className="py-8 px-5">
-          <ProductPolicyPanels
-            key={product.id}
+        {/* 하단 상품 정보: 아코디언 (구매 안내 3탭 + 상세/후기/Q&A) */}
+        <div className="px-0 pb-2">
+          <PdpInfoAccordion
+            productId={product.id}
+            descriptionHtml={product.description_html}
             policyTab={product.policy_tab}
             accentColor={PRIMARY}
+            reviewCount={0}
           />
         </div>
 
