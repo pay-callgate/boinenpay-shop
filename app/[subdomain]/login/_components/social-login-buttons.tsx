@@ -8,9 +8,9 @@ type Props = {
 export function SocialLoginButtons({ onKakao, onNaver, caption }: Props) {
   return (
     <div className="space-y-3">
-      <p className="text-center text-xs font-medium text-slate-500">
-        {caption ?? "카카오·네이버로 간편하게 시작"}
-      </p>
+      {caption?.trim() ? (
+        <p className="text-center text-xs font-medium text-slate-500">{caption.trim()}</p>
+      ) : null}
       <button
         type="button"
         onClick={onKakao}
@@ -25,9 +25,10 @@ export function SocialLoginButtons({ onKakao, onNaver, caption }: Props) {
       >
         네이버 계정으로 로그인
       </button>
-      <p className="pt-1 text-center text-[11px] leading-relaxed text-slate-400">
-        로그인 후 쇼핑몰 주문·배송 조회를 이용할 수 있습니다.
-      </p>
+      <div className="space-y-1 pt-1 text-center text-[11px] leading-relaxed text-slate-400">
+        <p>로그인하시면 회원 전용 할인가로 쉽고 간편하게 주문하실 수 있습니다.</p>
+        <p>소셜 계정으로 1초 회원가입하세요!</p>
+      </div>
     </div>
   );
 }

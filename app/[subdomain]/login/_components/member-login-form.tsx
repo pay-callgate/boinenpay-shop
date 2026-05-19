@@ -1,37 +1,28 @@
-import Link from "next/link";
 import type { FormEvent, RefObject } from "react";
 
 type Props = {
-  subdomain: string;
-  callbackUrl: string;
   memberIdInputRef?: RefObject<HTMLInputElement | null>;
   memberId: string;
   memberPw: string;
   showPw: boolean;
-  autoLogin: boolean;
   memberSubmitting: boolean;
   memberError: string | null;
   onMemberIdChange: (v: string) => void;
   onMemberPwChange: (v: string) => void;
   onTogglePw: () => void;
-  onAutoLoginChange: (v: boolean) => void;
   onSubmit: (e: FormEvent) => void;
 };
 
 export function MemberLoginForm({
-  subdomain,
-  callbackUrl,
   memberIdInputRef,
   memberId,
   memberPw,
   showPw,
-  autoLogin,
   memberSubmitting,
   memberError,
   onMemberIdChange,
   onMemberPwChange,
   onTogglePw,
-  onAutoLoginChange,
   onSubmit,
 }: Props) {
   return (
@@ -77,6 +68,8 @@ export function MemberLoginForm({
           className="mt-1 w-full bg-transparent py-2 text-sm text-slate-900 outline-none"
         />
       </div>
+      {/*
+      TODO: 로그인 상태 유지 기능 적용 시 — autoLogin / onAutoLoginChange props 복구
       <label className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-600">
         <input
           type="checkbox"
@@ -86,6 +79,7 @@ export function MemberLoginForm({
         />
         로그인 상태 유지
       </label>
+      */}
       {memberError && (
         <p className="text-sm text-rose-600" role="alert">
           {memberError}
@@ -98,16 +92,6 @@ export function MemberLoginForm({
       >
         {memberSubmitting ? "확인 중…" : "로그인"}
       </button>
-      <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs text-slate-500">
-        <span className="cursor-not-allowed opacity-70">비밀번호 찾기</span>
-        <span className="text-slate-300">|</span>
-        <Link
-          href={`/${subdomain}/signup/email?callbackUrl=${encodeURIComponent(callbackUrl)}`}
-          className="font-bold text-slate-900 hover:underline"
-        >
-          이메일로 가입하기
-        </Link>
-      </div>
     </form>
   );
 }

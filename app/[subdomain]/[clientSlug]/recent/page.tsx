@@ -281,30 +281,28 @@ export default function RecentProductsPage() {
                       {formatPrice(savedAmount)}원 ({discountRate}%)
                     </p>
                   )}
-                  {/* 반응형: 좁은 화면 = 삭제·장바구니 한 줄 / 주문하기 100% 블록 | 넓은 화면(sm:) = 한 줄 양극 정렬 */}
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(item.id)}
-                        className="whitespace-nowrap rounded border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600"
-                      >
-                        삭제
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAddToCart(item.id)}
-                        disabled={isSoldOut}
-                        className="whitespace-nowrap rounded border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-50"
-                      >
-                        장바구니 담기
-                      </button>
-                    </div>
+                  {/* 모바일 전용: 3버튼 1열 동등 폭, 초소형 기기는 text-[10px]·min-h-9 */}
+                  <div className="mt-3 grid w-full min-w-0 grid-cols-3 gap-1 sm:gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(item.id)}
+                      className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded border border-gray-200 bg-white px-1 py-1 text-center text-[10px] font-medium leading-[1.2] text-gray-600 active:bg-gray-50 sm:min-h-10 sm:px-2 sm:text-xs sm:leading-snug"
+                    >
+                      삭제
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddToCart(item.id)}
+                      disabled={isSoldOut}
+                      className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded border border-gray-200 bg-white px-0.5 py-1 text-center text-[10px] font-medium leading-[1.2] text-gray-700 [word-break:keep-all] active:bg-gray-50 disabled:opacity-50 sm:min-h-10 sm:px-2 sm:text-xs sm:leading-snug"
+                    >
+                      장바구니 담기
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleOrderNow(item.id)}
                       disabled={isSoldOut}
-                      className="w-full whitespace-nowrap rounded bg-slate-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50 sm:w-auto"
+                      className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded bg-slate-700 px-0.5 py-1 text-center text-[10px] font-semibold leading-[1.2] text-white [word-break:keep-all] active:bg-slate-800 disabled:opacity-50 sm:min-h-10 sm:px-2 sm:text-xs sm:leading-snug"
                     >
                       주문하기
                     </button>

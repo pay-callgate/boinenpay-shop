@@ -404,37 +404,50 @@ export function OrderGuard({
           style={{
             fontSize: "1.125rem",
             fontWeight: 700,
-            marginBottom: "12px",
+            marginBottom: "2.75rem",
             color: "#1e293b",
           }}
         >
-          소속 거래처가 다른 전용몰입니다
+          접근할 수 없는 전용몰입니다
         </h3>
         <p
           style={{
             fontSize: "0.875rem",
             color: "#475569",
             lineHeight: 1.7,
-            marginBottom: "16px",
+            marginBottom: 0,
+            wordBreak: "keep-all",
+            overflowWrap: "break-word",
           }}
         >
           {userEmail ? (
             <>
-              지금 브라우저에 로그인된 계정은 <strong style={{ wordBreak: "break-all" }}>{userEmail}</strong>
-              입니다.
+              현재 로그인된 계정(
+              <span style={{ wordBreak: "break-all" }}>{userEmail}</span>)은
+              <br />
+              <strong>{regName}</strong> 소속 회원입니다.
+              <br />
               <br />
             </>
           ) : (
             <>
-              현재 계정의 이메일을 표시할 수 없습니다. (SNS 로그인 등)
+              현재 로그인된 계정은 확인할 수 없습니다. 이 계정은
+              <br />
+              <strong>{regName}</strong> 소속 회원으로 등록되어 있습니다.
+              <br />
               <br />
             </>
           )}
-          이 계정은 <strong>{regName}</strong> 소속으로 등록되어 있습니다.
+          현재 접속하신 <strong>{mallLabel}</strong> 몰의
           <br />
-          <strong>{mallLabel}</strong>에서는 마이페이지·주문·장바구니 등을 이용할 수 없습니다.
+          서비스를 이용하실 수 없습니다.
           <br />
-          소속이 맞는 전용몰 링크로 접속하거나, 관리자에게 문의해 주세요.
+          <br />
+          소속에 맞는 전용몰로 이동하거나
+          <br />
+          다른 계정으로
+          <br />
+          다시 로그인해 주세요.
         </p>
         <div
           style={{
@@ -445,38 +458,45 @@ export function OrderGuard({
             width: "100%",
             maxWidth: "280px",
             margin: "0 auto",
+            marginTop: "2.75rem",
           }}
         >
           <button
             type="button"
             onClick={() => router.replace(goHomeRegistered)}
             style={{
-              padding: "14px 28px",
+              padding: "14px 20px",
               backgroundColor: "#D6A8E0",
               color: "#fff",
               border: "none",
               borderRadius: "8px",
-              fontSize: "1rem",
+              fontSize: "0.9375rem",
               fontWeight: 600,
               cursor: "pointer",
               width: "100%",
+              maxWidth: "100%",
+              wordBreak: "keep-all",
+              lineHeight: 1.35,
             }}
           >
-            {regSlug ? `${regName} 전용몰로 이동` : "홈으로"}
+            내 소속 전용몰로 이동
           </button>
           <button
             type="button"
             onClick={() => void handleLoginAsAnotherAccount()}
             style={{
-              padding: "14px 28px",
+              padding: "14px 20px",
               backgroundColor: "#fff",
               color: "#5B21B6",
               border: "2px solid #D6A8E0",
               borderRadius: "8px",
-              fontSize: "1rem",
+              fontSize: "0.9375rem",
               fontWeight: 600,
               cursor: "pointer",
               width: "100%",
+              maxWidth: "100%",
+              wordBreak: "keep-all",
+              lineHeight: 1.35,
             }}
           >
             다른 계정으로 로그인

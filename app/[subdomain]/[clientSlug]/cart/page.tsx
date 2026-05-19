@@ -44,7 +44,11 @@ export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"domestic" | "overseas">("domestic");
+  /*
+   * [보류] 국내·해외 배송 상품 탭 — 화훼 꽃배달(당일 퀵/택배) 전용몰에서는 배송권역 구분이 불필요해 UI만 숨김.
+   * 향후 일반 종합 쇼핑몰 SKU에 해외배송 구분이 필요하면 아래 state와(이 파일 내) 「탭: 국내/해외」 JSX 블록 주석을 해제하면 됨.
+   */
+  // const [tab, setTab] = useState<"domestic" | "overseas">("domestic");
 
   useEffect(() => {
     async function loadCart() {
@@ -212,7 +216,11 @@ export default function CartPage() {
       requireAuth={false}
     >
       <div className="mx-auto max-w-[430px] min-h-screen bg-white pb-28">
-        {/* 탭: 국내배송상품(N) / 해외배송상품(0) */}
+        {/*
+         * [보류] 국내/해외 배송 탭 UI
+         * 화훼·당일배달 전용몰에서는 국내/해외 이원화가 의미 없음(전부 국내 당일·택배 등).
+         * 일반몰 확장 시 주석 해제 후, 상품/주문 데이터에 해외 배송 구분 필드 연동 필요.
+         *
         <div className="flex w-full border-b border-gray-200">
           <button
             type="button"
@@ -238,6 +246,7 @@ export default function CartPage() {
             해외배송상품(0)
           </button>
         </div>
+        */}
 
         {/* 전체 선택 */}
         {items.length > 0 && (

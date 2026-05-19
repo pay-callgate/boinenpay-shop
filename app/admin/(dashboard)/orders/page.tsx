@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Calendar, Check, Search } from "lucide-react";
+import { Calendar, Check, Flower2, Search } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import {
   formatAdminNewrunSubmitLabel,
@@ -550,7 +550,7 @@ export default function OrdersPage() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const currentPage = total === 0 ? 1 : Math.min(totalPages, Math.floor(offset / limit) + 1);
   const monthNum = String(new Date().getMonth() + 1).padStart(2, "0");
-  const listMonthTitle = `[ ${monthNum}월 주문 목록 ]`;
+  const listMonthTitle = `${monthNum}월 주문 목록`;
   const summaryAmountExact =
     !loading && total > 0 && orders.length === total
       ? orders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0)
@@ -580,7 +580,7 @@ export default function OrdersPage() {
           <button
             type="button"
             onClick={handleExcelDownload}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -596,157 +596,173 @@ export default function OrdersPage() {
         </div>
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-2 rounded-md border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800">
-                <span className="shrink-0 font-medium text-slate-600">기간 설정</span>
-                <span className="text-slate-400" aria-hidden>
-                  :
-                </span>
-                <span className="shrink-0 text-xs text-slate-500">주문</span>
-                <input
-                  type="date"
-                  value={draft.startDate}
-                  onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))}
-                  className="h-9 rounded border border-slate-200 bg-white px-2 text-sm"
-                />
-                <span className="text-slate-400">~</span>
-                <input
-                  type="date"
-                  value={draft.endDate}
-                  onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
-                  className="h-9 rounded border border-slate-200 bg-white px-2 text-sm"
-                />
-                <span className="mx-0.5 text-slate-300 sm:mx-1">·</span>
-                <span className="shrink-0 text-xs text-slate-500">희망배송</span>
-                <input
-                  type="date"
-                  value={draft.desiredDeliveryFrom}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, desiredDeliveryFrom: e.target.value }))
-                  }
-                  className="h-9 rounded border border-slate-200 bg-white px-2 text-sm"
-                />
-                <span className="text-slate-400">~</span>
-                <input
-                  type="date"
-                  value={draft.desiredDeliveryTo}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, desiredDeliveryTo: e.target.value }))
-                  }
-                  className="h-9 rounded border border-slate-200 bg-white px-2 text-sm"
-                />
-                <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
-                <span className="sr-only">
-                  {fmtYmdDot(draft.startDate)} ~ {fmtYmdDot(draft.endDate)}, 희망 배송{" "}
-                  {fmtYmdDot(draft.desiredDeliveryFrom)} ~ {fmtYmdDot(draft.desiredDeliveryTo)}
-                </span>
-              </div>
-              <select
-                value={draft.selectedClient}
-                onChange={(e) => setDraft((d) => ({ ...d, selectedClient: e.target.value }))}
-                className="h-10 min-w-[10rem] rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+          <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-800">
+            <div className="mb-2.5 text-xs font-semibold text-slate-600">기간 설정</div>
+            <div className="flex min-w-0 flex-nowrap items-center gap-x-2 gap-y-0 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {/* 주문 · 희망배송 + 우측 검색 (한 줄) */}
+              <span className="w-12 shrink-0 text-xs font-medium text-slate-500 sm:w-14">주문</span>
+              <input
+                type="date"
+                value={draft.startDate}
+                onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))}
+                className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
+              />
+              <span className="shrink-0 text-slate-400">~</span>
+              <input
+                type="date"
+                value={draft.endDate}
+                onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
+                className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
+              />
+              <span
+                className="mx-1 hidden shrink-0 text-slate-300 sm:inline"
+                aria-hidden
               >
-                <option value="">거래처 선택</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={getUnifiedFilterValue(draft)}
+                |
+              </span>
+              <span className="w-12 shrink-0 text-xs font-medium text-slate-500 sm:w-14">희망배송</span>
+              <input
+                type="date"
+                value={draft.desiredDeliveryFrom}
                 onChange={(e) =>
-                  setDraft((d) => ({ ...d, ...applyUnifiedPick(e.target.value) }))
+                  setDraft((d) => ({ ...d, desiredDeliveryFrom: e.target.value }))
                 }
-                className="h-10 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 sm:min-w-[14rem]"
-              >
-                <option value="all">상태 통합검색</option>
-                <optgroup label="주문 상태">
-                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={`order:${value}`}>
-                      {label}
+                className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
+              />
+              <span className="shrink-0 text-slate-400">~</span>
+              <input
+                type="date"
+                value={draft.desiredDeliveryTo}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, desiredDeliveryTo: e.target.value }))
+                }
+                className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
+              />
+              <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+
+              <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-2 pl-2">
+                <select
+                  value={draft.selectedClient}
+                  onChange={(e) => setDraft((d) => ({ ...d, selectedClient: e.target.value }))}
+                  className="h-10 w-auto min-w-[9rem] max-w-[11rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                >
+                  <option value="">거래처 선택</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
                     </option>
                   ))}
-                </optgroup>
-                <optgroup label="결제">
-                  {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={`pay:${value}`}>
-                      {label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="뉴런 발주">
-                  {NEWRUN_SUBMIT_FILTER_OPTIONS.filter((o) => o.value !== "all").map(
-                    ({ value, label }) => (
-                      <option key={value} value={`newrun:${value}`}>
+                </select>
+                <select
+                  value={getUnifiedFilterValue(draft)}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, ...applyUnifiedPick(e.target.value) }))
+                  }
+                  className="h-10 w-auto min-w-[9.5rem] max-w-[12.5rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                >
+                  <option value="all">상태 통합검색</option>
+                  <optgroup label="주문 상태">
+                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                      <option key={value} value={`order:${value}`}>
                         {label}
                       </option>
-                    )
-                  )}
-                </optgroup>
-              </select>
-              <button
-                type="button"
-                onClick={applySearch}
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-              >
-                검색
-                <Search className="h-4 w-4" aria-hidden />
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 pt-3">
-              <button
-                type="button"
-                onClick={pickQuickAll}
-                className={`text-sm transition-colors ${
-                  quickTab === "all"
-                    ? "border-b-2 border-black pb-1 font-bold text-black"
-                    : "font-normal text-gray-500 hover:text-black"
-                }`}
-              >
-                전체{countAllOrders != null ? ` ${countAllOrders}건` : ""}
-              </button>
-              {!ADMIN_ORDER_LIST_EXCLUDE_PENDING ? (
+                    ))}
+                  </optgroup>
+                  <optgroup label="결제">
+                    {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
+                      <option key={value} value={`pay:${value}`}>
+                        {label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="뉴런 발주">
+                    {NEWRUN_SUBMIT_FILTER_OPTIONS.filter((o) => o.value !== "all").map(
+                      ({ value, label }) => (
+                        <option key={value} value={`newrun:${value}`}>
+                          {label}
+                        </option>
+                      )
+                    )}
+                  </optgroup>
+                </select>
                 <button
                   type="button"
-                  onClick={pickQuickPending}
-                  className={`text-sm transition-colors ${
-                    quickTab === "pending_payment"
-                      ? "border-b-2 border-black pb-1 font-bold text-black"
-                      : "font-normal text-gray-500 hover:text-black"
-                  }`}
+                  onClick={applySearch}
+                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 py-2 text-sm font-semibold whitespace-nowrap text-white hover:bg-gray-800"
                 >
-                  결제대기{countPendingPayment != null ? ` ${countPendingPayment}` : ""}
+                  검색
+                  <Search className="h-4 w-4 shrink-0" aria-hidden />
                 </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={pickQuickNewrunFail}
-                className={`text-sm font-bold ${
-                  quickTab === "newrun_failed"
-                    ? "rounded-full bg-orange-50 px-3 py-1 text-orange-600 ring-2 ring-orange-300"
-                    : "rounded-full bg-orange-50 px-3 py-1 text-orange-600 hover:bg-orange-100"
-                }`}
-              >
-                뉴런 발주 실패{countNewrunFailed != null ? ` ${countNewrunFailed}` : ""} 🚨
-              </button>
+              </div>
             </div>
+            <span className="sr-only">
+              {fmtYmdDot(draft.startDate)} ~ {fmtYmdDot(draft.endDate)}, 희망 배송{" "}
+              {fmtYmdDot(draft.desiredDeliveryFrom)} ~ {fmtYmdDot(draft.desiredDeliveryTo)}
+            </span>
           </div>
         </div>
       </div>
 
       {/* [3] 테이블 카드 + 내부 스크롤 / [4] 하단 고정 페이징 */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        {!loading && (
-          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-3">
-            <span className="text-lg font-bold text-blue-700">{listMonthTitle}</span>
-            <span className="text-sm font-medium text-gray-700">
-              [총발주 수: {total}건 ( {summaryAmountText} )]
-            </span>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-2">
+              <Flower2
+                className="h-6 w-6 shrink-0 text-pink-300"
+                strokeWidth={1.75}
+                aria-hidden
+              />
+              <span className="text-[calc(1.25rem+2pt)] font-bold leading-7 text-blue-700">
+                {listMonthTitle}
+              </span>
+            </div>
+            {!loading ? (
+              <span className="text-sm font-medium text-gray-700">
+                총발주 수: {total}건 ( {summaryAmountText} )
+              </span>
+            ) : (
+              <span className="text-sm font-medium text-gray-400">불러오는 중…</span>
+            )}
           </div>
-        )}
+          <div className="flex flex-wrap items-center justify-end gap-4 sm:ml-auto">
+            <button
+              type="button"
+              onClick={pickQuickAll}
+              className={`text-sm transition-colors ${
+                quickTab === "all"
+                  ? "border-b-2 border-black pb-1 font-bold text-black"
+                  : "font-normal text-gray-500 hover:text-black"
+              }`}
+            >
+              전체{countAllOrders != null ? ` ${countAllOrders}건` : ""}
+            </button>
+            {!ADMIN_ORDER_LIST_EXCLUDE_PENDING ? (
+              <button
+                type="button"
+                onClick={pickQuickPending}
+                className={`text-sm transition-colors ${
+                  quickTab === "pending_payment"
+                    ? "border-b-2 border-black pb-1 font-bold text-black"
+                    : "font-normal text-gray-500 hover:text-black"
+                }`}
+              >
+                결제대기{countPendingPayment != null ? ` ${countPendingPayment}` : ""}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={pickQuickNewrunFail}
+              className={`text-sm font-bold ${
+                quickTab === "newrun_failed"
+                  ? "rounded-full bg-orange-50 px-3 py-1 text-orange-600 ring-2 ring-orange-300"
+                  : "rounded-full bg-orange-50 px-3 py-1 text-orange-600 hover:bg-orange-100"
+              }`}
+            >
+              뉴런 발주 실패{countNewrunFailed != null ? ` ${countNewrunFailed}` : ""} 🚨
+            </button>
+          </div>
+        </div>
         <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10 bg-gray-50 shadow-[0_1px_0_#e5e7eb]">
@@ -814,11 +830,15 @@ export default function OrdersPage() {
                           </span>
                         ) : (
                           <span
-                            className="inline-flex items-center justify-center rounded-full border border-slate-200/90 bg-slate-50 px-1.5 py-1 text-slate-400"
+                            className="inline-flex items-center justify-center rounded-full border border-violet-200/90 bg-violet-50/90 px-1.5 py-1 text-violet-300 shadow-sm shadow-violet-100/50"
                             title="확인 완료"
                             aria-label="확인 완료"
                           >
-                            <Check className="h-3 w-3 shrink-0" strokeWidth={2.25} aria-hidden />
+                            <Check
+                              className="h-3 w-3 shrink-0 text-[#c4b5fd]"
+                              strokeWidth={2.25}
+                              aria-hidden
+                            />
                           </span>
                         )}
                       </td>

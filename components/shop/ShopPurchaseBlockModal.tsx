@@ -144,31 +144,51 @@ export function ShopPurchaseBlockModal({
             <h2 id="shop-purchase-block-title" className="text-lg font-bold text-gray-900">
               이 전용몰에서는 구매할 수 없습니다
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-gray-600">
+            <p
+              className="mt-3 text-sm leading-relaxed text-gray-600"
+              style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}
+            >
               {userEmail ? (
                 <>
-                  지금 로그인된 계정은{" "}
-                  <strong className="break-all text-gray-900">{userEmail}</strong> 입니다.
+                  현재 로그인된 계정(
+                  <span className="break-all">{userEmail}</span>)은
+                  <br />
+                  <strong className="text-gray-900">{regName}</strong> 소속 회원입니다.
+                  <br />
                   <br />
                 </>
-              ) : null}
-              이 계정은 <strong className="text-gray-900">{regName}</strong> 소속으로 등록되어 있습니다.
+              ) : (
+                <>
+                  현재 로그인된 계정은 확인할 수 없습니다. 이 계정은
+                  <br />
+                  <strong className="text-gray-900">{regName}</strong> 소속 회원으로 등록되어 있습니다.
+                  <br />
+                  <br />
+                </>
+              )}
+              현재 접속하신 <strong className="text-gray-900">{mallLabel}</strong> 몰의
               <br />
-              <strong className="text-gray-900">{mallLabel}</strong>에서는 장바구니·주문을 이용할 수 없습니다.
+              서비스 이용이 제한됩니다.
+              <br />
+              <br />
+              소속 전용몰로 이동하시거나,
+              <br />
+              다른 계정으로 로그인해 주세요.
             </p>
-            <div className="mt-6 flex flex-col gap-2">
+            <div className="mt-10 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={goRegisteredMall}
                 className="w-full rounded-xl py-3.5 text-base font-semibold text-white"
-                style={{ backgroundColor: "#D6A8E0" }}
+                style={{ backgroundColor: "#D6A8E0", wordBreak: "keep-all", lineHeight: 1.35 }}
               >
-                {registeredClientSlug ? `${regName} 전용몰로 이동` : "홈으로"}
+                내 소속 전용몰로 이동
               </button>
               <button
                 type="button"
                 onClick={() => void handleSwitchAccount()}
                 className="w-full rounded-xl border-2 border-[#D6A8E0] bg-white py-3.5 text-base font-semibold text-[#5B21B6]"
+                style={{ wordBreak: "keep-all", lineHeight: 1.35 }}
               >
                 다른 계정으로 로그인
               </button>

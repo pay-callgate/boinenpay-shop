@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Heart, ShoppingBag } from "lucide-react";
@@ -57,18 +57,18 @@ export default function ProductListPage() {
   const subdomain = params?.subdomain as string;
   const clientSlug = params?.clientSlug as string;
   const categorySlug = searchParams?.get("category");
+  const categorySlugTrimmed = (categorySlug ?? "").trim();
+  const isAllCategoryTab = !categorySlugTrimmed;
   const searchQuery = searchParams?.get("search") || searchParams?.get("q") || "";
 
   const [categories, setCategories] = useState<Category[]>([]);
-  // NOTE(데모용 임시 구조):
-  // - selectedCategory는 URL 쿼리(categorySlug)를 바탕으로 맞추지만,
-  //   아직은 로컬 state와 URL을 완전한 "단일 소스"로 통합하지 않았다.
-  // - 사이드바/배너 등 다양한 진입 경로를 모두 검증한 뒤
-  //   categorySlug(searchParams)를 단일 소스로 삼는 방향으로 리팩터링 예정이다.
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [categoriesReady, setCategoriesReady] = useState(false);
+  /** fetch 완료 후에도 URL이 바뀌었는지 판별 (늦게 도착한 이전 카테고리 응답 폐기) */
+  const categorySlugLatestRef = useRef(categorySlugTrimmed);
+  categorySlugLatestRef.current = categorySlugTrimmed;
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
-  const [sortBy, setSortBy] = useState<"recent" | "popular" | "price_asc" | "price_desc">("recent");
+  const [sortBy, setSortBy] = useState<"recent" | "popular" | "price_asc" | "price_desc">("price_asc");
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
   const limit = 20;
@@ -183,31 +183,37 @@ export default function ProductListPage() {
     [template?.orderAllowed, tryMallPurchaseAction, clientId]
   );
 
-  // 카테고리 목록 조회
+  // 카테고리 목록만 조회 — PLP 필터는 URL(`?category=`)을 단일 소스로 사용
   useEffect(() => {
+    setCategoriesReady(false);
     async function fetchCategories() {
-      if (!partnerId) return;
-      const res = await shopFetch(`/api/shop/categories?partnerId=${partnerId}&onlyWithProducts=false`);
-      if (res.ok) {
-        const data = await res.json();
-        const list = data?.categories ?? [];
-        setCategories(list);
-
-        // NOTE(데모 안정성 우선):
-        // - URL 쿼리(categorySlug)가 있는 경우에만 selectedCategory를 맞춰 준다.
-        // - 카테고리 계층(1/2 depth, 슬러그 매핑 등) 자체는 건드리지 않고,
-        //   products 페이지 내부에서의 표시/필터링만 최소 범위로 조정한다.
-        // - 데모 이후에는 categorySlug를 단일 소스로 사용하도록 구조를 정리한다.
-        if (categorySlug && list.length > 0) {
-          const found = list.find((c: Category) => c.slug === categorySlug);
-          setSelectedCategory(found ?? null);
+      if (!partnerId) {
+        setCategoriesReady(true);
+        return;
+      }
+      try {
+        const res = await shopFetch(`/api/shop/categories?partnerId=${partnerId}&onlyWithProducts=false`);
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data?.categories ?? []);
+        } else {
+          setCategories([]);
         }
+      } catch {
+        setCategories([]);
+      } finally {
+        setCategoriesReady(true);
       }
     }
-    fetchCategories();
-  }, [partnerId, categorySlug]);
+    void fetchCategories();
+  }, [partnerId]);
 
-  // 상품 목록 조회
+  /** 카테고리(쿼리) 바뀔 때 더보기 오프셋 초기화 */
+  useEffect(() => {
+    setOffset(0);
+  }, [categorySlug]);
+
+  // 상품 목록 조회 — categoryId는 URL 슬러그에서만 계산(로컬 state와 한 박자 어긋난 요청 방지)
   useEffect(() => {
     async function fetchProducts() {
       if (!partnerId) {
@@ -215,10 +221,21 @@ export default function ProductListPage() {
         return;
       }
 
+      const slug = categorySlugTrimmed;
+      if (slug && !categoriesReady) {
+        return;
+      }
+
+      const categoryIdForRequest = slug
+        ? categories.find((c) => c.slug === slug)?.id
+        : undefined;
+
       setLoading(true);
+      const slugWhenStarted = slug;
+
       let url = `/api/shop/products?partnerId=${partnerId}&limit=${limit}&offset=${offset}`;
-      if (selectedCategory?.id) {
-        url += `&categoryId=${selectedCategory.id}`;
+      if (categoryIdForRequest) {
+        url += `&categoryId=${categoryIdForRequest}`;
       }
       if (searchQuery.trim()) {
         url += `&search=${encodeURIComponent(searchQuery.trim())}`;
@@ -226,6 +243,9 @@ export default function ProductListPage() {
 
       try {
         const res = await shopFetch(url);
+        if (slugWhenStarted !== categorySlugLatestRef.current) {
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           const list = data?.products ?? [];
@@ -238,12 +258,14 @@ export default function ProductListPage() {
           setTotal(totalCount);
         }
       } finally {
-        setLoading(false);
+        if (slugWhenStarted === categorySlugLatestRef.current) {
+          setLoading(false);
+        }
       }
     }
 
-    fetchProducts();
-  }, [partnerId, selectedCategory, searchQuery, offset]);
+    void fetchProducts();
+  }, [partnerId, categorySlugTrimmed, categories, categoriesReady, searchQuery, offset]);
 
   // 정렬 처리 (클라이언트 사이드)
   const sortedProducts = [...products].sort((a, b) => {
@@ -298,9 +320,7 @@ export default function ProductListPage() {
     );
   }
 
-  // TODO(카테고리 단일 소스 리팩터링):
-  // - 데모 이후에는 searchParams("category")를 단일 소스로 삼고,
-  //   selectedCategory / 상단 카테고리 탭 / 사이드 메뉴가 모두 이 값을 기준으로 동작하도록 구조를 정리한다.
+  // PLP 필터·탭 하이라이트는 `?category=`(없으면 전체) 단일 소스. SideMenu 등도 동일하게 맞출 것.
   const regClient = userClients[0]?.clients;
 
   return (
@@ -343,20 +363,15 @@ export default function ProductListPage() {
           />
           <button
             onClick={() => {
-              // NOTE(데모용): 탭 클릭 시 기존 UX를 유지하되,
-              // - 로컬 state(selectedCategory)를 초기화하고
-              // - URL 쿼리(category)를 제거하여 기본(전체) 상태만 맞춰 준다.
-              // 데모 이후에는 searchParams 기반 단일 소스 구조에 맞게 정리 예정이다.
-              setSelectedCategory(null);
               setOffset(0);
               router.push(`/${subdomain}/${clientSlug}/products`);
             }}
             style={{
               padding: "8px 16px",
               borderRadius: "20px",
-              border: !selectedCategory ? "2px solid #D6A8E0" : "1px solid #E5E7EB",
-              backgroundColor: !selectedCategory ? "#F8F5FF" : "#fff",
-              color: !selectedCategory ? "#D6A8E0" : "#666",
+              border: isAllCategoryTab ? "2px solid #D6A8E0" : "1px solid #E5E7EB",
+              backgroundColor: isAllCategoryTab ? "#F8F5FF" : "#fff",
+              color: isAllCategoryTab ? "#D6A8E0" : "#666",
               fontSize: "0.875rem",
               fontWeight: 600,
               whiteSpace: "nowrap",
@@ -369,20 +384,16 @@ export default function ProductListPage() {
             <button
               key={cat.id}
               onClick={() => {
-                // NOTE(데모용): 고위험 리팩터링을 피하고,
-                // - 탭 클릭 시 selectedCategory + URL(category=slug)만 맞춰 준다.
-                // - 상단 탭/사이드 메뉴/리스트 전체를 searchParams("category") 하나로
-                //   묶는 작업은 데모 이후 단계에서 진행한다.
-                setSelectedCategory(cat);
                 setOffset(0);
                 router.push(`/${subdomain}/${clientSlug}/products?category=${cat.slug}`);
               }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "20px",
-                border: selectedCategory?.id === cat.id ? "2px solid #D6A8E0" : "1px solid #E5E7EB",
-                backgroundColor: selectedCategory?.id === cat.id ? "#F8F5FF" : "#fff",
-                color: selectedCategory?.id === cat.id ? "#D6A8E0" : "#666",
+                border:
+                  categorySlugTrimmed === cat.slug ? "2px solid #D6A8E0" : "1px solid #E5E7EB",
+                backgroundColor: categorySlugTrimmed === cat.slug ? "#F8F5FF" : "#fff",
+                color: categorySlugTrimmed === cat.slug ? "#D6A8E0" : "#666",
                 fontSize: "0.875rem",
                 fontWeight: 600,
                 whiteSpace: "nowrap",
@@ -434,10 +445,10 @@ export default function ProductListPage() {
               cursor: "pointer",
             }}
           >
-            <option value="recent">최신순</option>
-            <option value="popular">인기순</option>
             <option value="price_asc">낮은 가격순</option>
             <option value="price_desc">높은 가격순</option>
+            <option value="recent">최신순</option>
+            <option value="popular">인기순</option>
           </select>
         </div>
 

@@ -5,7 +5,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { InfoTemplatePdpPreview } from "@/components/admin/InfoTemplatePdpPreview";
 
 /**
- * PDP 탭2용 안내 템플릿(info_templates) CRUD — 배송/환불/상품고시 3분할
+ * 공통 안내 관리: PDP 하단 안내(info_templates) CRUD — 배송/환불/상품고시 3분할
  */
 
 interface InfoTemplateRow {
@@ -155,9 +155,9 @@ export default function InfoTemplatesPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="mb-4">
-        <h1 className="text-xl font-bold text-slate-800">안내 템플릿</h1>
+        <h1 className="text-xl font-bold text-slate-800">공통 안내 관리</h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          배송 안내·취소/환불·상품 고시를 템플릿으로 저장하고, 카테고리 기본값 또는 상품별로 연결합니다.
+          쇼핑몰 상세페이지 하단에 노출되는 배송 안내, 취소/환불, 상품 고시 등 공통 안내 사항을 템플릿으로 관리합니다.
         </p>
       </div>
 

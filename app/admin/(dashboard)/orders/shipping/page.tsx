@@ -402,20 +402,38 @@ export default function OrdersShippingPage() {
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-slate-600">
                   송장번호
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-semibold text-slate-600 min-w-[100px]">
-                  액션
-                </th>
+                {/*
+                 * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                 * 액션 컬럼 (행별 「송장/상태」 버튼 → openEdit → PATCH 송장·택배사·주문상태)
+                 *
+                 * 숨김 사유 (2026-05 기준):
+                 * - 현재 운영 축은 화훼(뉴런·협회) 및 온라인 꽃배달로, 배송 추적은 「협회 배송 추적」
+                 *   배지·뉴런 2.6 콜백·주문 상세 흐름이 중심이며, 목록에서 택배 송장을 수기로
+                 *   넣는 워크플로는 거의 쓰이지 않음.
+                 * - 송장번호 컬럼은 협회 주문 여부에 따라 조회용으로 유지(「협회 배송」 표기 등).
+                 *
+                 * 향후 재사용 시점:
+                 * - 일반 쇼핑몰(비화훼) 거래처가 붙어 택배 배송·관리자 송장 등록이 필요해질 때
+                 *   본 <th> / 아래 tbody <td> / 하단 모달 JSX / colSpan 값을 함께 복구할 것.
+                 *
+                 * 복구 체크리스트: colSpan 10→11, 아래 두 블록 + 모달 블록 주석 해제.
+                 * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                 *
+                 * <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-semibold text-slate-600 min-w-[100px]">
+                 *   액션
+                 * </th>
+                 */}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
                     조건에 맞는 주문이 없습니다.
                   </td>
                 </tr>
@@ -519,15 +537,19 @@ export default function OrdersShippingPage() {
                         formatTrackingDisplay(order.courier_company, order.tracking_number)
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(order)}
-                        className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      >
-                        송장/상태
-                      </button>
-                    </td>
+                    {/*
+                     * 액션 컬럼 — 헤더와 동일 히스토리. 복구 시 주석 해제.
+                     *
+                     * <td className="whitespace-nowrap px-4 py-3 text-center">
+                     *   <button
+                     *     type="button"
+                     *     onClick={() => openEdit(order)}
+                     *     className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                     *   >
+                     *     송장/상태
+                     *   </button>
+                     * </td>
+                     */}
                   </tr>
                   );
                 })
@@ -602,101 +624,104 @@ export default function OrdersShippingPage() {
       </div>
     </div>
 
-      {/* 송장/상태 수정 모달 */}
-      {editOrder && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => !updating && setEditOrder(null)}
-          role="presentation"
-        >
-          <div
-            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="shipping-modal-title"
-          >
-            <h2 id="shipping-modal-title" className="text-lg font-bold text-slate-800">
-              송장·배송 상태 수정 — {editOrder.order_no}
-            </h2>
-            <form onSubmit={handleSaveShipping} className="mt-4 space-y-4">
-              {editNewrunCourierLocked ? (
-                <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-[11px] leading-snug text-amber-950">
-                  뉴런·협회 배송 연동 주문입니다. 택배사·송장은 협회 배송(콜백 2.6)을 사용하므로 여기서는
-                  수정할 수 없습니다. 배송 단계는 아래 주문 상태와 주문 상세의 협회 통보를 참고하세요.
-                </p>
-              ) : null}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  택배사 선택
-                </label>
-                <select
-                  value={editCourierCompany}
-                  onChange={(e) => setEditCourierCompany(e.target.value)}
-                  disabled={editNewrunCourierLocked}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
-                >
-                  {COURIER_OPTIONS.map((opt) => (
-                    <option key={opt.value || "none"} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  송장 번호
-                </label>
-                <input
-                  type="text"
-                  value={editTracking}
-                  onChange={(e) => setEditTracking(e.target.value)}
-                  placeholder="택배사 송장번호 입력"
-                  disabled={editNewrunCourierLocked}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  주문·배송 상태
-                </label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {SHIPPING_MODAL_STATUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                  뉴런 배송 콜백(2.6)이 상태를 자동 갱신할 수 있습니다. 수동 변경과 겹치면 주문 상세의 이력
-                  메모를 확인하세요.
-                </p>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditOrder(null)}
-                  disabled={updating}
-                  className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  disabled={updating}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {"저장"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/*
+       * 송장/상태 수정 모달 — 액션 컬럼 「송장/상태」에서만 진입했음. 액션 컬럼 복구 시 아래 블록 주석 해제.
+       *
+       * {editOrder && (
+       *   <div
+       *     className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+       *     onClick={() => !updating && setEditOrder(null)}
+       *     role="presentation"
+       *   >
+       *     <div
+       *       className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+       *       onClick={(e) => e.stopPropagation()}
+       *       role="dialog"
+       *       aria-modal="true"
+       *       aria-labelledby="shipping-modal-title"
+       *     >
+       *       <h2 id="shipping-modal-title" className="text-lg font-bold text-slate-800">
+       *         송장·배송 상태 수정 — {editOrder.order_no}
+       *       </h2>
+       *       <form onSubmit={handleSaveShipping} className="mt-4 space-y-4">
+       *         {editNewrunCourierLocked ? (
+       *           <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-[11px] leading-snug text-amber-950">
+       *             뉴런·협회 배송 연동 주문입니다. 택배사·송장은 협회 배송(콜백 2.6)을 사용하므로 여기서는
+       *             수정할 수 없습니다. 배송 단계는 아래 주문 상태와 주문 상세의 협회 통보를 참고하세요.
+       *           </p>
+       *         ) : null}
+       *         <div>
+       *           <label className="mb-1 block text-sm font-medium text-slate-700">
+       *             택배사 선택
+       *           </label>
+       *           <select
+       *             value={editCourierCompany}
+       *             onChange={(e) => setEditCourierCompany(e.target.value)}
+       *             disabled={editNewrunCourierLocked}
+       *             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+       *           >
+       *             {COURIER_OPTIONS.map((opt) => (
+       *               <option key={opt.value || "none"} value={opt.value}>
+       *                 {opt.label}
+       *               </option>
+       *             ))}
+       *           </select>
+       *         </div>
+       *         <div>
+       *           <label className="mb-1 block text-sm font-medium text-slate-700">
+       *             송장 번호
+       *           </label>
+       *           <input
+       *             type="text"
+       *             value={editTracking}
+       *             onChange={(e) => setEditTracking(e.target.value)}
+       *             placeholder="택배사 송장번호 입력"
+       *             disabled={editNewrunCourierLocked}
+       *             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+       *           />
+       *         </div>
+       *         <div>
+       *           <label className="mb-1 block text-sm font-medium text-slate-700">
+       *             주문·배송 상태
+       *           </label>
+       *           <select
+       *             value={editStatus}
+       *             onChange={(e) => setEditStatus(e.target.value)}
+       *             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+       *           >
+       *             {SHIPPING_MODAL_STATUS_OPTIONS.map((opt) => (
+       *               <option key={opt.value} value={opt.value}>
+       *                 {opt.label}
+       *               </option>
+       *             ))}
+       *           </select>
+       *           <p className="mt-1 text-[11px] leading-snug text-slate-500">
+       *             뉴런 배송 콜백(2.6)이 상태를 자동 갱신할 수 있습니다. 수동 변경과 겹치면 주문 상세의 이력
+       *             메모를 확인하세요.
+       *           </p>
+       *         </div>
+       *         <div className="flex justify-end gap-2 pt-2">
+       *           <button
+       *             type="button"
+       *             onClick={() => setEditOrder(null)}
+       *             disabled={updating}
+       *             className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+       *           >
+       *             취소
+       *           </button>
+       *           <button
+       *             type="submit"
+       *             disabled={updating}
+       *             className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+       *           >
+       *             {"저장"}
+       *           </button>
+       *         </div>
+       *       </form>
+       *     </div>
+       *   </div>
+       * )}
+       */}
     </>
   );
 }

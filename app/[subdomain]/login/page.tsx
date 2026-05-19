@@ -1,14 +1,12 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useMemo, useState, useRef, type FormEvent } from "react";
 import { getStorefrontUrl } from "@/lib/app-url";
 import { sanitizeCallbackUrlAgainstLoginLoop } from "@/lib/shop-callback-url";
 import { useShopLoginContext } from "./_hooks/use-shop-login-context";
-import { buildShopLoginQuery } from "./_lib/shop-login-query";
 import { GuestOrderLookupForm } from "./_components/guest-order-lookup-form";
-import { LoginEmailStartHint } from "./_components/login-email-start-hint";
 import { LoginOrDivider } from "./_components/login-or-divider";
 import { LoginTabBar } from "./_components/login-tab-bar";
 import type { ShopLoginTab } from "./_components/login-tab-bar-types";
@@ -28,7 +26,6 @@ function tabFromSearch(sp: ReturnType<typeof useSearchParams>): ShopLoginTab {
 export default function CustomerLoginPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const subdomain = (params?.subdomain as string) ?? "";
   const tab = useMemo(() => tabFromSearch(searchParams), [searchParams]);
 
@@ -44,19 +41,7 @@ export default function CustomerLoginPage() {
   const { partnerCompanyName, clientInfo, loading: contextLoading, clientSlugForGuest } =
     useShopLoginContext(subdomain, callbackUrl);
 
-  const partnerLine =
-    (partnerCompanyName?.trim() || clientInfo?.name?.trim() || subdomain || "쇼핑몰") +
-    " 임직원 로그인";
-
   const memberIdInputRef = useRef<HTMLInputElement>(null);
-
-  const handleEmailStart = () => {
-    if (tab !== "member") {
-      const q = buildShopLoginQuery(callbackUrl, "member");
-      router.replace(`/${subdomain}/login?${q}`);
-    }
-    window.setTimeout(() => memberIdInputRef.current?.focus(), 0);
-  };
 
   const handleOAuth = (provider: "kakao" | "naver") => {
     signIn(provider, { callbackUrl });
@@ -65,7 +50,6 @@ export default function CustomerLoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [memberId, setMemberId] = useState("");
   const [memberPw, setMemberPw] = useState("");
-  const [autoLogin, setAutoLogin] = useState(false);
   const [memberSubmitting, setMemberSubmitting] = useState(false);
   const [memberError, setMemberError] = useState<string | null>(null);
 
@@ -143,7 +127,11 @@ export default function CustomerLoginPage() {
   };
 
   return (
-    <ShopLoginChrome subdomain={subdomain} callbackUrl={callbackUrl}>
+    <ShopLoginChrome
+      subdomain={subdomain}
+      callbackUrl={callbackUrl}
+      shopClientSlug={clientInfo?.slug ?? clientSlugForGuest}
+    >
       <div className="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-xl shadow-slate-300/30">
         <ShopLoginHeader
           contextLoading={contextLoading}
@@ -163,15 +151,9 @@ export default function CustomerLoginPage() {
             <div className="h-28 animate-pulse rounded-xl bg-slate-100" />
           ) : (
             <>
-              <SocialLoginButtons
-                caption={partnerLine}
-                onKakao={() => handleOAuth("kakao")}
-                onNaver={() => handleOAuth("naver")}
-              />
+              <SocialLoginButtons onKakao={() => handleOAuth("kakao")} onNaver={() => handleOAuth("naver")} />
 
               <LoginOrDivider />
-
-              <LoginEmailStartHint onEmailStart={handleEmailStart} />
 
               <div className="mt-6">
                 <LoginTabBar subdomain={subdomain} callbackUrl={callbackUrl} active={tab} />
@@ -179,19 +161,15 @@ export default function CustomerLoginPage() {
 
               {tab === "member" ? (
                 <MemberLoginForm
-                  subdomain={subdomain}
-                  callbackUrl={callbackUrl}
                   memberIdInputRef={memberIdInputRef}
                   memberId={memberId}
                   memberPw={memberPw}
                   showPw={showPw}
-                  autoLogin={autoLogin}
                   memberSubmitting={memberSubmitting}
                   memberError={memberError}
                   onMemberIdChange={setMemberId}
                   onMemberPwChange={setMemberPw}
                   onTogglePw={() => setShowPw((v) => !v)}
-                  onAutoLoginChange={setAutoLogin}
                   onSubmit={handleMemberLogin}
                 />
               ) : (

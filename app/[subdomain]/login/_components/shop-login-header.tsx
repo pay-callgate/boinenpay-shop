@@ -49,7 +49,7 @@ export function ShopLoginHeader({
         {displayPartner} 전용 쇼핑몰
       </h1>
       <p className="mt-3 text-sm leading-relaxed text-slate-600">
-        임직원 여러분 환영합니다!
+        고객님 환영합니다!
       </p>
     </div>
   );

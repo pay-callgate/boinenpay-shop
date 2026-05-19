@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -118,9 +118,15 @@ function SmartHeader({
   const { status: sessionStatus } = useSession();
   const [cartCount, setCartCount] = useState(0);
   const [logoLoadError, setLogoLoadError] = useState(false);
+  /** 로그아웃 직후 이전(회원) 카운트 fetch가 늦게 끝나 뱃지를 덮어쓰는 레이스 방지 */
+  const cartCountFetchGenRef = useRef(0);
 
   const refreshCartCount = useCallback(() => {
-    if (!client?.id) return;
+    if (!client?.id) {
+      setCartCount(0);
+      return;
+    }
+    const reqId = ++cartCountFetchGenRef.current;
     const useGuestCart =
       pathname.includes("/guest-order") ||
       (pathname.includes("/checkout") && searchParams.get("guest") === "1");
@@ -131,10 +137,14 @@ function SmartHeader({
     fetch(url, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : { count: 0 }))
       .then((data) => {
+        if (reqId !== cartCountFetchGenRef.current) return;
         const count = data?.count ?? data?.items?.length ?? 0;
         setCartCount(count);
       })
-      .catch(() => setCartCount(0));
+      .catch(() => {
+        if (reqId !== cartCountFetchGenRef.current) return;
+        setCartCount(0);
+      });
   }, [client?.id, pathname, searchParams]);
 
   // 로그인/로그아웃 전환 시 회원 장바구니 ↔ 게스트 장바구니 기준이 바뀌므로 즉시 재조회

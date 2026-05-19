@@ -351,7 +351,7 @@ export default function CategoriesPage() {
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-slate-500">
-                  템플릿은 「안내 템플릿」 메뉴에서 먼저 등록할 수 있습니다.
+                  템플릿은 「공통 안내 관리」 메뉴에서 먼저 등록할 수 있습니다.
                 </p>
               </div>
 

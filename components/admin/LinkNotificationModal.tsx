@@ -406,8 +406,8 @@ export function LinkNotificationModal({
             고객사 Link 안내 메시지
           </h2>
           <p className="mt-1 text-sm text-slate-300">
-            거래처 담당자에게 주문 링크 안내 카카오 알림톡을 발송합니다. 본문은
-            승인 템플릿에 맞게 파트너사명·고객사 주문 URL이 반영됩니다.
+            고객의 간편한 주문을 위한 &apos;주문 안내 알림톡&apos;을 발송합니다.
+            파트너사별로 최적화된 맞춤형 링크를 각각 생성하여 발송할 수 있습니다.
           </p>
         </div>
 
@@ -428,9 +428,11 @@ export function LinkNotificationModal({
                       <Image
                         src={CALLLINK_KAKAO_CHANNEL_PROFILE_SRC}
                         alt="콜링크쇼핑"
-                        width={36}
-                        height={36}
+                        width={96}
+                        height={96}
+                        sizes="36px"
                         className="h-full w-full object-cover"
+                        priority
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -496,8 +498,7 @@ export function LinkNotificationModal({
                   className="max-h-[140px] w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-gray-800 placeholder-gray-400 read-only:bg-gray-50 focus:border-[#1e293b] focus:outline-none focus:ring-1 focus:ring-[#1e293b]"
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  [알림톡 본문] {message.length}자 · {byteCount} byte (매뉴얼 기준 MSG
-                  최대 1000자)
+                  글자 수: {message.length}자 / {byteCount} byte (최대 1,000자 가능)
                 </p>
               </div>
             </div>
@@ -638,10 +639,6 @@ export function LinkNotificationModal({
                               CSV / Excel(.xlsx, .xls)을 여기에 드롭
                             </strong>
                             하거나 파일을 선택하세요.
-                          </p>
-                          <p className="mt-1.5 text-xs leading-relaxed text-[#5c6473]">
-                            브랜드용 발송 도구에서 흔히 쓰는 방식: 업로드 직후
-                            건수 요약 + 전체 목록 테이블로 검증합니다.
                           </p>
                           <div
                             className="mx-auto mt-3 flex max-w-lg items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left"

@@ -66,10 +66,10 @@ export function PdpInfoAccordion({
   accentColor: string;
   reviewCount?: number;
 }) {
-  const [openKey, setOpenKey] = useState<SectionKey | null>("detail");
+  const [openKey, setOpenKey] = useState<SectionKey | null>(null);
 
   useEffect(() => {
-    setOpenKey("detail");
+    setOpenKey(null);
   }, [productId]);
 
   const toggle = (key: SectionKey) => {

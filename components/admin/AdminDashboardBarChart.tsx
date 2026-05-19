@@ -120,7 +120,6 @@ export function AdminDashboardBarChart({
     minHeightClass ?? (compact ? "min-h-[220px]" : "min-h-[400px]");
   const pad = compact ? "p-4" : "p-6";
   const chartPad = compact ? "pb-6 pt-3" : "pb-8 pt-6";
-  const gridPad = compact ? "pb-6 pt-3" : "pb-8 pt-6";
 
   const maxData = list.length ? Math.max(...list.map((b) => b.valueManwon), 0) : 0;
   const yMax = computeYMax(maxData, maxScaleManwon);
@@ -194,50 +193,67 @@ export function AdminDashboardBarChart({
         ) : null}
       </div>
 
-      <div className={`relative flex min-h-[160px] flex-1 flex-col px-2 ${chartPad}`}>
-        <div className={`absolute inset-0 z-0 flex flex-col justify-between ${gridPad}`}>
-          {ySteps.map((step) => (
-            <div key={step} className="relative flex w-full items-center">
-              <span
-                className={`absolute -left-2 text-right text-[11px] font-semibold text-slate-500 ${compact ? "w-9" : "w-10"}`}
-              >
-                {formatYAxisLabel(step)}
-              </span>
-              <div className={`${compact ? "ml-9" : "ml-10"} w-full border-t border-dashed ${theme.grid}`} />
-            </div>
-          ))}
-        </div>
-
-        <div
-          className={`relative z-10 flex min-h-0 flex-1 items-stretch justify-between gap-1 px-1 sm:gap-2 sm:px-4 ${compact ? "ml-9" : "ml-10"}`}
-        >
-          {list.map((bar, i) => {
-            const heightPercent = Math.min(100, (bar.valueManwon / yMax) * 100);
-            return (
-              <div
-                key={`${bar.label}-${i}`}
-                className="group relative flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-end"
-              >
-                <div
-                  className={`relative w-5 cursor-pointer rounded-t-md transition-all duration-300 sm:w-7 ${theme.bar} ${theme.barHover}`}
-                  style={{
-                    height: `${Math.max(heightPercent, bar.valueManwon > 0 ? 4 : 0)}%`,
-                  }}
+      <div className={`relative flex min-h-0 flex-1 flex-col px-2 ${chartPad}`}>
+        {/*
+          X축 라벨을 플롯(flex-1) 밖의 별도 행에 둠.
+          이전: 라벨을 막대 열 안에 넣으면 % 높이·중첩 flex·absolute 그리드와 같이 쓰일 때
+          일부 환경에서 라벨이 플롯 상단으로 붙는 현상이 있었음.
+        */}
+        {/* 플롯: Y 그리드 + 막대만 */}
+        <div className="relative min-h-0 flex-1">
+          <div className="absolute inset-0 z-0 flex flex-col justify-between">
+            {ySteps.map((step) => (
+              <div key={step} className="relative flex w-full items-center">
+                <span
+                  className={`absolute -left-2 text-right text-[11px] font-semibold text-slate-500 ${compact ? "w-9" : "w-10"}`}
                 >
-                  <div className="absolute -top-11 left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white shadow-xl group-hover:block">
-                    <span className={theme.tooltipAccent}>매출:</span>{" "}
-                    {formatManwonTooltip(bar.valueManwon)}만 원
-                    <div className="absolute -bottom-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-slate-900" />
+                  {formatYAxisLabel(step)}
+                </span>
+                <div className={`${compact ? "ml-9" : "ml-10"} w-full border-t border-dashed ${theme.grid}`} />
+              </div>
+            ))}
+          </div>
+
+          <div
+            className={`relative z-10 flex h-full min-h-0 items-end justify-between gap-1 px-1 sm:gap-2 sm:px-4 ${compact ? "ml-9" : "ml-10"}`}
+          >
+            {list.map((bar, i) => {
+              const heightPercent = Math.min(100, (bar.valueManwon / yMax) * 100);
+              return (
+                <div
+                  key={`${bar.label}-${i}`}
+                  className="group flex h-full min-h-0 min-w-0 flex-1 flex-col justify-end items-center"
+                >
+                  <div
+                    className={`relative w-5 cursor-pointer rounded-t-md transition-all duration-300 sm:w-7 ${theme.bar} ${theme.barHover}`}
+                    style={{
+                      height: `${Math.max(heightPercent, bar.valueManwon > 0 ? 4 : 0)}%`,
+                    }}
+                  >
+                    <div className="absolute -top-11 left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white shadow-xl group-hover:block">
+                      <span className={theme.tooltipAccent}>매출:</span>{" "}
+                      {formatManwonTooltip(bar.valueManwon)}만 원
+                      <div className="absolute -bottom-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-slate-900" />
+                    </div>
                   </div>
                 </div>
-                <span
-                  className={`absolute max-w-[4.5rem] whitespace-nowrap text-center font-bold leading-tight text-slate-700 sm:max-w-none ${compact ? "-bottom-5 text-[10px]" : "-bottom-7 text-[10px] sm:text-xs"}`}
-                >
-                  {bar.label}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* X축(월·일 등): 항상 플롯 하단 한 줄 */}
+        <div
+          className={`flex shrink-0 justify-between gap-1 px-1 pt-2 sm:gap-2 sm:px-4 ${compact ? "ml-9" : "ml-10"}`}
+        >
+          {list.map((bar, i) => (
+            <span
+              key={`${bar.label}-x-${i}`}
+              className={`min-w-0 flex-1 text-center font-bold leading-tight text-slate-700 ${compact ? "text-[10px]" : "text-[10px] sm:text-xs"}`}
+            >
+              {bar.label}
+            </span>
+          ))}
         </div>
       </div>
     </div>
