@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { MessageSquare } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AlimtalkHistoryDetailModal } from "@/components/admin/AlimtalkHistoryDetailModal";
 import {
   type AdminAlimtalkHistoryStatus,
@@ -180,36 +182,39 @@ export default function AdminAlimtalkMessagesPage() {
       )}
 
       <div className="flex flex-1 flex-col overflow-hidden bg-gray-50 p-6">
-        <div className="mb-6 shrink-0 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              알림톡 발송 관리
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              발송 건별 내역과 예상 정산(건당 {summary.unitWon}원)을 확인합니다.
-            </p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              조회 결과 그룹 {total.toLocaleString("ko-KR")}건
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void handleExcelDownload()}
-            disabled={exporting}
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            {exporting ? "다운로드 중…" : "엑셀 다운로드"}
-          </button>
-        </div>
+        <AdminPageHeader
+          className="shrink-0"
+          eyebrow="Clients · Alimtalk"
+          title="알림톡 발송 관리"
+          titleIcon={MessageSquare}
+          description={
+            <>
+              <p>발송 건별 내역과 예상 정산(건당 {summary.unitWon}원)을 확인합니다.</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                조회 결과 그룹 {total.toLocaleString("ko-KR")}건
+              </p>
+            </>
+          }
+          rightSlot={
+            <button
+              type="button"
+              onClick={() => void handleExcelDownload()}
+              disabled={exporting}
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {exporting ? "다운로드 중…" : "엑셀 다운로드"}
+            </button>
+          }
+        />
 
         {/* 요약 카드 */}
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">

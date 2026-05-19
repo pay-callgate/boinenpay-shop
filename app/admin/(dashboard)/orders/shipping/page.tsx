@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Truck } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { COURIER_OPTIONS, formatTrackingDisplay } from "@/lib/courier";
 import {
   formatNewrunAssociationStateShort,
@@ -262,16 +264,20 @@ export default function OrdersShippingPage() {
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
       {/* [2] 상단 고정: 타이틀·필터 */}
       <div className="shrink-0">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">배송 관리</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            주문별 배송 상태를 관리하고 송장을 등록합니다.{" "}
-            <span className="text-slate-700">
-              뉴런·협회(화훼) 연동 주문은 <strong>협회 배송 추적</strong> 배지가 붙으며, 택배 송장은 협회
-              콜백(2.6)을 사용하므로 이 화면에서 수정할 수 없습니다.
-            </span>
-          </p>
-        </div>
+        <AdminPageHeader
+          eyebrow="Orders · Shipping"
+          title="배송 관리"
+          titleIcon={Truck}
+          description={
+            <>
+              주문별 배송 상태를 관리하고 송장을 등록합니다.{" "}
+              <span className="text-slate-700">
+                뉴런·협회(화훼) 연동 주문은 <strong>협회 배송 추적</strong> 배지가 붙으며, 택배
+                송장은 협회 콜백(2.6)을 사용하므로 이 화면에서 수정할 수 없습니다.
+              </span>
+            </>
+          }
+        />
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-end gap-3">

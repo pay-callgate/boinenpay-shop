@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { Boxes } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Badge } from "@/components/ui/badge";
 import { adminFetch } from "@/lib/admin-fetch";
 
@@ -136,12 +138,12 @@ export default function InventoryPage() {
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
       {/* 상단 고정: 타이틀·대시보드·필터 (스크롤 시 찌그러짐 방지) */}
       <div className="shrink-0">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">재고 관리</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            재고 수량과 안전 재고를 확인하고 수정할 수 있습니다.
-          </p>
-        </div>
+        <AdminPageHeader
+          eyebrow="Catalog · Inventory"
+          title="재고 관리"
+          titleIcon={Boxes}
+          description="재고 수량과 안전 재고를 확인하고 수정할 수 있습니다."
+        />
 
         {/* 1. 상단 요약 대시보드 (Dashboard Card) - Soft Pink Theme */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

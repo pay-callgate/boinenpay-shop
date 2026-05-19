@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Calendar, Check, Flower2, Search } from "lucide-react";
+import { Calendar, Check, ClipboardList, Flower2, Search } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import {
   formatAdminNewrunSubmitLabel,
   type NewrunSubmitListFilter,
@@ -572,28 +573,30 @@ export default function OrdersPage() {
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
       {/* [2] 상단 고정: 타이틀·필터 (스크롤 시 찌그러짐 방지) */}
       <div className="shrink-0">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">주문 관리</h1>
-            <p className="mt-1 text-sm text-slate-600">전체 주문 내역을 조회하고 관리합니다.</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleExcelDownload}
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            엑셀 다운로드
-          </button>
-        </div>
+        <AdminPageHeader
+          eyebrow="Orders · List"
+          title="주문 목록"
+          titleIcon={ClipboardList}
+          description="전체 주문 내역을 조회하고 관리합니다."
+          rightSlot={
+            <button
+              type="button"
+              onClick={handleExcelDownload}
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              엑셀 다운로드
+            </button>
+          }
+        />
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-800">

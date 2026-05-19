@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useCallback, type FormEvent, type ReactNode } from "react";
 import {
+  FolderPlus,
   FolderTree,
   Link2,
+  List,
   ListOrdered,
+  Pencil,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -12,12 +15,17 @@ import {
   ADMIN_MODAL_PRIMARY_BTN_CLASS,
   ADMIN_MODAL_CANCEL_BTN_CLASS,
 } from "@/lib/admin-dialog-policy";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 /**
  * T2-1: 카테고리 관리 페이지 (모던 SaaS 스타일)
  * /admin/categories (중앙 집중형)
  * 좌측 리스트 + 우측 폼, 컴팩트 레이아웃, 한 화면 맞춤
  */
+
+/** 상단 페이지 헤더와 톤을 맞춘 패널 헤더 (그라데이션·테두리) */
+const categoryPanelHeaderClass =
+  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-3.5 sm:px-6";
 
 interface Category {
   id: string;
@@ -229,12 +237,12 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
-      <div className="mb-4">
-        <h1 className="text-xl font-bold text-slate-800">카테고리 관리</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          쇼핑몰의 상품 카테고리를 추가하고 관리합니다.
-        </p>
-      </div>
+      <AdminPageHeader
+        eyebrow="Catalog · Categories"
+        title="카테고리 관리"
+        titleIcon={FolderTree}
+        description="쇼핑몰의 상품 카테고리를 추가하고 관리합니다."
+      />
 
       {error && (
         <p className="mb-4 text-sm text-red-600">{error}</p>
@@ -242,11 +250,24 @@ export default function CategoriesPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* 좌측: 카테고리 목록 카드 */}
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="rounded-t-lg border-b border-sky-100/90 bg-sky-50/90 px-4 py-2.5">
-            <h2 className="text-sm font-semibold tracking-tight text-slate-800">카테고리 목록</h2>
+        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+          <div className={categoryPanelHeaderClass}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
+              Categories · List
+            </p>
+            <h2 className="mt-0.5 flex items-center gap-2 text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+              <List
+                className="h-5 w-5 shrink-0 text-emerald-600 sm:h-5 sm:w-5"
+                strokeWidth={1.75}
+                aria-hidden
+              />
+              카테고리 목록
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              항목을 선택하면 오른쪽 패널에서 상세를 편집할 수 있습니다.
+            </p>
           </div>
-          <div className="max-h-[calc(100vh-260px)] overflow-y-auto p-2">
+          <div className="max-h-[calc(100vh-300px)] overflow-y-auto p-3 sm:p-4">
             {categories.length === 0 ? (
               <p className="py-6 text-center text-sm text-slate-500">등록된 카테고리가 없습니다.</p>
             ) : (
@@ -297,13 +318,34 @@ export default function CategoriesPage() {
         </div>
 
         {/* 우측: 폼 카드 (컴팩트) */}
-        <div className="lg:col-span-2 rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="rounded-t-lg border-b border-sky-100/90 bg-sky-50/90 px-4 py-2.5">
-            <h2 className="text-sm font-semibold tracking-tight text-slate-800">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm lg:col-span-2">
+          <div className={categoryPanelHeaderClass}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
+              {editingCategory ? "Categories · Edit" : "Categories · New"}
+            </p>
+            <h2 className="mt-0.5 flex items-center gap-2 text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+              {editingCategory ? (
+                <Pencil
+                  className="h-5 w-5 shrink-0 text-emerald-600"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              ) : (
+                <FolderPlus
+                  className="h-5 w-5 shrink-0 text-emerald-600"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              )}
               {editingCategory ? "카테고리 수정" : "카테고리 추가"}
             </h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              {editingCategory
+                ? "선택한 카테고리 정보를 저장하면 쇼핑몰에 반영됩니다."
+                : "새 카테고리를 등록한 뒤 목록에서 순서·노출을 조정할 수 있습니다."}
+            </p>
           </div>
-          <form onSubmit={handleSubmit} className="p-4">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-5">
             <div className="space-y-5">
               <div>
                 <label className={labelClass} htmlFor="cat-name">

@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import {
+  FolderPlus,
+  List,
+  Pencil,
+  ScrollText,
+  Smartphone,
+} from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { InfoTemplatePdpPreview } from "@/components/admin/InfoTemplatePdpPreview";
 
 /**
@@ -20,6 +28,10 @@ interface InfoTemplateRow {
 const inputClass =
   "w-full rounded-md border border-slate-200 px-2.5 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400";
 const labelClass = "mb-1 block text-xs font-medium text-slate-600";
+
+/** 상단 페이지 헤더·카테고리 패널과 톤을 맞춘 카드 헤더 */
+const infoPanelHeaderClass =
+  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-3.5 sm:px-6";
 
 export default function InfoTemplatesPage() {
   const [partnerId, setPartnerId] = useState<string | null>(null);
@@ -153,62 +165,100 @@ export default function InfoTemplatesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="mb-4">
-        <h1 className="text-xl font-bold text-slate-800">공통 안내 관리</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          쇼핑몰 상세페이지 하단에 노출되는 배송 안내, 취소/환불, 상품 고시 등 공통 안내 사항을 템플릿으로 관리합니다.
-        </p>
-      </div>
+    <div className="w-full bg-slate-50">
+      <AdminPageHeader
+        eyebrow="Catalog · Info"
+        title="공통 안내 관리"
+        titleIcon={ScrollText}
+        description="쇼핑몰 상세페이지 하단에 노출되는 배송 안내, 취소/환불, 상품 고시 등 공통 안내 사항을 템플릿으로 관리합니다."
+      />
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-4">
-          <div className="flex min-w-0 flex-col rounded-lg border border-slate-200 bg-white shadow-sm lg:w-[15.75rem] lg:max-w-[15.75rem] lg:shrink-0">
-          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5">
-            <h2 className="truncate text-xs font-semibold text-slate-700">템플릿 목록</h2>
-            <button
-              type="button"
-              onClick={() => resetForm()}
-              className="shrink-0 text-[10px] font-medium text-blue-600 hover:underline sm:text-xs"
-            >
-              새로 만들기
-            </button>
+          <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm lg:w-[18.5rem] lg:max-w-[18.5rem] lg:shrink-0">
+            <div className={infoPanelHeaderClass}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
+                    Templates · List
+                  </p>
+                  <h2 className="mt-0.5 flex items-center gap-2 text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                    <List
+                      className="h-5 w-5 shrink-0 text-emerald-600"
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                    템플릿 목록
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                    항목을 선택하면 오른쪽에서 내용을 수정할 수 있습니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => resetForm()}
+                  className="shrink-0 rounded-lg border border-emerald-200/80 bg-white/80 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-800 shadow-sm hover:bg-emerald-50/80 sm:text-xs"
+                >
+                  새로 만들기
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-[10rem] overflow-y-auto p-2 sm:p-3 lg:min-h-0">
+              {templates.length === 0 ? (
+                <p className="py-6 text-center text-xs text-slate-500">등록된 템플릿이 없습니다.</p>
+              ) : (
+                <ul className="space-y-0.5">
+                  {templates.map((t) => (
+                    <li key={t.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelect(t)}
+                        title={t.name}
+                        className={`w-full truncate rounded-md px-2 py-2 text-left text-xs transition-colors sm:text-sm ${
+                          selectedId === t.id
+                            ? "bg-slate-100 font-medium text-blue-600"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {t.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-1.5 min-h-[10rem] lg:min-h-0">
-            {templates.length === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-500">등록된 템플릿이 없습니다.</p>
-            ) : (
-              <ul className="space-y-0.5">
-                {templates.map((t) => (
-                  <li key={t.id}>
-                    <button
-                      type="button"
-                      onClick={() => handleSelect(t)}
-                      title={t.name}
-                      className={`w-full truncate rounded-md px-2 py-2 text-left text-xs transition-colors sm:text-sm ${
-                        selectedId === t.id
-                          ? "bg-slate-100 font-medium text-blue-600"
-                          : "text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {t.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
 
-        <div className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <h2 className="text-sm font-semibold text-slate-700">
+          <div className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+          <div className={infoPanelHeaderClass}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
+              {selectedId ? "Templates · Edit" : "Templates · New"}
+            </p>
+            <h2 className="mt-0.5 flex items-center gap-2 text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+              {selectedId ? (
+                <Pencil
+                  className="h-5 w-5 shrink-0 text-emerald-600"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              ) : (
+                <FolderPlus
+                  className="h-5 w-5 shrink-0 text-emerald-600"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              )}
               {selectedId ? "템플릿 수정" : "템플릿 추가"}
             </h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              {selectedId
+                ? "저장하면 이 템플릿을 사용하는 카테고리·상품 안내에 반영됩니다."
+                : "배송·환불·상품 고시 문구를 입력한 뒤 저장하면 목록에 추가됩니다."}
+            </p>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-3 p-4">
+          <form onSubmit={handleSubmit} className="space-y-3 p-4 sm:p-5">
             <div>
               <label className={labelClass}>템플릿 이름 *</label>
               <input
@@ -273,23 +323,36 @@ export default function InfoTemplatesPage() {
               </button>
             </div>
           </form>
-        </div>
+          </div>
         </div>
 
         <aside className="min-h-0 w-full shrink-0 lg:sticky lg:top-4 lg:min-w-[17.5rem] lg:w-[min(23rem,100%)]">
-          <div className="mb-2 px-0.5">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              쇼핑몰 미리보기
-            </h2>
-            <p className="mt-0.5 text-[11px] leading-snug text-slate-400">
-              고객 상품 상세의 「상품 고시 · 배송 안내 · 환불·취소」 탭과 같은 형태로 표시됩니다.
-            </p>
+          <div className="mb-3 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+            <div className={infoPanelHeaderClass}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
+                Catalog · Preview
+              </p>
+              <h2 className="mt-0.5 flex items-center gap-2 text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                <Smartphone
+                  className="h-5 w-5 shrink-0 text-emerald-600"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+                쇼핑몰 미리보기
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                고객 상품 상세의 「상품 고시 · 배송 안내 · 환불·취소」 탭과 같은 형태로 표시됩니다.
+              </p>
+            </div>
+            <div className="border-t border-slate-100 bg-white p-2 sm:p-3">
+              <InfoTemplatePdpPreview
+                phonePreview
+                productNotice={productNotice}
+                deliveryInfo={deliveryInfo}
+                refundPolicy={refundPolicy}
+              />
+            </div>
           </div>
-          <InfoTemplatePdpPreview
-            productNotice={productNotice}
-            deliveryInfo={deliveryInfo}
-            refundPolicy={refundPolicy}
-          />
           <div
             className="mt-3 rounded-lg border border-blue-200 bg-blue-50 py-3 pl-2 pr-2.5 text-blue-900 shadow-sm"
             role="note"

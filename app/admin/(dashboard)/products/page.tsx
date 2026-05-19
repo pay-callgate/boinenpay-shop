@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ProductRegistrationModal } from "@/components/admin/ProductRegistrationModal";
 import { adminFetch } from "@/lib/admin-fetch";
 
@@ -181,10 +183,20 @@ export default function ProductsPage() {
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
         {/* 상단 고정: 타이틀·필터·총 상품 수 (스크롤 시 찌그러짐 방지) */}
         <div className="shrink-0">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">상품 관리</h1>
-            <p className="mt-1 text-sm text-slate-600">상품 목록을 조회하고 수정할 수 있습니다.</p>
-          </div>
+          <AdminPageHeader
+            eyebrow="Catalog · Products"
+            title="상품 관리"
+            titleIcon={Package}
+            description={
+              <>
+                등록된 상품을 검색·필터로 빠르게 찾고,{" "}
+                <strong className="font-semibold text-slate-800">가격·재고·판매 상태</strong>를
+                관리합니다. 아래 영역에서{" "}
+                <strong className="font-semibold text-slate-800">신규 상품 등록</strong>도 할 수
+                있습니다.
+              </>
+            }
+          />
 
           <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3">
@@ -193,7 +205,7 @@ export default function ProductsPage() {
                 placeholder="상품명 검색..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-10 min-w-[200px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                className="h-10 min-w-[200px] rounded-md border border-gray-200 bg-slate-50 px-3 text-sm text-slate-900 shadow-none placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10"
               />
               <select
                 value={categoryId}

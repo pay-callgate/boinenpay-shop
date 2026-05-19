@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Link as LinkIcon, Link2, MessageSquare, Phone, Settings } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Badge } from "@/components/ui/badge";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
 import { CallcloudIntegrationModal, type CallcloudModalEntry } from "@/components/admin/CallcloudIntegrationModal";
@@ -246,15 +247,22 @@ export default function ClientsLinksPage() {
 
       <div className="flex flex-1 flex-col overflow-hidden bg-slate-50 p-6">
         {/* 헤더: 재고 관리와 동일한 여백 */}
-        <div className="mb-6 shrink-0">
-          <h1 className="text-2xl font-bold text-slate-800">거래처/링크 관리</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            거래처 정보 관리, 주문 전용 Link 생성 및 CallLink(070번호) 연동을 통합 관리합니다.
-          </p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            총 {filteredClients.length}개 거래처
-          </p>
-        </div>
+        <AdminPageHeader
+          className="shrink-0"
+          eyebrow="Clients · Links"
+          title="거래처/링크 관리"
+          titleIcon={Link2}
+          description={
+            <>
+              <p>
+                거래처 정보 관리, 주문 전용 Link 생성 및 CallLink(070번호) 연동을 통합 관리합니다.
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                총 {filteredClients.length}개 거래처
+              </p>
+            </>
+          }
+        />
 
         {/* 검색 필터: 재고 관리 필터와 동일한 mb-4, gap 정렬 */}
         <div className="shrink-0 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

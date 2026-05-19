@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { RotateCcw } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { formatAdminOrdererListLabel } from "@/lib/admin-orderer-display";
 
 /**
@@ -148,13 +150,12 @@ export default function OrdersReturnsPage() {
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
       {/* [2] 상단 고정: 타이틀·필터 */}
       <div className="shrink-0">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">취소/반품</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            취소·반품 처리된 주문을 조회합니다. 목록에서 주문 상세로 이동해 이력·환불 상태를 확인할 수
-            있습니다.
-          </p>
-        </div>
+        <AdminPageHeader
+          eyebrow="Orders · Returns"
+          title="취소/반품"
+          titleIcon={RotateCcw}
+          description="취소·반품 처리된 주문을 조회합니다. 목록에서 주문 상세로 이동해 이력·환불 상태를 확인할 수 있습니다."
+        />
 
         <div
           className="mb-4 rounded-lg border border-violet-200 bg-violet-50/90 px-4 py-3 text-sm text-slate-800 shadow-sm"
