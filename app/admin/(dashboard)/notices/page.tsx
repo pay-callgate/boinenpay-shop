@@ -1,22 +1,24 @@
 "use client";
 
-import React from "react";
+import { Megaphone } from "lucide-react";
+import { AdminBoardComingSoonLayout } from "@/components/admin/AdminBoardComingSoonLayout";
 
 /**
- * 공지사항 페이지 (Placeholder)
- * 추후 구현 예정
+ * 공지사항 — 준비 중 (매출/거래처 분석과 동일 UI 톤)
+ * /admin/notices
  */
 export default function NoticesPage() {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-      <h1 className="text-xl font-bold text-slate-800">공지사항</h1>
-      <p className="mt-2 text-slate-600">
-        파트너·거래처 대상 공지사항을 관리하는 기능입니다.
-      </p>
-      <div className="mt-6 rounded-md bg-slate-100 px-4 py-6 text-center text-slate-500">
-        <p className="font-medium">준비 중입니다.</p>
-        <p className="mt-1 text-sm">해당 기능은 추후 제공될 예정입니다.</p>
-      </div>
-    </div>
+    <AdminBoardComingSoonLayout
+      eyebrow="Board · Notices"
+      title="공지사항"
+      titleIcon={Megaphone}
+      description={
+        <>
+          파트너와 거래처(전용몰)에 전달할{" "}
+          <strong className="font-semibold text-slate-800">공지</strong>를 등록하고 관리합니다.
+        </>
+      }
+    />
   );
 }

@@ -1,8 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type FormEvent, type ReactNode } from "react";
+import {
+  FolderTree,
+  Link2,
+  ListOrdered,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { adminFetch } from "@/lib/admin-fetch";
+import {
+  ADMIN_MODAL_PRIMARY_BTN_CLASS,
+  ADMIN_MODAL_CANCEL_BTN_CLASS,
+} from "@/lib/admin-dialog-policy";
 
 /**
  * T2-1: 카테고리 관리 페이지 (모던 SaaS 스타일)
@@ -41,9 +50,27 @@ function GripVerticalIcon({ className }: { className?: string }) {
   );
 }
 
+function InputLeadingIcon({ children }: { children: ReactNode }) {
+  return (
+    <span
+      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 [&_svg]:size-4"
+      aria-hidden
+    >
+      {children}
+    </span>
+  );
+}
+
+/** 폼 하단 액션: 「카테고리 저장」 너비 기준으로 통일 */
+const categoryFormActionBtnWidthClass =
+  "inline-flex min-w-[12rem] justify-center";
+
+/** 거래처 등록/수정 모달과 동일 톤 */
 const inputClass =
-  "h-9 w-full rounded-md border border-slate-200 px-2.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400";
-const labelClass = "mb-1 block text-xs font-medium text-slate-600";
+  "h-10 w-full rounded-md border border-gray-200 bg-slate-50 px-3 text-sm text-slate-900 shadow-none placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10";
+const inputWithIconClass = `${inputClass} pl-9`;
+const selectClass = `${inputClass} cursor-pointer py-0 pr-8`;
+const labelClass = "mb-1.5 block text-xs font-medium text-slate-600";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -121,7 +148,7 @@ export default function CategoriesPage() {
     void loadTemplates();
   }, [partnerId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!partnerId || !formData.name.trim()) return;
 
@@ -204,7 +231,9 @@ export default function CategoriesPage() {
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="mb-4">
         <h1 className="text-xl font-bold text-slate-800">카테고리 관리</h1>
-        <p className="text-sm text-slate-500 mt-0.5">카테고리를 추가·수정합니다.</p>
+        <p className="text-sm text-slate-500 mt-0.5">
+          쇼핑몰의 상품 카테고리를 추가하고 관리합니다.
+        </p>
       </div>
 
       {error && (
@@ -214,8 +243,8 @@ export default function CategoriesPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* 좌측: 카테고리 목록 카드 */}
         <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <h2 className="text-sm font-semibold text-slate-700">카테고리 목록</h2>
+          <div className="rounded-t-lg border-b border-sky-100/90 bg-sky-50/90 px-4 py-2.5">
+            <h2 className="text-sm font-semibold tracking-tight text-slate-800">카테고리 목록</h2>
           </div>
           <div className="max-h-[calc(100vh-260px)] overflow-y-auto p-2">
             {categories.length === 0 ? (
@@ -269,79 +298,114 @@ export default function CategoriesPage() {
 
         {/* 우측: 폼 카드 (컴팩트) */}
         <div className="lg:col-span-2 rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <h2 className="text-sm font-semibold text-slate-700">
+          <div className="rounded-t-lg border-b border-sky-100/90 bg-sky-50/90 px-4 py-2.5">
+            <h2 className="text-sm font-semibold tracking-tight text-slate-800">
               {editingCategory ? "카테고리 수정" : "카테고리 추가"}
             </h2>
           </div>
           <form onSubmit={handleSubmit} className="p-4">
-            <div className="space-y-3">
+            <div className="space-y-5">
               <div>
-                <label className={labelClass}>카테고리명 *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  className={inputClass}
-                />
+                <label className={labelClass} htmlFor="cat-name">
+                  카테고리명 <span className="font-semibold text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <InputLeadingIcon>
+                    <FolderTree />
+                  </InputLeadingIcon>
+                  <input
+                    id="cat-name"
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    placeholder="카테고리 이름"
+                    className={inputWithIconClass}
+                  />
+                </div>
               </div>
               <div>
-                <label className={labelClass}>Slug (비워두면 자동생성)</label>
-                <input
-                  type="text"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className={inputClass}
-                />
+                <label className={labelClass} htmlFor="cat-slug">
+                  Slug{" "}
+                  <span className="font-normal text-slate-400">
+                    (비워두면 카테고리 이름으로 주소가 자동 생성됩니다)
+                  </span>
+                </label>
+                <div className="relative">
+                  <InputLeadingIcon>
+                    <Link2 />
+                  </InputLeadingIcon>
+                  <input
+                    id="cat-slug"
+                    type="text"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    placeholder="url-slug"
+                    className={inputWithIconClass}
+                  />
+                </div>
               </div>
-              {/* 상위 카테고리 + 정렬 순서 한 줄 */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                 <div>
-                  <label className={labelClass}>상위 카테고리</label>
+                  <label className={labelClass} htmlFor="cat-parent">
+                    상위 카테고리
+                  </label>
                   <select
+                    id="cat-parent"
                     value={formData.parentId}
                     onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-                    className={inputClass}
+                    className={selectClass}
                   >
                     <option value="">없음 (최상위)</option>
                     {flatCategories
                       .filter((c) => !c.parent_id && c.id !== editingCategory?.id)
                       .map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
                       ))}
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>정렬 순서</label>
-                  <input
-                    type="number"
-                    value={formData.sortOrder}
-                    onChange={(e) =>
-                      setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })
-                    }
-                    className={inputClass}
-                  />
+                  <label className={labelClass} htmlFor="cat-sort">
+                    정렬 순서
+                  </label>
+                  <div className="relative">
+                    <InputLeadingIcon>
+                      <ListOrdered />
+                    </InputLeadingIcon>
+                    <input
+                      id="cat-sort"
+                      type="number"
+                      value={formData.sortOrder}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })
+                      }
+                      className={inputWithIconClass}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* 모바일 노출 - 한 줄 슬림 */}
-              <div className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50/50 px-3 py-2">
+              <div className="flex items-center justify-between rounded-md border border-gray-200 bg-slate-50 px-3 py-2.5">
                 <div>
                   <span className="text-sm font-medium text-slate-700">모바일 노출</span>
-                  <p className="text-xs text-slate-500">끄면 메뉴에서 숨깁니다</p>
+                  <p className="text-xs text-slate-500">비활성화 시 쇼핑몰 메뉴에서 숨겨집니다</p>
                 </div>
                 <Switch checked={mobileVisible} onCheckedChange={setMobileVisible} />
               </div>
 
               <div>
-                <label className={labelClass}>기본 안내 템플릿 (PDP 배송/환불 탭)</label>
+                <label className={labelClass} htmlFor="cat-template">
+                  상세페이지 공통 안내 설정
+                </label>
                 <select
+                  id="cat-template"
                   value={formData.defaultTemplateId}
                   onChange={(e) =>
                     setFormData({ ...formData, defaultTemplateId: e.target.value })
                   }
-                  className={inputClass}
+                  className={selectClass}
                 >
                   <option value="">없음</option>
                   {infoTemplates.map((t) => (
@@ -350,25 +414,21 @@ export default function CategoriesPage() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-slate-500">
-                  템플릿은 「공통 안내 관리」 메뉴에서 먼저 등록할 수 있습니다.
-                </p>
-              </div>
-
-              {/* 대표 이미지 - 슬림 높이 */}
-              <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/50 p-3">
-                <p className="mb-2 text-xs font-medium text-slate-600">대표 이미지</p>
-                <div className="flex h-14 min-h-[56px] items-center justify-center rounded border border-dashed border-slate-200 bg-white">
-                  <p className="text-xs text-slate-400">드래그 또는 클릭하여 업로드</p>
+                <div className="mt-1.5 space-y-1 text-xs text-slate-500">
+                  <p>
+                    선택한 템플릿이 이 카테고리 상품들의 배송/환불 안내에 기본으로 적용됩니다.
+                  </p>
+                  <p>
+                    ※ 새로운 템플릿은 [공통 안내 관리] 메뉴에서 등록할 수 있습니다.
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* 폼 하단: 저장 / 삭제 / 취소 */}
-            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-gray-200 pt-4">
               <button
                 type="submit"
-                className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700"
+                className={`${ADMIN_MODAL_PRIMARY_BTN_CLASS} ${categoryFormActionBtnWidthClass}`}
               >
                 카테고리 저장
               </button>
@@ -376,7 +436,7 @@ export default function CategoriesPage() {
                 <button
                   type="button"
                   onClick={() => handleDelete(editingCategory.id)}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                  className={`rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 ${categoryFormActionBtnWidthClass}`}
                 >
                   삭제
                 </button>
@@ -384,7 +444,7 @@ export default function CategoriesPage() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className={`${ADMIN_MODAL_CANCEL_BTN_CLASS} ${categoryFormActionBtnWidthClass}`}
               >
                 취소
               </button>
