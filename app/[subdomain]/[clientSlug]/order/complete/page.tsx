@@ -2,7 +2,17 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { CircleCheck } from "lucide-react";
+import {
+  Calendar,
+  CircleCheck,
+  List,
+  MapPin,
+  MessageCircle,
+  ShoppingBag,
+  User,
+  UserPlus,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
@@ -62,20 +72,41 @@ function formatDeliveryHopeLine(
   return "—";
 }
 
-function OrderCompleteKVRow({
+/** 스냅샷: 아이콘 + 라벨(회색) + 값(본문) */
+function DeliveryInfoRow({
+  icon: Icon,
   label,
   children,
+  valueBold,
 }: {
+  icon: LucideIcon;
   label: string;
   children: ReactNode;
+  /** 배송 희망일·리본 메시지 등 강조 */
+  valueBold?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-1 border-b border-violet-100/80 pb-4 last:border-0 last:pb-0 sm:grid-cols-[minmax(8.5rem,10rem)_1fr] sm:items-start sm:gap-x-5">
-      <div className="text-xs font-medium tracking-tight text-slate-500 break-keep [word-break:keep-all]">
-        {label}
+    <div className="flex gap-3 border-b border-violet-100/70 pb-5 last:border-b-0 last:pb-0 break-keep [word-break:keep-all]">
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+        style={{ backgroundColor: PRIMARY_LIGHT }}
+      >
+        <Icon
+          className="h-[1.15rem] w-[1.15rem]"
+          strokeWidth={2}
+          style={{ color: PRIMARY }}
+          aria-hidden
+        />
       </div>
-      <div className="text-sm font-medium text-[#333333] break-keep [word-break:keep-all]">
-        {children}
+      <div className="min-w-0 flex-1 pt-0.5">
+        <p className="text-xs font-medium tracking-tight text-slate-500">{label}</p>
+        <div
+          className={`mt-1 text-sm text-gray-900 ${
+            valueBold ? "font-bold" : "font-medium"
+          }`}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -83,6 +114,8 @@ function OrderCompleteKVRow({
 
 const PRIMARY = "#D6A8E0";
 const PRIMARY_LIGHT = "#F3E8F5";
+/** 스냅샷: 최종 결제 금액 등 강조 보라 */
+const ACCENT_PURPLE = "#9333EA";
 const BG_PAGE = "#F9FAFB";
 
 /** 쿼리/해시에서 결제 거래 ID 추출 (ViewPay cgTid / tid / paymentId 등) */
@@ -324,9 +357,6 @@ export default function OrderCompletePage() {
     router.push(`/${subdomain}/${clientSlug}/mypage/orders`);
   };
 
-  const storeName = client?.name ?? "쇼핑몰";
-
-  /** 옵션 객체를 "키:값 / ..." 문자열로 */
   const formatOption = (optionJson: Record<string, string> | null): string => {
     if (!optionJson || typeof optionJson !== "object") return "";
     return Object.entries(optionJson)
@@ -348,7 +378,6 @@ export default function OrderCompletePage() {
     if (state === "success" && orderNo) {
       const order = orderDetail?.order;
       const items = orderDetail?.items ?? [];
-      const displayStoreName = order?.client?.name ?? storeName;
       const itemsTotal = items.reduce((sum, i) => sum + Number(i.total_price), 0);
       const shippingFee = order
         ? Math.max(0, Number(order.total_amount) - itemsTotal)
@@ -368,158 +397,207 @@ export default function OrderCompletePage() {
           )
         : "—";
 
+      const orderNoDisplay =
+        order?.order_no?.trim() || orderNo || "—";
+      const finalPaymentAmount = order
+        ? Number(order.total_amount)
+        : items.reduce((s, i) => s + Number(i.total_price), 0);
+
       return (
-        <div className="flex flex-col gap-5 px-4 pb-10 pt-4 break-keep [word-break:keep-all]">
-          {/* 카드 1: Hero (투명 배경) */}
-          <div className="flex flex-col items-center justify-center py-8">
-            <h1 className="text-center text-2xl font-bold text-[#333333]">
-              주문 완료
-            </h1>
+        <div className="break-keep [word-break:keep-all]">
+          {/* ① 상단: 아이콘 → 타이틀 → 서브 → 주문번호 필 */}
+          <div className="flex flex-col items-center px-4 pb-2 pt-6">
             <div
-              className="mt-5 flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-full shadow-sm ring-1 ring-violet-200/80"
-              style={{ backgroundColor: PRIMARY_LIGHT }}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 ring-2 ring-emerald-400/80"
               aria-hidden
             >
               <CircleCheck
-                className="h-[2.35rem] w-[2.35rem]"
-                strokeWidth={1.75}
-                style={{ color: PRIMARY }}
+                className="h-8 w-8 text-emerald-600"
+                strokeWidth={2.25}
               />
             </div>
-            <p className="mt-5 max-w-[20rem] text-center text-sm leading-relaxed text-[#6B7280] break-keep [word-break:keep-all]">
+            <h1 className="mt-6 px-2 text-center text-xl font-bold leading-snug tracking-tight text-gray-900 sm:text-[1.35rem]">
+              주문이 정상적으로 완료되었습니다.
+            </h1>
+            <p className="mt-3 max-w-[22rem] px-2 text-center text-sm leading-relaxed text-gray-500">
               마음을 담아 안전하고 정확하게 배송해 드리겠습니다.
             </p>
+            <div className="mt-7 rounded-full bg-gray-100 px-6 py-2.5">
+              <p className="text-center text-[0.7rem] tracking-wide text-gray-500">
+                ORDER NO.{" "}
+                <span className="text-sm font-bold text-gray-900">
+                  {orderNoDisplay}
+                </span>
+              </p>
+            </div>
           </div>
 
-          {/* 카드 2: 주문 상품 정보 (실제 데이터) */}
-          <div className={`${whiteCardClass} rounded-xl p-5`}>
-            <p className="text-sm font-medium text-[#6B7280]">{displayStoreName}</p>
+          {/* ② 주문 상품 카드 */}
+          <div className={`${whiteCardClass} mx-4 mt-6 rounded-2xl p-5`}>
+            <h2 className="text-base font-bold text-gray-900">주문 상품</h2>
             {orderDetailLoading && items.length === 0 ? (
-              <div className="mt-3 flex gap-3">
-                <div className="h-20 w-20 shrink-0 animate-pulse rounded-lg bg-gray-200" />
+              <div className="mt-4 flex gap-3">
+                <div className="h-24 w-24 shrink-0 animate-pulse rounded-xl bg-gray-200" />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
                   <div className="h-3 w-1/2 animate-pulse rounded bg-gray-100" />
-                  <div className="h-4 w-1/4 animate-pulse rounded bg-gray-200" />
+                  <div className="h-6 w-24 animate-pulse rounded-full bg-gray-100" />
                 </div>
               </div>
             ) : (
               <>
-                {items.map((item) => (
-                  <div key={item.id} className="mt-3 flex gap-3">
-                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-200">
-                      {item.product?.thumbnail_url ? (
-                        <img
-                          src={item.product.thumbnail_url}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : null}
+                {items.map((item, idx) => {
+                  const optionLine = formatOption(item.option_json);
+                  return (
+                    <div
+                      key={item.id}
+                      className={idx > 0 ? "mt-5 border-t border-gray-100 pt-5" : "mt-4"}
+                    >
+                      <div className="flex gap-3">
+                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                          {item.product?.thumbnail_url ? (
+                            <img
+                              src={item.product.thumbnail_url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-gray-900">
+                            {item.product?.name ?? item.product_name}
+                          </p>
+                          {optionLine ? (
+                            <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                              {optionLine}
+                            </p>
+                          ) : null}
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            {shippingFee <= 0 && idx === 0 ? (
+                              <span className="rounded-full bg-teal-500 px-2.5 py-1 text-xs font-semibold text-white">
+                                무료배송
+                              </span>
+                            ) : null}
+                            {shippingFee > 0 && idx === 0 ? (
+                              <span className="text-xs font-medium text-gray-600">
+                                배송비 {shippingFee.toLocaleString()}원
+                              </span>
+                            ) : null}
+                            <span className="text-sm font-medium text-gray-900">
+                              {item.quantity}개
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-[#333333]">
-                        {item.product?.name ?? item.product_name}
-                      </p>
-                      <p className="mt-0.5 text-sm text-[#6B7280]">
-                        {formatOption(item.option_json)}
-                        {item.quantity > 1 ? ` / ${item.quantity}개` : ""}
-                      </p>
-                      <span className="mt-1.5 inline-block rounded-full border border-emerald-500 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                        결제완료
-                      </span>
-                      <p className="mt-2 font-semibold text-[#333333]">
-                        {Number(item.total_price).toLocaleString()}원
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                <div className="mt-4 border-t border-gray-100 pt-4">
-                  {shippingFee <= 0 ? (
-                    <p className="text-sm">
-                      <span className="font-medium text-[#6B7280]">배송비</span>
-                      <span className="ml-2 font-semibold text-violet-700/85">
-                        무료배송
-                      </span>
-                    </p>
+                  );
+                })}
+                <div className="my-5 border-t border-dashed border-gray-200" />
+                <div className="flex items-end justify-between gap-3">
+                  <span className="pb-0.5 text-sm text-gray-500">
+                    최종 결제 금액
+                  </span>
+                  {orderDetailLoading && !order ? (
+                    <div className="h-8 w-28 animate-pulse rounded bg-gray-100" />
                   ) : (
-                    <p className="text-sm text-[#6B7280]">
-                      배송비 {shippingFee.toLocaleString()}원
-                    </p>
+                    <span
+                      className="text-xl font-bold tabular-nums"
+                      style={{ color: ACCENT_PURPLE }}
+                    >
+                      {finalPaymentAmount.toLocaleString("ko-KR")}원
+                    </span>
                   )}
                 </div>
               </>
             )}
           </div>
 
-          {/* 카드 3: 배송 · 리본 (Key-Value) */}
-          <div className={`${whiteCardClass} rounded-xl p-5`}>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-[#333333] break-keep [word-break:keep-all]">
-                배송 · 리본 정보
+          {/* ③ 배송 및 제작 정보 */}
+          <div className={`${whiteCardClass} mx-4 mt-4 rounded-2xl p-5`}>
+            <div className="mb-5 flex items-center gap-2">
+              <span
+                className="h-5 w-1 shrink-0 rounded-full"
+                style={{ backgroundColor: PRIMARY }}
+                aria-hidden
+              />
+              <h2 className="text-base font-bold text-gray-900">
+                배송 및 제작 정보
               </h2>
-              <button
-                type="button"
-                className="shrink-0 rounded-lg px-3 py-1.5 text-sm text-[#6B7280] transition hover:bg-violet-50/80"
-                onClick={() =>
-                  router.push(
-                    `/${subdomain}/${clientSlug}/mypage/orders/${orderId}`
-                  )
-                }
-              >
-                주소변경
-              </button>
             </div>
             {orderDetailLoading && !order ? (
-              <div className="mt-5 space-y-4">
-                <div className="h-10 animate-pulse rounded-lg bg-gray-100" />
-                <div className="h-10 animate-pulse rounded-lg bg-gray-100" />
-                <div className="h-10 animate-pulse rounded-lg bg-gray-100" />
+              <div className="space-y-4">
+                <div className="h-16 animate-pulse rounded-lg bg-gray-100" />
+                <div className="h-16 animate-pulse rounded-lg bg-gray-100" />
+                <div className="h-16 animate-pulse rounded-lg bg-gray-100" />
               </div>
             ) : (
-              <div className="mt-5 flex flex-col gap-4">
-                <OrderCompleteKVRow label="배송 희망일">
+              <div className="flex flex-col gap-5">
+                <DeliveryInfoRow
+                  icon={Calendar}
+                  label="배송 희망일"
+                  valueBold
+                >
                   {deliveryHope}
-                </OrderCompleteKVRow>
-                <OrderCompleteKVRow label="수령인(받는 분)">
+                </DeliveryInfoRow>
+                <DeliveryInfoRow icon={User} label="수령인(받는 분)">
                   {receiverLine}
-                </OrderCompleteKVRow>
-                <OrderCompleteKVRow label="배송 주소">
+                </DeliveryInfoRow>
+                <DeliveryInfoRow icon={MapPin} label="배송 주소">
                   {streetAddress || "—"}
-                </OrderCompleteKVRow>
-                <OrderCompleteKVRow label="리본 메시지">
+                </DeliveryInfoRow>
+                <DeliveryInfoRow
+                  icon={MessageCircle}
+                  label="리본 메시지"
+                  valueBold
+                >
                   {ribbonMsg ? (
-                    <span className="font-bold text-[#333333]">
-                      &ldquo;{ribbonMsg}&rdquo;
-                    </span>
+                    <span>&ldquo;{ribbonMsg}&rdquo;</span>
                   ) : (
                     "—"
                   )}
-                </OrderCompleteKVRow>
-                <OrderCompleteKVRow label="리본 보내는 분">
+                </DeliveryInfoRow>
+                <DeliveryInfoRow icon={UserPlus} label="리본 보내는 분">
                   {ribbonFrom || "—"}
-                </OrderCompleteKVRow>
+                </DeliveryInfoRow>
               </div>
             )}
           </div>
 
-          {/* 카드 4: 하단 버튼 */}
-          <div className="flex max-w-md flex-col gap-4 px-0.5 pt-3">
-            <button
-              type="button"
-              onClick={handleContinueShopping}
-              className="w-full rounded-xl py-4 text-[15px] font-medium text-white transition opacity-95 hover:opacity-100 active:opacity-90"
-              style={{ backgroundColor: PRIMARY }}
+          {/* ④ 하단 버튼 (가로 2열 · 스냅샷) */}
+          <div className="mx-4 mt-6 pb-10 pt-1">
+            <div
+              className="mb-5 flex justify-center gap-1.5"
+              aria-hidden
             >
-              쇼핑 계속하기
-            </button>
-            <button
-              type="button"
-              onClick={handleOrderList}
-              className="w-full rounded-xl border-2 py-4 text-[15px] font-medium transition hover:bg-violet-50/50"
-              style={{ borderColor: PRIMARY, color: PRIMARY }}
-            >
-              주문 내역
-            </button>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <span
+                  key={i}
+                  className="h-1.5 w-1.5 rounded-full bg-gray-300"
+                />
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleContinueShopping}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold shadow-sm transition hover:brightness-[0.98] active:brightness-95"
+                style={{
+                  backgroundColor: PRIMARY_LIGHT,
+                  color: "#7C3AED",
+                }}
+              >
+                <ShoppingBag className="h-5 w-5 shrink-0" strokeWidth={2} />
+                쇼핑 계속하기
+              </button>
+              <button
+                type="button"
+                onClick={handleOrderList}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-gray-300 bg-white py-3.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+              >
+                <List className="h-5 w-5 shrink-0 text-gray-600" strokeWidth={2} />
+                주문 내역
+              </button>
+            </div>
           </div>
         </div>
       );
