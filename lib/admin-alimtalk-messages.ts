@@ -29,6 +29,10 @@ export interface AdminAlimtalkMessageRow {
   successCount: number;
   failCount: number;
   senderPhone: string;
+  /** Agent2 `result_code` (DB). 배치 그룹 요약 행이면 보통 null */
+  providerResultCode?: string | null;
+  /** `error_message` 또는 배치 시 실패 건수 요약 */
+  providerErrorMessage?: string | null;
 }
 
 export const ADMIN_ALIMTALK_UNIT_WON = 4;
@@ -42,6 +46,8 @@ export interface LinkKakaoNotificationDbRow {
   phone_masked: string | null;
   callback_masked: string | null;
   provider_ok: boolean;
+  result_code?: string | null;
+  error_message?: string | null;
   resolved_msg_preview: string | null;
   batch_id?: string | null;
   recipient_name?: string | null;
@@ -56,6 +62,9 @@ export function mapLinkKakaoRowToAdminMessage(
     : "failed";
   const body = row.resolved_msg_preview?.trim() || "(내용 없음)";
   const rname = (row.recipient_name ?? "").trim();
+  const rc = row.result_code != null ? String(row.result_code).trim() : "";
+  const em =
+    row.error_message != null ? String(row.error_message).trim() : "";
   return {
     id: row.id,
     listKind: "single",
@@ -72,6 +81,8 @@ export function mapLinkKakaoRowToAdminMessage(
     successCount: row.provider_ok ? 1 : 0,
     failCount: row.provider_ok ? 0 : 1,
     senderPhone: row.callback_masked?.trim() || "-",
+    providerResultCode: rc || null,
+    providerErrorMessage: em || null,
   };
 }
 
@@ -183,6 +194,10 @@ export function buildGroupedAdminListFromRawRows(
       new Date(a.created_at) > new Date(b.created_at) ? a : b
     );
     const batchId = first.batch_id!.trim();
+    const batchErrSummary =
+      failCount > 0
+        ? `접수 실패 ${failCount}건 · 수신자 탭에서 코드·사유 확인`
+        : null;
 
     items.push({
       id: `batch:${batchId}`,
@@ -200,6 +215,8 @@ export function buildGroupedAdminListFromRawRows(
       successCount,
       failCount,
       senderPhone: first.callback_masked?.trim() || "-",
+      providerResultCode: null,
+      providerErrorMessage: batchErrSummary,
     });
   }
 

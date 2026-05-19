@@ -8,6 +8,7 @@ import {
   parseAdminAlimtalkListStatus,
 } from "@/lib/admin-alimtalk-messages-fetch";
 import { ADMIN_ALIMTALK_STATUS_LABEL } from "@/lib/admin-alimtalk-messages";
+import { getMsgagentWebshotResultCodeLabel } from "@/lib/msgagent-webshot-result-codes";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,10 @@ export async function GET(request: NextRequest) {
       제목: r.title,
       내용요약: r.body.replace(/\r?\n/g, " ").slice(0, 500),
       상태: ADMIN_ALIMTALK_STATUS_LABEL[r.status],
+      Agent결과코드: r.providerResultCode ?? "",
+      코드설명:
+        getMsgagentWebshotResultCodeLabel(r.providerResultCode) ?? "",
+      오류메시지: (r.providerErrorMessage ?? "").replace(/\r?\n/g, " ").slice(0, 500),
       총건수: r.totalCount,
       성공: r.successCount,
       실패: r.failCount,
@@ -77,6 +82,9 @@ export async function GET(request: NextRequest) {
       { wch: 18 },
       { wch: 50 },
       { wch: 10 },
+      { wch: 10 },
+      { wch: 28 },
+      { wch: 40 },
       { wch: 8 },
       { wch: 8 },
       { wch: 8 },

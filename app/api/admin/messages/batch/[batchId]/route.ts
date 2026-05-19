@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { LINK_KAKAO_NOTIFICATION_LIST_SELECT } from "@/lib/admin-alimtalk-messages-fetch";
+import type { LinkKakaoNotificationDbRow } from "@/lib/admin-alimtalk-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -63,12 +64,26 @@ export async function GET(
       );
     }
 
-    const recipients = (rows ?? []).map((r) => ({
-      id: r.id as string,
-      recipientName: String((r as { recipient_name?: string }).recipient_name ?? "").trim() || "-",
-      recipientPhone: String((r as { phone_masked?: string }).phone_masked ?? ""),
-      success: !!(r as { provider_ok?: boolean }).provider_ok,
-    }));
+    const recipients = (rows ?? []).map((r) => {
+      const row = r as LinkKakaoNotificationDbRow;
+      const rc =
+        row.result_code != null && String(row.result_code).trim() !== ""
+          ? String(row.result_code).trim()
+          : null;
+      const err =
+        row.error_message != null && String(row.error_message).trim() !== ""
+          ? String(row.error_message).trim()
+          : null;
+      return {
+        id: r.id as string,
+        recipientName:
+          String(row.recipient_name ?? "").trim() || "-",
+        recipientPhone: String(row.phone_masked ?? ""),
+        success: !!row.provider_ok,
+        resultCode: rc,
+        errorMessage: err,
+      };
+    });
 
     return NextResponse.json({
       ok: true,

@@ -9,6 +9,7 @@ import {
 import { adminFetch } from "@/lib/admin-fetch";
 import { Badge } from "@/components/ui/badge";
 import { ADMIN_MODAL_HEADER_BAR_CLASS } from "@/lib/admin-dialog-policy";
+import { formatMsgagentResultCodeForAdminDisplay } from "@/lib/msgagent-webshot-result-codes";
 
 function getByteCount(text: string): number {
   return new TextEncoder().encode(text).length;
@@ -31,6 +32,8 @@ export type AlimtalkBatchRecipient = {
   recipientName: string;
   recipientPhone: string;
   success: boolean;
+  resultCode: string | null;
+  errorMessage: string | null;
 };
 
 interface Props {
@@ -43,6 +46,12 @@ interface Props {
   /** 대량 발송이면 수신자 탭·목록 API 조회 */
   batchId: string | null;
   listKind: "single" | "batch";
+  /** DB `result_code` — 단건·그룹 요약 시 */
+  providerResultCode?: string | null;
+  /** DB `error_message` 또는 배치 요약 문구 */
+  providerErrorMessage?: string | null;
+  /** 접수·집계 기준 성공 여부 (실패 건수 0) */
+  deliveryOk?: boolean;
 }
 
 /**
@@ -58,6 +67,9 @@ export function AlimtalkHistoryDetailModal({
   receiverPhone,
   batchId,
   listKind,
+  providerResultCode = null,
+  providerErrorMessage = null,
+  deliveryOk = true,
 }: Props) {
   const byteCount = getByteCount(body);
   const showRecipientsTab = listKind === "batch" && !!batchId;
@@ -158,7 +170,9 @@ export function AlimtalkHistoryDetailModal({
           {tab === "recipients" && showRecipientsTab ? (
             <div className="flex min-h-0 flex-col">
               <p className="mb-3 text-sm text-slate-600">
-                대량 발송 수신자별 접수 결과입니다. (발송 순서)
+                대량 발송 수신자별 접수 결과입니다. (발송 순서) Agent2 매뉴얼 기준{" "}
+                <span className="font-semibold">result_code 0만 접수 성공</span>
+                입니다.
               </p>
               {recipientsLoading && (
                 <p className="py-8 text-center text-sm text-slate-500">
@@ -181,6 +195,12 @@ export function AlimtalkHistoryDetailModal({
                         <th className="px-3 py-2.5 text-left font-semibold text-slate-700">
                           수신번호
                         </th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-slate-700">
+                          결과코드·설명
+                        </th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-slate-700">
+                          사유
+                        </th>
                         <th className="px-3 py-2.5 text-center font-semibold text-slate-700">
                           결과
                         </th>
@@ -190,7 +210,7 @@ export function AlimtalkHistoryDetailModal({
                       {recipients.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={3}
+                            colSpan={5}
                             className="px-4 py-8 text-center text-slate-500"
                           >
                             수신자가 없습니다.
@@ -207,6 +227,16 @@ export function AlimtalkHistoryDetailModal({
                             </td>
                             <td className="px-3 py-2.5 tabular-nums text-slate-700">
                               {r.recipientPhone || "—"}
+                            </td>
+                            <td className="max-w-[14rem] px-3 py-2.5 text-left text-xs leading-snug text-slate-800 [overflow-wrap:anywhere]">
+                              {formatMsgagentResultCodeForAdminDisplay(
+                                r.resultCode
+                              )}
+                            </td>
+                            <td className="max-w-[200px] px-3 py-2.5 text-xs text-slate-700">
+                              <span className="line-clamp-3 break-words">
+                                {r.errorMessage ?? "—"}
+                              </span>
                             </td>
                             <td className="px-3 py-2.5 text-center">
                               {r.success ? (
@@ -225,6 +255,47 @@ export function AlimtalkHistoryDetailModal({
             </div>
           ) : (
             <>
+              {(providerResultCode != null && providerResultCode !== "") ||
+              (providerErrorMessage != null && providerErrorMessage !== "") ||
+              !deliveryOk ? (
+                <div
+                  className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+                    deliveryOk
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                      : "border-red-200 bg-red-50 text-red-900"
+                  }`}
+                  role="status"
+                >
+                  <p className="font-semibold">Agent2 접수 결과</p>
+                  <p className="mt-1 text-xs opacity-90">
+                    매뉴얼 [결과코드] — 숫자 <strong>0</strong>만 접수 성공, 그
+                    외 코드는 실패로 처리합니다.
+                  </p>
+                  {providerResultCode != null && providerResultCode !== "" && (
+                    <p className="mt-2 text-sm [overflow-wrap:anywhere]">
+                      <span className="font-semibold">result_code: </span>
+                      <span className="font-mono">
+                        {formatMsgagentResultCodeForAdminDisplay(
+                          providerResultCode
+                        )}
+                      </span>
+                    </p>
+                  )}
+                  {providerErrorMessage != null &&
+                    providerErrorMessage !== "" && (
+                      <p className="mt-2 whitespace-pre-wrap break-words leading-snug">
+                        {providerErrorMessage}
+                      </p>
+                    )}
+                  {!deliveryOk &&
+                    (!providerErrorMessage || providerErrorMessage === "") && (
+                      <p className="mt-2">
+                        이번 건은 접수 실패로 집계되었습니다. 결과코드·사유를
+                        확인해 주세요.
+                      </p>
+                    )}
+                </div>
+              ) : null}
               <p className="mb-4 text-sm font-semibold text-gray-900">{title}</p>
               <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:min-h-[420px]">
                 <div className="flex flex-col gap-6 lg:col-span-5">

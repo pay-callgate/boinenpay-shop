@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { CircleCheck } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
+import { toDesiredDeliveryYmd } from "@/lib/admin-florist-order-display";
 
 /**
  * Phase E1: 주문 완료 페이지 (ViewPay returnUrl 리다이렉트 대상)
@@ -39,13 +41,48 @@ interface OrderDetailOrder {
   shipping_postcode: string | null;
   shipping_address: string;
   shipping_detail: string | null;
+  desired_delivery_date?: string | null;
+  delivery_time_slot?: string | null;
+  ribbon_sender?: string | null;
+  ribbon_message?: string | null;
   client: { id: string; name: string; slug: string; logo_url: string | null };
+}
+
+/** 주문 완료 화면용: YYYY-MM-DD + 시간대 한 줄 */
+function formatDeliveryHopeLine(
+  desiredDate: string | null | undefined,
+  timeSlot: string | null | undefined
+): string {
+  const ymd = toDesiredDeliveryYmd(desiredDate ?? null);
+  const slot =
+    typeof timeSlot === "string" && timeSlot.trim() ? timeSlot.trim() : "";
+  if (ymd && slot) return `${ymd} ${slot}`;
+  if (ymd) return ymd;
+  if (slot) return slot;
+  return "—";
+}
+
+function OrderCompleteKVRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-1 border-b border-violet-100/80 pb-4 last:border-0 last:pb-0 sm:grid-cols-[minmax(8.5rem,10rem)_1fr] sm:items-start sm:gap-x-5">
+      <div className="text-xs font-medium tracking-tight text-slate-500 break-keep [word-break:keep-all]">
+        {label}
+      </div>
+      <div className="text-sm font-medium text-[#333333] break-keep [word-break:keep-all]">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 const PRIMARY = "#D6A8E0";
 const PRIMARY_LIGHT = "#F3E8F5";
-const TEXT = "#333333";
-const TEXT_MUTED = "#6B7280";
 const BG_PAGE = "#F9FAFB";
 
 /** 쿼리/해시에서 결제 거래 ID 추출 (ViewPay cgTid / tid / paymentId 등) */
@@ -316,24 +353,41 @@ export default function OrderCompletePage() {
       const shippingFee = order
         ? Math.max(0, Number(order.total_amount) - itemsTotal)
         : 0;
-      const receiverAddress = order
-        ? [order.shipping_postcode, order.shipping_address, order.shipping_detail]
-          .filter(Boolean)
-          .join(" ")
+      const receiverLine = order
+        ? `${order.shipping_name || "—"} (${order.shipping_phone || "—"})`
+        : "—";
+      const streetAddress = order
+        ? [order.shipping_address, order.shipping_detail].filter(Boolean).join(" ")
         : "";
+      const ribbonMsg = order?.ribbon_message?.trim() ?? "";
+      const ribbonFrom = order?.ribbon_sender?.trim() ?? "";
+      const deliveryHope = order
+        ? formatDeliveryHopeLine(
+            order.desired_delivery_date,
+            order.delivery_time_slot
+          )
+        : "—";
 
       return (
-        <div className="flex flex-col gap-4 px-4 pb-8 pt-4">
+        <div className="flex flex-col gap-5 px-4 pb-10 pt-4 break-keep [word-break:keep-all]">
           {/* 카드 1: Hero (투명 배경) */}
           <div className="flex flex-col items-center justify-center py-8">
             <h1 className="text-center text-2xl font-bold text-[#333333]">
               주문 완료
             </h1>
-            <span className="mt-3 text-5xl" role="img" aria-label="박스">
-              📦
-            </span>
-            <p className="mt-4 text-center text-sm text-[#6B7280]">
-              예쁘게 포장해서 보내드릴게요!
+            <div
+              className="mt-5 flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-full shadow-sm ring-1 ring-violet-200/80"
+              style={{ backgroundColor: PRIMARY_LIGHT }}
+              aria-hidden
+            >
+              <CircleCheck
+                className="h-[2.35rem] w-[2.35rem]"
+                strokeWidth={1.75}
+                style={{ color: PRIMARY }}
+              />
+            </div>
+            <p className="mt-5 max-w-[20rem] text-center text-sm leading-relaxed text-[#6B7280] break-keep [word-break:keep-all]">
+              마음을 담아 안전하고 정확하게 배송해 드리겠습니다.
             </p>
           </div>
 
@@ -380,64 +434,80 @@ export default function OrderCompletePage() {
                   </div>
                 ))}
                 <div className="mt-4 border-t border-gray-100 pt-4">
-                  <p className="text-sm text-[#6B7280]">
-                    배송비 {shippingFee.toLocaleString()}원
-                  </p>
+                  {shippingFee <= 0 ? (
+                    <p className="text-sm">
+                      <span className="font-medium text-[#6B7280]">배송비</span>
+                      <span className="ml-2 font-semibold text-violet-700/85">
+                        무료배송
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-[#6B7280]">
+                      배송비 {shippingFee.toLocaleString()}원
+                    </p>
+                  )}
                 </div>
               </>
             )}
           </div>
 
-          {/* 카드 3: 배송 정보 (실제 데이터) */}
+          {/* 카드 3: 배송 · 리본 (Key-Value) */}
           <div className={`${whiteCardClass} rounded-xl p-5`}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[#333333]">
-                배송 정보
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-[#333333] break-keep [word-break:keep-all]">
+                배송 · 리본 정보
               </h2>
               <button
                 type="button"
-                className="rounded-lg px-3 py-1.5 text-sm text-[#6B7280] transition hover:bg-gray-100"
-                onClick={() => router.push(`/${subdomain}/${clientSlug}/mypage/orders/${orderId}`)}
+                className="shrink-0 rounded-lg px-3 py-1.5 text-sm text-[#6B7280] transition hover:bg-violet-50/80"
+                onClick={() =>
+                  router.push(
+                    `/${subdomain}/${clientSlug}/mypage/orders/${orderId}`
+                  )
+                }
               >
                 주소변경
               </button>
             </div>
             {orderDetailLoading && !order ? (
-              <div className="mt-4 space-y-3">
-                <div className="h-10 animate-pulse rounded bg-gray-100" />
-                <div className="h-10 animate-pulse rounded bg-gray-100" />
-                <div className="h-10 animate-pulse rounded bg-gray-100" />
+              <div className="mt-5 space-y-4">
+                <div className="h-10 animate-pulse rounded-lg bg-gray-100" />
+                <div className="h-10 animate-pulse rounded-lg bg-gray-100" />
+                <div className="h-10 animate-pulse rounded-lg bg-gray-100" />
               </div>
             ) : (
-              <div className="mt-4 grid gap-3">
-                <div>
-                  <p className="text-xs text-[#6B7280]">수령인</p>
-                  <p className="mt-0.5 font-medium text-[#333333]">
-                    {order?.shipping_name ?? "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[#6B7280]">휴대폰</p>
-                  <p className="mt-0.5 font-medium text-[#333333]">
-                    {order?.shipping_phone ?? "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[#6B7280]">주소</p>
-                  <p className="mt-0.5 font-medium text-[#333333]">
-                    {receiverAddress || "-"}
-                  </p>
-                </div>
+              <div className="mt-5 flex flex-col gap-4">
+                <OrderCompleteKVRow label="배송 희망일">
+                  {deliveryHope}
+                </OrderCompleteKVRow>
+                <OrderCompleteKVRow label="수령인(받는 분)">
+                  {receiverLine}
+                </OrderCompleteKVRow>
+                <OrderCompleteKVRow label="배송 주소">
+                  {streetAddress || "—"}
+                </OrderCompleteKVRow>
+                <OrderCompleteKVRow label="리본 메시지">
+                  {ribbonMsg ? (
+                    <span className="font-bold text-[#333333]">
+                      &ldquo;{ribbonMsg}&rdquo;
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </OrderCompleteKVRow>
+                <OrderCompleteKVRow label="리본 보내는 분">
+                  {ribbonFrom || "—"}
+                </OrderCompleteKVRow>
               </div>
             )}
           </div>
 
-          {/* 카드 4: 하단 버튼 (투명 배경) */}
-          <div className="flex flex-col gap-3 pt-2">
+          {/* 카드 4: 하단 버튼 */}
+          <div className="flex max-w-md flex-col gap-4 px-0.5 pt-3">
             <button
               type="button"
               onClick={handleContinueShopping}
-              className="w-full max-w-md rounded-xl py-3.5 font-medium text-white transition opacity-90 hover:opacity-100"
+              className="w-full rounded-xl py-4 text-[15px] font-medium text-white transition opacity-95 hover:opacity-100 active:opacity-90"
               style={{ backgroundColor: PRIMARY }}
             >
               쇼핑 계속하기
@@ -445,7 +515,7 @@ export default function OrderCompletePage() {
             <button
               type="button"
               onClick={handleOrderList}
-              className="w-full max-w-md rounded-xl border py-3.5 font-medium transition hover:bg-gray-50"
+              className="w-full rounded-xl border-2 py-4 text-[15px] font-medium transition hover:bg-violet-50/50"
               style={{ borderColor: PRIMARY, color: PRIMARY }}
             >
               주문 내역

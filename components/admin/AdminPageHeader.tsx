@@ -36,7 +36,7 @@ export function AdminPageHeader({
         />
         {title}
       </h1>
-      <div className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
+      <div className="mt-1.5 max-w-none text-xs leading-relaxed text-slate-600 sm:text-sm">
         {description}
       </div>
     </>

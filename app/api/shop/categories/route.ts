@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { SHOP_LIST_PRODUCT_STATUS } from "@/lib/shop-product-visibility";
+import {
+  SHOP_LIST_MIN_STOCK_QTY,
+  SHOP_LIST_PRODUCT_STATUS,
+} from "@/lib/shop-product-visibility";
 
 /**
  * T4-1: 거래처 쇼핑몰 카테고리 조회 API
@@ -61,9 +64,10 @@ export async function GET(request: NextRequest) {
       // 각 카테고리별 상품 수 조회
       const { data: mappings } = await supabase
         .from("product_category_mappings")
-        .select("category_id, products!inner(id, status)")
+        .select("category_id, products!inner(id, status, stock_qty)")
         .in("category_id", categoryIds)
-        .eq("products.status", SHOP_LIST_PRODUCT_STATUS);
+        .eq("products.status", SHOP_LIST_PRODUCT_STATUS)
+        .gte("products.stock_qty", SHOP_LIST_MIN_STOCK_QTY);
 
       // 상품이 있는 카테고리 ID 집합
       const categoriesWithProducts = new Set(

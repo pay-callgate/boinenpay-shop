@@ -12,7 +12,10 @@ import {
   resolveLinkKakaoAlimtalkCase,
 } from "@/lib/alimtalk-link-template";
 import { prepareAlimtalkLinkMessage } from "@/lib/alimtalk-public-url";
-import { sendKakaoAlimtalkAt } from "@/lib/msgagent-kakao";
+import {
+  formatMsgagentWebshotFailureSummary,
+  sendKakaoAlimtalkAt,
+} from "@/lib/msgagent-kakao";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -174,7 +177,9 @@ export async function POST(request: NextRequest) {
               : null,
           cmid:
             r?.cmid !== undefined && r?.cmid !== null ? String(r.cmid) : null,
-          error_message: result.ok ? null : `HTTP or 업체 응답: ${result.httpStatus}`,
+          error_message: result.ok
+            ? null
+            : formatMsgagentWebshotFailureSummary(result).slice(0, 2000),
           raw_response: r ?? { raw: result.response },
         });
 
@@ -194,6 +199,7 @@ export async function POST(request: NextRequest) {
           tranId,
           providerOk: result.ok,
           httpStatus: result.httpStatus,
+          resultCode: result.resultCode,
           ip,
         },
       });

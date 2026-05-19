@@ -15,7 +15,10 @@ import {
   resolveLinkKakaoAlimtalkCase,
 } from "@/lib/alimtalk-link-template";
 import { prepareAlimtalkLinkMessage } from "@/lib/alimtalk-public-url";
-import { sendKakaoAlimtalkAt } from "@/lib/msgagent-kakao";
+import {
+  formatMsgagentWebshotFailureSummary,
+  sendKakaoAlimtalkAt,
+} from "@/lib/msgagent-kakao";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -226,7 +229,7 @@ export async function POST(request: NextRequest) {
               r?.cmid !== undefined && r?.cmid !== null ? String(r.cmid) : null,
             error_message: result.ok
               ? null
-              : `HTTP or 업체 응답: ${result.httpStatus}`,
+              : formatMsgagentWebshotFailureSummary(result).slice(0, 2000),
             raw_response: r ?? { raw: result.response },
           });
 
@@ -246,16 +249,17 @@ export async function POST(request: NextRequest) {
           );
         } else {
           failed += 1;
+          const errText = formatMsgagentWebshotFailureSummary(result);
           results.push({
             phone,
             name,
             ok: false,
             tranId,
-            error: `HTTP ${result.httpStatus}`,
+            error: errText.slice(0, 500),
           });
           logAlimtalkBulk(
             "ERROR",
-            `발송결과 index=${i + 1}/${recipients.length} phone=${maskKoreanPhone(phone)} name=${name ?? "-"} tranId=${tranId} http=${result.httpStatus} ok=false`
+            `발송결과 index=${i + 1}/${recipients.length} phone=${maskKoreanPhone(phone)} name=${name ?? "-"} tranId=${tranId} http=${result.httpStatus} resultCode=${result.resultCode ?? "null"} ok=false detail=${errText.slice(0, 300)}`
           );
         }
       } catch (e) {

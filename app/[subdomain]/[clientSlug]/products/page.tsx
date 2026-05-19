@@ -14,6 +14,7 @@ import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
+import { isShopProductEffectivelySoldOut } from "@/lib/shop-product-visibility";
 
 const PRIMARY = "#D6A8E0";
 
@@ -38,6 +39,7 @@ interface Product {
   base_price: number;
   sale_price: number | null;
   status: string;
+  stock_qty?: number;
   categories: Category[];
 }
 
@@ -479,7 +481,7 @@ export default function ProductListPage() {
             >
               {sortedProducts.map((product) => {
                 const discountRate = getDiscountRate(product.base_price, product.sale_price);
-                const isSoldOut = product.status === "sold_out";
+                const isSoldOut = isShopProductEffectivelySoldOut(product);
 
                 return (
                   <div

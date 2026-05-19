@@ -16,6 +16,7 @@ import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { addRecentProduct } from "@/lib/recent-products";
 import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
+import { isShopProductEffectivelySoldOut } from "@/lib/shop-product-visibility";
 import {
   effectiveGuestUnitPrice,
   effectiveMemberUnitPrice,
@@ -559,7 +560,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const isSoldOut = product.status === "sold_out";
+  const isSoldOut = isShopProductEffectivelySoldOut(product);
   const discountRate = getDiscountRate(product.base_price, product.sale_price);
   const salePrice = product.sale_price ?? product.base_price;
   const compareMemberUnit = effectiveMemberUnitPrice(product);

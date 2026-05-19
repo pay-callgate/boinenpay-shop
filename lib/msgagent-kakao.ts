@@ -1,6 +1,9 @@
 /**
  * SMTNT Agent2 Webshot — API_SEND_KAKAO(알림톡)
  * POST multipart/form-data → https://api2.msgagent.com/api/webshot/send/kakao/AT/{id}
+ *
+ * 접수 성공 판정: 연동 매뉴얼 [결과코드] 시트 — `result_code === 0` 만 성공.
+ * HTTP 200이어도 `result_code` 가 0이 아니면 실패로 처리합니다.
  */
 
 import {
@@ -36,6 +39,8 @@ export type SendKakaoAlimtalkAtInput = {
 export type SendKakaoAlimtalkAtResult = {
   ok: boolean;
   httpStatus: number;
+  /** 응답 JSON에서 파싱한 Agent2 result_code. 없으면 null. */
+  resultCode: number | null;
   requestUrl: string;
   response: unknown;
   resolvedMsg: string;
@@ -43,6 +48,67 @@ export type SendKakaoAlimtalkAtResult = {
 };
 
 const DEFAULT_BASE = "https://api2.msgagent.com";
+
+/** Agent2 Webshot JSON 응답의 `result_code` (숫자 또는 문자열). 없거나 파싱 불가면 null. */
+export function parseMsgagentWebshotResultCode(parsed: unknown): number | null {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const r = parsed as Record<string, unknown>;
+  if (!Object.prototype.hasOwnProperty.call(r, "result_code")) return null;
+  const v = r.result_code;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(String(v).trim());
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function extractMsgagentErrorText(parsed: unknown): string | undefined {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+  const r = parsed as Record<string, unknown>;
+  const keys = ["message", "Message", "msg", "error", "ERROR_MSG", "errmsg", "description"];
+  for (const k of keys) {
+    const v = r[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
+}
+
+/**
+ * HTTP 2xx 이고 JSON에 파싱 가능한 `result_code`가 **정확히 0**일 때만 접수 성공.
+ * `result_code`가 없거나 0이 아니면 모두 실패(매뉴얼 [결과코드]: 0 = 성공).
+ */
+export function isMsgagentWebshotSendSuccessful(
+  httpStatus: number,
+  parsed: unknown
+): boolean {
+  const httpOk = httpStatus >= 200 && httpStatus < 300;
+  if (!httpOk) return false;
+  const code = parseMsgagentWebshotResultCode(parsed);
+  if (code === null) return false;
+  return code === 0;
+}
+
+/** DB·API용 짧은 실패 사유 (성공 시 사용하지 않음). */
+export function formatMsgagentWebshotFailureSummary(
+  result: SendKakaoAlimtalkAtResult
+): string {
+  const { httpStatus, response, resultCode } = result;
+  const httpOk = httpStatus >= 200 && httpStatus < 300;
+  if (!httpOk) {
+    return `HTTP ${httpStatus}`;
+  }
+  const hint = extractMsgagentErrorText(response);
+  const codePart =
+    resultCode !== null
+      ? `result_code=${resultCode}`
+      : "result_code=(없음·비정상 응답)";
+  if (hint) {
+    const sliced = hint.length > 500 ? `${hint.slice(0, 500)}…` : hint;
+    return `${codePart}: ${sliced}`;
+  }
+  return `${codePart} (매뉴얼: 0=성공)`;
+}
 
 function trimEnv(key: string): string {
   return String(process.env[key] ?? "").trim();
@@ -184,9 +250,13 @@ export async function sendKakaoAlimtalkAt(
       parsedBody: parsed,
     });
 
+    const resultCode = parseMsgagentWebshotResultCode(parsed);
+    const ok = isMsgagentWebshotSendSuccessful(upstream.status, parsed);
+
     return {
-      ok: upstream.ok,
+      ok,
       httpStatus: upstream.status,
+      resultCode,
       requestUrl: url,
       response: parsed,
       resolvedMsg: msg,

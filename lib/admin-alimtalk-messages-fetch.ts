@@ -18,7 +18,7 @@ export const ADMIN_ALIMTALK_DB_CAP = 2000;
 export const ADMIN_ALIMTALK_LIST_RAW_CAP = 8000;
 
 export const LINK_KAKAO_NOTIFICATION_LIST_SELECT =
-  "id, created_at, partner_id, client_id, phone_masked, callback_masked, provider_ok, resolved_msg_preview, batch_id, recipient_name";
+  "id, created_at, partner_id, client_id, phone_masked, callback_masked, provider_ok, result_code, error_message, resolved_msg_preview, batch_id, recipient_name";
 
 export function parseAdminAlimtalkListStatus(
   v: string | null

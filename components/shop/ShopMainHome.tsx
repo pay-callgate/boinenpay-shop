@@ -17,6 +17,7 @@ import {
   type ShopPurchaseBlockReason,
 } from "./ShopPurchaseBlockModal";
 import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
+import { isShopProductEffectivelySoldOut } from "@/lib/shop-product-visibility";
 
 const PRIMARY = "#D6A8E0";
 
@@ -35,6 +36,7 @@ export interface ShopProduct {
   base_price: number;
   sale_price: number | null;
   status: string;
+  stock_qty?: number;
   categories: { id: string; name: string; slug: string }[];
 }
 
@@ -559,7 +561,7 @@ function ShopMainHomeWithCategoryUrl({
                       product.base_price,
                       product.sale_price
                     );
-                    const isSoldOut = product.status === "sold_out";
+                    const isSoldOut = isShopProductEffectivelySoldOut(product);
                     const salePrice = product.sale_price ?? product.base_price;
 
                     return (

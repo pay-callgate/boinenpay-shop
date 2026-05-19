@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
+  SHOP_LIST_MIN_STOCK_QTY,
   SHOP_LIST_PRODUCT_STATUS,
-  SHOP_PRODUCT_DETAIL_ALLOWED_STATUSES,
 } from "@/lib/shop-product-visibility";
 
 /**
@@ -10,7 +10,7 @@ import {
  * GET /api/shop/products?partnerId=xxx&categoryId=xxx&search=xxx&limit=4
  * - 파트너의 상품 조회 (쇼핑몰용)
  * - 카테고리별 필터링, 상품명/슬러그 검색 지원
- * - 기본: 판매중(active)만. includeSoldOut=true 시 품절(sold_out) 포함. 임시저장(draft)은 제외.
+ * - 기본: 판매중(active) + 재고 1개 이상. includeSoldOut=true 시 품절(sold_out)도 포함(재고 0인 active는 제외). 임시저장(draft)은 제외.
  */
 
 export async function GET(request: NextRequest) {
@@ -50,11 +50,15 @@ export async function GET(request: NextRequest) {
       )
       .eq("partner_id", partnerId);
 
-    // 목록은 판매중만; includeSoldOut 시 판매중+품절(임시저장·기타 상태 제외)
+    // 목록: 판매중이면서 재고 1개 이상만(재고 0 + active는 어드민에서만 노출)
     if (includeSoldOut) {
-      query = query.in("status", [...SHOP_PRODUCT_DETAIL_ALLOWED_STATUSES]);
+      query = query.or(
+        `status.eq.sold_out,and(status.eq.${SHOP_LIST_PRODUCT_STATUS},stock_qty.gte.${SHOP_LIST_MIN_STOCK_QTY})`
+      );
     } else {
-      query = query.eq("status", SHOP_LIST_PRODUCT_STATUS);
+      query = query
+        .eq("status", SHOP_LIST_PRODUCT_STATUS)
+        .gte("stock_qty", SHOP_LIST_MIN_STOCK_QTY);
     }
 
     // 카테고리 필터
