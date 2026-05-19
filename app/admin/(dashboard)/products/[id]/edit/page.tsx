@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Package } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { PRODUCT_IMAGE_UPLOAD_NOTICE } from "@/lib/product-image-guidance";
 import { ProductPolicyFormSection } from "@/components/admin/ProductPolicyFormSection";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 /**
  * T2-3: 상품 수정 페이지
@@ -318,9 +320,22 @@ export default function ProductEditPage() {
 
   return (
     <div style={{ padding: "24px", maxWidth: "800px" }}>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "24px" }}>
-        상품 수정
-      </h1>
+      <AdminPageHeader
+        className="!mb-4"
+        eyebrow="Catalog · Products"
+        title="상품 수정"
+        titleIcon={Package}
+        description={
+          <span className="break-keep [word-break:keep-all]">
+            등록된 상품의{" "}
+            <strong className="font-semibold text-emerald-800">기본 정보·가격·이미지</strong>를
+            바꿔{" "}
+            <strong className="font-semibold text-emerald-800">수정 관리</strong>하고,{" "}
+            <strong className="font-semibold text-emerald-800">가격·재고·판매 상태</strong>와
+            카테고리가 쇼핑몰에 맞게 반영되는지 확인합니다.
+          </span>
+        }
+      />
 
       <form onSubmit={handleSubmit}>
         <div

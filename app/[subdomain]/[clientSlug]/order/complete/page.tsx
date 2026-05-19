@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Calendar,
   CircleCheck,
+  Copy,
   List,
   MapPin,
   MessageCircle,
@@ -18,6 +19,7 @@ import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { toDesiredDeliveryYmd } from "@/lib/admin-florist-order-display";
+import { formatFloristShippingAddressForCustomerUI } from "@/lib/checkout-florist-fields";
 
 /**
  * Phase E1: 주문 완료 페이지 (ViewPay returnUrl 리다이렉트 대상)
@@ -114,8 +116,6 @@ function DeliveryInfoRow({
 
 const PRIMARY = "#D6A8E0";
 const PRIMARY_LIGHT = "#F3E8F5";
-/** 스냅샷: 최종 결제 금액 등 강조 보라 */
-const ACCENT_PURPLE = "#9333EA";
 const BG_PAGE = "#F9FAFB";
 
 /** 쿼리/해시에서 결제 거래 ID 추출 (ViewPay cgTid / tid / paymentId 등) */
@@ -365,6 +365,29 @@ export default function OrderCompletePage() {
       .join(" / ");
   };
 
+  const handleCopyOrderNo = async (raw: string) => {
+    const text = raw.trim();
+    if (!text || text === "—") return;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      toast("주문번호를 복사했습니다.", "success");
+    } catch {
+      toast("복사에 실패했습니다. 주문번호를 직접 선택해 복사해 주세요.", "error");
+    }
+  };
+
   const content = () => {
     if (state === "loading" || (state === "idle" && orderId && cgTid)) {
       return (
@@ -386,7 +409,10 @@ export default function OrderCompletePage() {
         ? `${order.shipping_name || "—"} (${order.shipping_phone || "—"})`
         : "—";
       const streetAddress = order
-        ? [order.shipping_address, order.shipping_detail].filter(Boolean).join(" ")
+        ? formatFloristShippingAddressForCustomerUI(
+            order.shipping_address,
+            order.shipping_detail
+          )
         : "";
       const ribbonMsg = order?.ribbon_message?.trim() ?? "";
       const ribbonFrom = order?.ribbon_sender?.trim() ?? "";
@@ -399,9 +425,8 @@ export default function OrderCompletePage() {
 
       const orderNoDisplay =
         order?.order_no?.trim() || orderNo || "—";
-      const finalPaymentAmount = order
-        ? Number(order.total_amount)
-        : items.reduce((s, i) => s + Number(i.total_price), 0);
+      const displayStoreName =
+        order?.client?.name ?? client?.name ?? "쇼핑몰";
 
       return (
         <div className="break-keep [word-break:keep-all]">
@@ -422,90 +447,85 @@ export default function OrderCompletePage() {
             <p className="mt-3 max-w-[22rem] px-2 text-center text-sm leading-relaxed text-gray-500">
               마음을 담아 안전하고 정확하게 배송해 드리겠습니다.
             </p>
-            <div className="mt-7 rounded-full bg-gray-100 px-6 py-2.5">
-              <p className="text-center text-[0.7rem] tracking-wide text-gray-500">
-                ORDER NO.{" "}
-                <span className="text-sm font-bold text-gray-900">
-                  {orderNoDisplay}
-                </span>
-              </p>
+            <div className="mt-7 flex justify-center px-4">
+              <div className="inline-flex max-w-full items-center gap-1 rounded-full bg-gray-100 py-2 pl-5 pr-1.5 shadow-sm">
+                <p className="min-w-0 flex-1 text-center text-[0.7rem] leading-snug tracking-wide text-gray-500">
+                  ORDER NO.{" "}
+                  <span
+                    className="text-sm font-bold text-gray-900 break-all sm:break-keep"
+                    title={orderNoDisplay}
+                  >
+                    {orderNoDisplay}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleCopyOrderNo(orderNoDisplay)}
+                  disabled={!orderNoDisplay || orderNoDisplay === "—"}
+                  className="flex shrink-0 rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-200/90 hover:text-gray-800 disabled:pointer-events-none disabled:opacity-40"
+                  aria-label="주문번호 복사"
+                  title="주문번호 복사"
+                >
+                  <Copy className="h-4 w-4" strokeWidth={2} aria-hidden />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* ② 주문 상품 카드 */}
-          <div className={`${whiteCardClass} mx-4 mt-6 rounded-2xl p-5`}>
-            <h2 className="text-base font-bold text-gray-900">주문 상품</h2>
+          {/* ② 주문 상품 카드 (이전 스타일) */}
+          <div className={`${whiteCardClass} mx-4 mt-6 rounded-xl p-5`}>
+            <p className="text-sm font-medium text-[#6B7280]">{displayStoreName}</p>
             {orderDetailLoading && items.length === 0 ? (
-              <div className="mt-4 flex gap-3">
-                <div className="h-24 w-24 shrink-0 animate-pulse rounded-xl bg-gray-200" />
+              <div className="mt-3 flex gap-3">
+                <div className="h-20 w-20 shrink-0 animate-pulse rounded-lg bg-gray-200" />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
                   <div className="h-3 w-1/2 animate-pulse rounded bg-gray-100" />
-                  <div className="h-6 w-24 animate-pulse rounded-full bg-gray-100" />
+                  <div className="h-4 w-1/4 animate-pulse rounded bg-gray-200" />
                 </div>
               </div>
             ) : (
               <>
-                {items.map((item, idx) => {
-                  const optionLine = formatOption(item.option_json);
-                  return (
-                    <div
-                      key={item.id}
-                      className={idx > 0 ? "mt-5 border-t border-gray-100 pt-5" : "mt-4"}
-                    >
-                      <div className="flex gap-3">
-                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                          {item.product?.thumbnail_url ? (
-                            <img
-                              src={item.product.thumbnail_url}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : null}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-gray-900">
-                            {item.product?.name ?? item.product_name}
-                          </p>
-                          {optionLine ? (
-                            <p className="mt-1 text-xs leading-relaxed text-gray-500">
-                              {optionLine}
-                            </p>
-                          ) : null}
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            {shippingFee <= 0 && idx === 0 ? (
-                              <span className="rounded-full bg-teal-500 px-2.5 py-1 text-xs font-semibold text-white">
-                                무료배송
-                              </span>
-                            ) : null}
-                            {shippingFee > 0 && idx === 0 ? (
-                              <span className="text-xs font-medium text-gray-600">
-                                배송비 {shippingFee.toLocaleString()}원
-                              </span>
-                            ) : null}
-                            <span className="text-sm font-medium text-gray-900">
-                              {item.quantity}개
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                {items.map((item) => (
+                  <div key={item.id} className="mt-3 flex gap-3">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                      {item.product?.thumbnail_url ? (
+                        <img
+                          src={item.product.thumbnail_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
                     </div>
-                  );
-                })}
-                <div className="my-5 border-t border-dashed border-gray-200" />
-                <div className="flex items-end justify-between gap-3">
-                  <span className="pb-0.5 text-sm text-gray-500">
-                    최종 결제 금액
-                  </span>
-                  {orderDetailLoading && !order ? (
-                    <div className="h-8 w-28 animate-pulse rounded bg-gray-100" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-[#333333]">
+                        {item.product?.name ?? item.product_name}
+                      </p>
+                      <p className="mt-0.5 text-sm text-[#6B7280] break-keep [word-break:keep-all]">
+                        {formatOption(item.option_json)}
+                        {item.quantity > 1 ? ` / ${item.quantity}개` : ""}
+                      </p>
+                      <span className="mt-1.5 inline-block rounded-full border border-emerald-500 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                        결제완료
+                      </span>
+                      <p className="mt-2 font-semibold text-[#333333]">
+                        {Number(item.total_price).toLocaleString()}원
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  {shippingFee <= 0 ? (
+                    <p className="text-sm">
+                      <span className="font-medium text-[#6B7280]">배송비</span>
+                      <span className="ml-2 font-semibold text-violet-700/85">
+                        무료배송
+                      </span>
+                    </p>
                   ) : (
-                    <span
-                      className="text-xl font-bold tabular-nums"
-                      style={{ color: ACCENT_PURPLE }}
-                    >
-                      {finalPaymentAmount.toLocaleString("ko-KR")}원
-                    </span>
+                    <p className="text-sm text-[#6B7280]">
+                      배송비 {shippingFee.toLocaleString()}원
+                    </p>
                   )}
                 </div>
               </>
@@ -563,41 +583,26 @@ export default function OrderCompletePage() {
             )}
           </div>
 
-          {/* ④ 하단 버튼 (가로 2열 · 스냅샷) */}
-          <div className="mx-4 mt-6 pb-10 pt-1">
-            <div
-              className="mb-5 flex justify-center gap-1.5"
-              aria-hidden
+          {/* ④ 하단 버튼 — 주문서(checkout) 결제 버튼 톤, 1행 2열 */}
+          <div className="mx-4 mt-6 flex gap-3 pb-10 pt-1">
+            <button
+              type="button"
+              onClick={handleContinueShopping}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold text-white transition-opacity hover:opacity-95 active:opacity-90 sm:text-base"
+              style={{ backgroundColor: PRIMARY }}
             >
-              {Array.from({ length: 8 }).map((_, i) => (
-                <span
-                  key={i}
-                  className="h-1.5 w-1.5 rounded-full bg-gray-300"
-                />
-              ))}
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handleContinueShopping}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold shadow-sm transition hover:brightness-[0.98] active:brightness-95"
-                style={{
-                  backgroundColor: PRIMARY_LIGHT,
-                  color: "#7C3AED",
-                }}
-              >
-                <ShoppingBag className="h-5 w-5 shrink-0" strokeWidth={2} />
-                쇼핑 계속하기
-              </button>
-              <button
-                type="button"
-                onClick={handleOrderList}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-gray-300 bg-white py-3.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
-              >
-                <List className="h-5 w-5 shrink-0 text-gray-600" strokeWidth={2} />
-                주문 내역
-              </button>
-            </div>
+              <ShoppingBag className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
+              쇼핑 계속하기
+            </button>
+            <button
+              type="button"
+              onClick={handleOrderList}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 bg-white py-4 text-sm font-bold transition-colors hover:bg-[#F3E8F5]/50 sm:text-base"
+              style={{ borderColor: PRIMARY, color: PRIMARY }}
+            >
+              <List className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
+              주문 내역
+            </button>
           </div>
         </div>
       );

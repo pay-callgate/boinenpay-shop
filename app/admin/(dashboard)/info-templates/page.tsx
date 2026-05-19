@@ -170,7 +170,11 @@ export default function InfoTemplatesPage() {
         eyebrow="Catalog · Info"
         title="공통 안내 관리"
         titleIcon={ScrollText}
-        description="쇼핑몰 상세페이지 하단에 노출되는 배송 안내, 취소/환불, 상품 고시 등 공통 안내 사항을 템플릿으로 관리합니다."
+        description={
+          <span className="break-keep [word-break:keep-all]">
+            쇼핑몰 상세페이지 하단에 노출되는 배송 안내, 취소/환불, 상품 고시 등 공통 안내 사항을 템플릿으로 관리합니다.
+          </span>
+        }
       />
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}

@@ -833,12 +833,12 @@ export default function OrdersPage() {
                           </span>
                         ) : (
                           <span
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-rose-200/75 bg-rose-50/90 shadow-sm shadow-rose-100/45"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-200/90 bg-emerald-50 shadow-sm shadow-emerald-100/60"
                             title="확인 완료"
                             aria-label="확인 완료"
                           >
                             <Check
-                              className="h-3 w-3 shrink-0 text-rose-400/95"
+                              className="h-3 w-3 shrink-0 text-emerald-600/90"
                               strokeWidth={2.25}
                               aria-hidden
                             />

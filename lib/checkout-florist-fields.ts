@@ -82,5 +82,48 @@ export function stripFloristShippingDetailMeta(detail: string | null | undefined
     );
   });
   const head = metaIdx >= 0 ? lines.slice(0, metaIdx) : lines;
-  return head.join("\n").replace(/\n+$/, "").trim();
+  const cleanedLines = head
+    .map((line) => line.trim())
+    .filter((line) => {
+      if (line === "") return false;
+      if (/^[\u2014\u2013–—\-\s]+$/u.test(line)) return false;
+      return true;
+    });
+  return cleanedLines.join("\n").trim();
+}
+
+/**
+ * `shipping_address`에 실수로 이어 붙은 화훼 메타(`[배달 희망]` 등) 제거
+ */
+export function stripFloristMetaSuffixFromAddressLine(addr: string): string {
+  let s = addr.trim();
+  const markers = [
+    " — [",
+    " —[",
+    "— [",
+    "—[",
+    " [배달 희망]",
+    " [주문자]",
+    " [보내는 분",
+    " [리본 문구]",
+    " [카드 문구]",
+  ];
+  for (const m of markers) {
+    const i = s.indexOf(m);
+    if (i >= 0) s = s.slice(0, i).trim();
+  }
+  return s.replace(/\s+[—–]$/u, "").trim();
+}
+
+/**
+ * 고객용 화면: 도로명·상세(장소)만 한 줄로. `shipping_detail`의 뉴런 메타 블록은 제외.
+ */
+export function formatFloristShippingAddressForCustomerUI(
+  shippingAddress: string | null | undefined,
+  shippingDetail: string | null | undefined
+): string {
+  const addr = stripFloristMetaSuffixFromAddressLine(String(shippingAddress ?? ""));
+  const det = stripFloristShippingDetailMeta(shippingDetail);
+  const detOneLine = det.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
+  return [addr, detOneLine].filter(Boolean).join(" ").trim();
 }

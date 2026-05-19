@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Package } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { PRODUCT_IMAGE_UPLOAD_NOTICE } from "@/lib/product-image-guidance";
 import { ProductPolicyFormSection } from "@/components/admin/ProductPolicyFormSection";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 /**
  * T2-3: 상품 등록 페이지
@@ -192,9 +194,21 @@ export default function ProductNewPage() {
 
   return (
     <div style={{ padding: "24px", maxWidth: "800px" }}>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "24px" }}>
-        상품 등록
-      </h1>
+      <AdminPageHeader
+        className="!mb-4"
+        eyebrow="Catalog · Products"
+        title="상품 등록"
+        titleIcon={Package}
+        description={
+          <span className="break-keep [word-break:keep-all]">
+            쇼핑몰에 판매할 상품을 필드에 입력해{" "}
+            <strong className="font-semibold text-emerald-800">신규 등록</strong>하고,{" "}
+            <strong className="font-semibold text-emerald-800">가격·재고·판매 상태</strong>와
+            카테고리를 저장하기 전까지{" "}
+            <strong className="font-semibold text-emerald-800">수정 관리</strong>합니다.
+          </span>
+        }
+      />
 
       <form onSubmit={handleSubmit}>
         <div
