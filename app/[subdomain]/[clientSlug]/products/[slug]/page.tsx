@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ChevronLeft, ChevronRight, Gift, Heart, Share2, ShoppingCart } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gift, Heart, Minus, Plus, Share2, ShoppingCart } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import {
   ShopPurchaseBlockModal,
@@ -575,20 +575,25 @@ export default function ProductDetailPage() {
       blockAffiliationMismatch={false}
     >
       <div
-        className="mx-auto max-w-[430px] bg-white tracking-tight"
+        className="mx-auto w-full max-w-[430px] bg-white tracking-tight"
         style={{
           /** 고정 CTA 바 높이만큼만 추가 (하단 탭: ShopGlobalLayout main padding) */
           paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 56px)`,
         }}
       >
-        {/* Hero: 고정 3:4 + object-cover (업로드 가이드와 동일 비율 권장) */}
-        <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
+        {/*
+          메인 히어로: 1:1 정사각 — 모바일에서 세로 점유를 줄임.
+          가로는 상위 쉘 `max-w-[430px]`에 묶여 PC·와이드에서도 무한 확장되지 않음.
+          원본 비율이 달라도 찌그러짐 없이 중앙 기준 크롭(object-cover + object-center).
+        */}
+        <div className="relative aspect-square w-full max-w-full overflow-hidden bg-gray-100">
           {images.length > 0 ? (
             <>
               <img
                 src={images[currentImageIndex]}
                 alt={product.name}
-                className="absolute inset-0 h-full w-full object-cover object-center"
+                decoding="async"
+                className="absolute inset-0 size-full object-cover object-center"
               />
               {isSoldOut && (
                 <div
@@ -638,9 +643,6 @@ export default function ProductDetailPage() {
           <h1 className="text-xl font-medium leading-snug text-gray-900">
             {product.name}
           </h1>
-          {product.short_description && (
-            <p className="mt-0.5 text-sm text-gray-500">{product.short_description}</p>
-          )}
           <div className="mt-2 flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-2">
@@ -705,15 +707,16 @@ export default function ProductDetailPage() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap gap-1.5">
                 <span className="rounded-sm px-1.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: "#F8F5FF", color: PRIMARY }}>
-                  새벽배송
+                  당일 배송
                 </span>
                 <span className="rounded-sm px-1.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: "#F8F5FF", color: PRIMARY }}>
                   전국택배
                 </span>
               </div>
-              <p className="mt-1.5 text-sm text-gray-600">
-                서울/경기 밤 11시 전 주문 시 내일 아침 7시 전 도착
-              </p>
+              <ul className="mt-1.5 ml-3 list-disc space-y-1 pl-4 text-sm break-keep text-slate-500 marker:text-purple-300/90">
+                <li>평일: 2~4시간 이내 배송</li>
+                <li>주말 및 공휴일: 3~5시간 이내 배송</li>
+              </ul>
             </div>
           </div>
         </section>
@@ -751,28 +754,34 @@ export default function ProductDetailPage() {
         ) : null}
 
         {/* 수량 (컴팩트) */}
-        <section className="border-t border-gray-100 px-5 py-3">
-          <h3 className="mb-2 text-sm font-medium text-gray-900">수량</h3>
+        <section className="border-t border-gray-100 px-5 py-4">
+          <h3 className="mb-3 text-sm font-medium text-slate-600">수량</h3>
           <div className="flex items-center gap-2">
-            <div className="flex items-center border border-gray-200">
+            <div
+              className="inline-flex overflow-hidden rounded-2xl border border-violet-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(139,92,246,0.12)] ring-1 ring-violet-100/50"
+              role="group"
+              aria-label="수량 조절"
+            >
               <button
                 type="button"
                 onClick={() => setQuantity((p) => Math.max(1, p - 1))}
                 disabled={isSoldOut}
-                className="flex h-11 w-11 items-center justify-center text-gray-600 hover:bg-gray-50 active:opacity-80 disabled:opacity-50"
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-violet-500 transition hover:bg-violet-50/90 active:bg-violet-100/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D6A8E0]/45 disabled:pointer-events-none disabled:opacity-35"
+                aria-label="수량 감소"
               >
-                −
+                <Minus className="h-4 w-4" strokeWidth={2} aria-hidden />
               </button>
-              <span className="flex h-11 min-w-[3rem] items-center justify-center border-x border-gray-200 text-sm font-medium text-gray-900">
+              <span className="flex h-11 min-w-[3.25rem] items-center justify-center border-x border-violet-100 bg-gradient-to-b from-violet-50/80 to-white px-2 text-sm font-semibold tabular-nums text-violet-950">
                 {quantity}
               </span>
               <button
                 type="button"
                 onClick={() => setQuantity((p) => p + 1)}
                 disabled={isSoldOut}
-                className="flex h-11 w-11 items-center justify-center text-gray-600 hover:bg-gray-50 active:opacity-80 disabled:opacity-50"
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-violet-500 transition hover:bg-violet-50/90 active:bg-violet-100/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D6A8E0]/45 disabled:pointer-events-none disabled:opacity-35"
+                aria-label="수량 증가"
               >
-                +
+                <Plus className="h-4 w-4" strokeWidth={2} aria-hidden />
               </button>
             </div>
           </div>

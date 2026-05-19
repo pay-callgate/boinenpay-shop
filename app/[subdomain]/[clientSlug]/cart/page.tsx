@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
@@ -26,6 +27,17 @@ interface CartItem {
     status: string;
     stock_qty: number;
   };
+}
+
+function isSoldOutProduct(item: CartItem) {
+  return item.product.status === "sold_out";
+}
+
+function maxOrderQty(item: CartItem): number {
+  if (isSoldOutProduct(item)) return item.quantity;
+  const s = item.product.stock_qty;
+  if (s == null || Number(s) <= 0) return 99_999;
+  return Math.max(1, Number(s));
 }
 
 export default function CartPage() {
@@ -63,7 +75,13 @@ export default function CartPage() {
           const data = await res.json();
           const list = data?.items ?? [];
           setItems(list);
-          setSelectedItems(new Set(list.map((item: CartItem) => item.id)));
+          setSelectedItems(
+            new Set(
+              list
+                .filter((item: CartItem) => !isSoldOutProduct(item))
+                .map((item: CartItem) => item.id)
+            )
+          );
           // 헤더 장바구니 뱃지 갱신 (장바구니 페이지 로드 후에도 우측 상단 숫자 반영)
           if (typeof window !== "undefined") {
             window.dispatchEvent(new CustomEvent("cart-updated"));
@@ -79,26 +97,48 @@ export default function CartPage() {
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("ko-KR").format(price);
 
-  const getItemPrice = (item: CartItem) =>
-    (item.product.sale_price || item.product.base_price) * item.quantity;
+  const getLineUnit = (item: CartItem) =>
+    item.product.sale_price || item.product.base_price;
 
-  const getTotalPrice = () =>
-    items
-      .filter((item) => selectedItems.has(item.id))
-      .reduce((sum, item) => sum + getItemPrice(item), 0);
+  const selectableItems = useMemo(
+    () => items.filter((item) => !isSoldOutProduct(item)),
+    [items]
+  );
+
+  const selectedOrderableEntries = useMemo(
+    () => items.filter((item) => selectedItems.has(item.id) && !isSoldOutProduct(item)),
+    [items, selectedItems]
+  );
+
+  const selectedOrderableLineCount = selectedOrderableEntries.length;
+
+  const selectedLinesTotal = useMemo(
+    () =>
+      selectedOrderableEntries.reduce(
+        (sum, item) => sum + getLineUnit(item) * item.quantity,
+        0
+      ),
+    [selectedOrderableEntries]
+  );
 
   const updateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
+    const capped = Math.min(newQuantity, maxOrderQty(item));
+    if (capped < newQuantity) {
+      toast("주문 가능한 최대 수량입니다.", "default");
+    }
     const res = await shopFetch(`/api/cart/${itemId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quantity: newQuantity }),
+      body: JSON.stringify({ quantity: capped }),
     });
     if (res.ok) {
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
       setItems((prev) =>
-        prev.map((item) =>
-          item.id === itemId ? { ...item, quantity: newQuantity } : item
+        prev.map((row) =>
+          row.id === itemId ? { ...row, quantity: capped } : row
         )
       );
     }
@@ -127,16 +167,40 @@ export default function CartPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedItems.size === items.length) setSelectedItems(new Set());
-    else setSelectedItems(new Set(items.map((item) => item.id)));
+    const ids = selectableItems.map((i) => i.id);
+    if (ids.length === 0) {
+      setSelectedItems(new Set());
+      return;
+    }
+    const allOn = ids.every((id) => selectedItems.has(id));
+    if (allOn) {
+      setSelectedItems((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedItems(new Set(ids));
+    }
   };
+
+  const allSelectableChecked =
+    selectableItems.length > 0 &&
+    selectableItems.every((i) => selectedItems.has(i.id));
 
   const goToOrder = (selectedOnly: boolean) => {
     if (!template?.orderAllowed) {
       toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
       return;
     }
-    const ids = selectedOnly ? Array.from(selectedItems) : items.map((i) => i.id);
+    const ids = selectedOnly
+      ? items
+          .filter(
+            (i) =>
+              selectedItems.has(i.id) && !isSoldOutProduct(i)
+          )
+          .map((i) => i.id)
+      : items.filter((i) => !isSoldOutProduct(i)).map((i) => i.id);
     if (ids.length === 0) return;
     const qs = new URLSearchParams();
     if (selectedOnly) {
@@ -191,10 +255,13 @@ export default function CartPage() {
   // 마스터 템플릿 미리보기: 주문/장바구니 불가, 빈 장바구니 UI만 표시
   if (isPreview) {
     return (
-      <div className="mx-auto max-w-[430px] min-h-screen bg-white pb-28">
-        <div className="flex flex-col items-center justify-center py-16 px-4">
-          <p className="mb-2 text-[#333333] font-medium">마스터 템플릿 미리보기</p>
-          <p className="text-[#9CA3AF] text-sm">장바구니는 거래처 전용 쇼핑몰에서만 이용할 수 있습니다.</p>
+      <div
+        className="mx-auto max-w-[430px] min-h-screen bg-white break-keep pb-40 [overflow-wrap:break-word]"
+        style={{ wordBreak: "keep-all" }}
+      >
+        <div className="flex flex-col items-center justify-center px-4 py-16">
+          <p className="mb-2 font-medium text-[#333333]">마스터 템플릿 미리보기</p>
+          <p className="text-sm text-[#9CA3AF]">장바구니는 거래처 전용 쇼핑몰에서만 이용할 수 있습니다.</p>
           <button
             type="button"
             onClick={() => router.push(`/${subdomain}/_preview`)}
@@ -215,7 +282,26 @@ export default function CartPage() {
       shopClientName={client?.name ?? undefined}
       requireAuth={false}
     >
-      <div className="mx-auto max-w-[430px] min-h-screen bg-white pb-28">
+      <div className="mx-auto max-w-[430px] min-h-screen bg-white break-keep pb-40 [overflow-wrap:break-word]" style={{ wordBreak: "keep-all" }}>
+        {/* 글로벌 로고 헤더 바로 아래: 주문조회 화면과 동일 흐름 */}
+        <div className="sticky top-0 z-40 shrink-0 border-b border-gray-100 bg-white px-4 py-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#333333] hover:bg-[#F3F4F6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D6A8E0]/40"
+              aria-label="뒤로"
+            >
+              <ArrowLeft className="h-5 w-5" strokeWidth={2} aria-hidden />
+            </button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold leading-snug text-[#333333] break-keep">
+                장바구니 ({items.length})
+              </h1>
+            </div>
+          </div>
+        </div>
+
         {/*
          * [보류] 국내/해외 배송 탭 UI
          * 화훼·당일배달 전용몰에서는 국내/해외 이원화가 의미 없음(전부 국내 당일·택배 등).
@@ -253,12 +339,16 @@ export default function CartPage() {
           <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3">
             <input
               type="checkbox"
-              checked={selectedItems.size === items.length}
+              checked={allSelectableChecked}
               onChange={toggleSelectAll}
-              className="h-5 w-5 cursor-pointer rounded border-gray-300"
+              disabled={selectableItems.length === 0}
+              className="h-5 w-5 cursor-pointer rounded border-gray-300 disabled:opacity-50"
+              aria-label="전체 선택"
             />
-            <span className="text-sm font-medium text-[#333333]">
-              전체선택 ({selectedItems.size}/{items.length})
+            <span className="text-sm font-medium text-[#333333] break-keep">
+              전체선택 (
+              {selectableItems.filter((i) => selectedItems.has(i.id)).length}/
+              {selectableItems.length})
             </span>
           </div>
         )}
@@ -281,7 +371,9 @@ export default function CartPage() {
         ) : (
           <ul className="divide-y divide-gray-200">
             {items.map((item) => {
-              const isSoldOut = item.product.status === "sold_out";
+              const isSoldOut = isSoldOutProduct(item);
+              const lineMax = maxOrderQty(item);
+              const atMax = item.quantity >= lineMax;
               return (
                 <li key={item.id} className="flex gap-4 border-b border-gray-200 p-4">
                   <input
@@ -312,15 +404,15 @@ export default function CartPage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    {/* 배송 뱃지 */}
+                    {/* 배송 뱃지 + 당일 배송 안내 */}
                     <span
-                      className="mb-1 inline-block rounded px-1.5 py-0.5 text-xs font-medium text-white"
-                      style={{ backgroundColor: PRIMARY }}
+                      className="mb-0.5 inline-block rounded px-1.5 py-0.5 text-[11px] font-medium"
+                      style={{ backgroundColor: "#F8F5FF", color: PRIMARY }}
                     >
                       당일배송
                     </span>
                     <p
-                      className="line-clamp-2 text-[15px] font-normal text-[#333333]"
+                      className="mt-1 line-clamp-2 text-[15px] font-normal text-[#333333]"
                       onClick={() =>
                         router.push(
                           `/${subdomain}/${clientSlug}/products/${item.product.slug}`
@@ -343,8 +435,8 @@ export default function CartPage() {
                       )}
                       원
                     </p>
-                    <div className="mt-2 flex items-center justify-between">
-                      <div className="flex items-center border border-gray-200 rounded-md overflow-hidden">
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center overflow-hidden rounded-md border border-gray-200">
                         <button
                           type="button"
                           onClick={() =>
@@ -352,10 +444,11 @@ export default function CartPage() {
                           }
                           disabled={isSoldOut || item.quantity <= 1}
                           className="flex h-8 w-8 items-center justify-center bg-white text-[#333333] hover:bg-[#F3F4F6] disabled:opacity-50"
+                          aria-label="수량 감소"
                         >
-                          −
+                          <Minus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                         </button>
-                        <span className="flex h-8 min-w-[2rem] items-center justify-center border-x border-gray-200 bg-white text-sm font-medium">
+                        <span className="flex h-8 min-w-[2rem] items-center justify-center border-x border-gray-200 bg-white text-sm font-medium tabular-nums">
                           {item.quantity}
                         </span>
                         <button
@@ -363,18 +456,20 @@ export default function CartPage() {
                           onClick={() =>
                             updateQuantity(item.id, item.quantity + 1)
                           }
-                          disabled={isSoldOut}
+                          disabled={isSoldOut || atMax}
                           className="flex h-8 w-8 items-center justify-center bg-white text-[#333333] hover:bg-[#F3F4F6] disabled:opacity-50"
+                          aria-label="수량 증가"
                         >
-                          +
+                          <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                         </button>
                       </div>
                       <button
                         type="button"
                         onClick={() => deleteItem(item.id)}
-                        className="text-xs text-[#9CA3AF] hover:text-[#333333]"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-violet-50 hover:text-violet-600"
+                        aria-label="상품 삭제"
                       >
-                        삭제
+                        <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
                       </button>
                     </div>
                   </div>
@@ -387,40 +482,35 @@ export default function CartPage() {
         {/* Sticky 하단: 글로벌 하단 네비 바로 위에 고정 */}
         {items.length > 0 && (
           <div
-            className="fixed left-0 right-0 z-50 border-t border-gray-200 bg-white p-4"
+            className="fixed left-0 right-0 z-50 border-t border-violet-100/90 bg-white/95 px-4 pt-3 pb-4 shadow-[0_-8px_28px_-8px_rgba(139,92,246,0.12)] backdrop-blur-md"
             style={{
               maxWidth: "430px",
               margin: "0 auto",
               bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM_NAV_HEIGHT}px)`,
             }}
           >
-            <div className="mb-3 flex items-center justify-between text-sm">
-              <span className="font-medium text-[#333333]">
+            <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
+              <span className="font-medium">배송비</span>
+              <span className="font-semibold text-violet-700/85">무료배송</span>
+            </div>
+            <div className="mb-3 flex items-end justify-between gap-3 border-b border-gray-100 pb-3">
+              <span className="text-base font-semibold leading-snug text-[#333333]">
                 총 결제예정금액
               </span>
-              <span className="text-lg font-bold text-[#111111]">
-                {formatPrice(getTotalPrice())}원
+              <span className="text-xl font-bold tabular-nums text-[#111111]">
+                {formatPrice(selectedLinesTotal)}
+                <span className="ml-0.5 text-lg font-bold">원</span>
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => goToOrder(true)}
-                disabled={selectedItems.size === 0}
-                className="rounded-lg border-2 border-gray-200 py-3 text-sm font-semibold text-[#333333] hover:bg-[#F3F4F6] disabled:opacity-50"
-              >
-                선택상품주문
-              </button>
-              <button
-                type="button"
-                onClick={() => goToOrder(false)}
-                disabled={items.length === 0}
-                className="rounded-lg py-3 text-sm font-semibold text-white disabled:opacity-50"
-                style={{ backgroundColor: PRIMARY }}
-              >
-                전체상품주문
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => goToOrder(true)}
+              disabled={selectedOrderableLineCount === 0}
+              className="w-full rounded-xl py-3.5 text-base font-semibold text-white shadow-[0_4px_14px_-4px_rgba(214,168,224,0.9)] transition hover:opacity-95 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+              style={{ backgroundColor: PRIMARY }}
+            >
+              총 {selectedOrderableLineCount}개 상품 주문하기
+            </button>
           </div>
         )}
       </div>

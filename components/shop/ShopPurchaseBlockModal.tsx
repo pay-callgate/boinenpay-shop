@@ -34,7 +34,7 @@ export function ShopPurchaseBlockModal({
   shopClientName,
   registeredClientName,
   registeredClientSlug,
-  userEmail,
+  userEmail: _userEmail,
 }: Props) {
   const router = useRouter();
 
@@ -82,11 +82,26 @@ export function ShopPurchaseBlockModal({
       <div className="max-h-[90vh] w-full max-w-[360px] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         {reason === "login" && (
           <>
-            <h2 id="shop-purchase-block-title" className="text-lg font-bold text-gray-900">
-              로그인이 필요합니다
+            <h2
+              id="shop-purchase-block-title"
+              className="text-center text-lg font-bold leading-snug text-gray-900"
+            >
+              로그인이 필요한 서비스입니다
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-gray-600">
-              장바구니 담기·바로구매는 로그인 후 이용할 수 있습니다.
+            <div className="h-5 sm:h-6" aria-hidden />
+
+            <p
+              className="text-center text-sm leading-loose text-gray-600 break-keep [overflow-wrap:break-word]"
+              style={{ wordBreak: "keep-all" }}
+            >
+              장바구니 담기와 바로 구매는
+              <br />
+              로그인 후 이용하실 수 있습니다.
+              <br />
+              <br />
+              지금 바로 회원가입하고
+              <br />
+              회원 할인가 혜택도 누려보세요!
             </p>
             <div className="mt-6 flex flex-col gap-2">
               <button
@@ -141,37 +156,30 @@ export function ShopPurchaseBlockModal({
 
         {reason === "affiliation" && (
           <>
-            <h2 id="shop-purchase-block-title" className="text-lg font-bold text-gray-900">
-              이 전용몰에서는 구매할 수 없습니다
-            </h2>
-            <p
-              className="mt-3 text-sm leading-relaxed text-gray-600"
-              style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}
+            <h2
+              id="shop-purchase-block-title"
+              className="text-center text-lg font-bold leading-snug text-gray-900"
             >
-              {userEmail ? (
-                <>
-                  현재 로그인된 계정(
-                  <span className="break-all">{userEmail}</span>)은
-                  <br />
-                  <strong className="text-gray-900">{regName}</strong> 소속 회원입니다.
-                  <br />
-                  <br />
-                </>
-              ) : (
-                <>
-                  현재 로그인된 계정은 확인할 수 없습니다. 이 계정은
-                  <br />
-                  <strong className="text-gray-900">{regName}</strong> 소속 회원으로 등록되어 있습니다.
-                  <br />
-                  <br />
-                </>
-              )}
-              현재 접속하신 <strong className="text-gray-900">{mallLabel}</strong> 몰의
+              구매할 수 없는 전용몰입니다
+            </h2>
+            {/* 제목 아래 시각적 여백 ≈ 빈 줄 2줄 */}
+            <div className="h-10 sm:h-12" aria-hidden />
+
+            <p
+              className="text-center text-sm leading-loose text-gray-600 break-keep [overflow-wrap:break-word]"
+              style={{ wordBreak: "keep-all" }}
+            >
+              현재 로그인된 계정은
               <br />
-              서비스 이용이 제한됩니다.
+              <span className="font-bold text-[#5B21B6]">{regName}</span> 소속입니다.
               <br />
               <br />
-              소속 전용몰로 이동하시거나,
+              접속하신 <span className="font-bold text-[#5B21B6]">{mallLabel}</span> 몰의
+              <br />
+              주문 및 장바구니 이용이 제한됩니다.
+              <br />
+              <br />
+              소속 전용몰로 이동하거나,
               <br />
               다른 계정으로 로그인해 주세요.
             </p>
