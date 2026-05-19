@@ -142,7 +142,11 @@ export default function InventoryPage() {
           eyebrow="Catalog · Inventory"
           title="재고 관리"
           titleIcon={Boxes}
-          description="재고 수량과 안전 재고를 확인하고 수정할 수 있습니다."
+          description={
+            <span className="break-keep [word-break:keep-all]">
+              쇼핑몰 상품의 재고를 검색과 필터로 빠르게 찾고, 재고 수량과 안전 재고를 수정 관리합니다.
+            </span>
+          }
         />
 
         {/* 1. 상단 요약 대시보드 (Dashboard Card) - Soft Pink Theme */}

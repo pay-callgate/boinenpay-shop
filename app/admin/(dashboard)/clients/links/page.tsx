@@ -253,14 +253,9 @@ export default function ClientsLinksPage() {
           title="거래처/링크 관리"
           titleIcon={Link2}
           description={
-            <>
-              <p>
-                거래처 정보 관리, 주문 전용 Link 생성 및 CallLink(070번호) 연동을 통합 관리합니다.
-              </p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                총 {filteredClients.length}개 거래처
-              </p>
-            </>
+            <span className="break-keep [word-break:keep-all]">
+              거래처를 검색과 필터로 빠르게 찾고, 주문 전용 Link 생성 및 CallLink(070번호) 연동을 통합 관리합니다.
+            </span>
           }
         />
 

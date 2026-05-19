@@ -154,21 +154,12 @@ export default function OrdersReturnsPage() {
           eyebrow="Orders · Returns"
           title="취소/반품"
           titleIcon={RotateCcw}
-          description="취소·반품 처리된 주문을 조회합니다. 목록에서 주문 상세로 이동해 이력·환불 상태를 확인할 수 있습니다."
+          description={
+            <span className="break-keep [word-break:keep-all]">
+              쇼핑몰의 취소·반품 주문 내역을 검색과 필터로 빠르게 찾고, 주문별 상세 이력과 환불 상태를 관리합니다.
+            </span>
+          }
         />
-
-        <div
-          className="mb-4 rounded-lg border border-violet-200 bg-violet-50/90 px-4 py-3 text-sm text-slate-800 shadow-sm"
-          role="note"
-        >
-          <p className="font-semibold text-violet-950">뉴런·협회(화훼) 발주 연동 — 취소 안내</p>
-          <p className="mt-2 leading-relaxed text-slate-800">
-            뉴런 연동 명세에는 <strong>취소 API가 없습니다</strong>. 쇼핑몰에서 주문을 취소하거나 여기서
-            상태를 바꾼 뒤에도, 협회 측에서 이미 접수·제작이 진행 중이면{" "}
-            <strong>협회·뉴런에 별도 연락해 수동 조정</strong>이 필요할 수 있습니다. 실제 취소·환불·재고
-            반영은 <strong>주문 상세</strong>와 결제(PG)·내부 규정을 따릅니다.
-          </p>
-        </div>
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-end gap-3">

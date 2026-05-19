@@ -189,14 +189,7 @@ export default function ProductsPage() {
             titleIcon={Package}
             description={
               <span className="break-keep [word-break:keep-all]">
-                등록된 상품을 검색과 필터로 빠르게 찾고,{" "}
-                <strong className="font-semibold text-emerald-800">
-                  가격·재고·판매 상태
-                </strong>를 관리합니다. 우측 상단의{" "}
-                <strong className="font-semibold text-emerald-800">
-                  [+ 상품 등록]
-                </strong>{" "}
-                버튼을 통해 새로운 상품을 추가할 수 있습니다.
+                등록된 상품을 검색과 필터로 빠르게 찾고, 가격·재고·판매 상태를 관리합니다. 우측 상단의 [+ 상품 등록] 버튼을 통해 새로운 상품을 추가할 수 있습니다.
               </span>
             }
           />

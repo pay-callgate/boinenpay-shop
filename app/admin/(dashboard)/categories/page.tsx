@@ -243,11 +243,7 @@ export default function CategoriesPage() {
         titleIcon={FolderTree}
         description={
           <span className="break-keep [word-break:keep-all]">
-            쇼핑몰의 상품별 카테고리를{" "}
-            <strong className="font-semibold text-emerald-800">신규 등록</strong>하고,{" "}
-            <strong className="font-semibold text-emerald-800">노출 순서</strong> 등
-            카테고리 정보를{" "}
-            <strong className="font-semibold text-emerald-800">수정 관리</strong>합니다.
+            쇼핑몰의 상품별 카테고리를 신규 등록하고, 노출 순서 등 카테고리 정보를 수정 관리합니다.
           </span>
         }
       />

@@ -13,12 +13,7 @@ export default function ReviewsPage() {
       eyebrow="Board · Reviews"
       title="리뷰 관리"
       titleIcon={Star}
-      description={
-        <>
-          쇼핑몰 <strong className="font-semibold text-slate-800">상품 리뷰</strong>를 조회·검수하고
-          응대할 수 있도록 준비하고 있습니다.
-        </>
-      }
+      description="쇼핑몰 상품 리뷰를 조회·검수하고 응대할 수 있도록 준비하고 있습니다."
     />
   );
 }

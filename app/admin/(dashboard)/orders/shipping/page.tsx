@@ -90,12 +90,10 @@ export default function OrdersShippingPage() {
   const router = useRouter();
 
   const [partnerId, setPartnerId] = useState<string | null>(null);
-  const [clients, setClients] = useState<Client[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const [selectedClient, setSelectedClient] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
@@ -122,23 +120,10 @@ export default function OrdersShippingPage() {
   }, []);
 
   useEffect(() => {
-    async function fetchClients() {
-      if (!partnerId) return;
-      const res = await adminFetch(`/api/clients?partnerId=${partnerId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setClients(data.clients || []);
-      }
-    }
-    fetchClients();
-  }, [partnerId]);
-
-  useEffect(() => {
     async function fetchOrders() {
       if (!partnerId) return;
       setLoading(true);
       let url = `/api/orders?partnerId=${partnerId}&limit=${limit}&offset=${offset}`;
-      if (selectedClient) url += `&clientId=${selectedClient}`;
       if (selectedStatus) url += `&status=${selectedStatus}`;
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
@@ -157,7 +142,6 @@ export default function OrdersShippingPage() {
     fetchOrders();
   }, [
     partnerId,
-    selectedClient,
     selectedStatus,
     startDate,
     endDate,
@@ -269,36 +253,14 @@ export default function OrdersShippingPage() {
           title="배송 관리"
           titleIcon={Truck}
           description={
-            <>
-              주문별 배송 상태를 관리하고 송장을 등록합니다.{" "}
-              <span className="text-slate-700">
-                뉴런·협회(화훼) 연동 주문은 <strong>협회 배송 추적</strong> 배지가 붙으며, 택배
-                송장은 협회 콜백(2.6)을 사용하므로 이 화면에서 수정할 수 없습니다.
-              </span>
-            </>
+            <span className="break-keep [word-break:keep-all]">
+              주문별 배송 내역을 검색과 필터로 빠르게 찾고, 배송 상태를 관리하거나 송장을 등록합니다.
+            </span>
           }
         />
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">거래처</label>
-              <select
-                value={selectedClient}
-                onChange={(e) => {
-                  setSelectedClient(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 min-w-[140px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              >
-                <option value="">전체</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">배송 상태</label>
               <select
@@ -390,9 +352,6 @@ export default function OrdersShippingPage() {
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-slate-600">
                   주문번호
                 </th>
-                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                  거래처
-                </th>
                 <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-slate-600 min-w-[80px]">
                   수령인
                 </th>
@@ -422,7 +381,7 @@ export default function OrdersShippingPage() {
                  * - 일반 쇼핑몰(비화훼) 거래처가 붙어 택배 배송·관리자 송장 등록이 필요해질 때
                  *   본 <th> / 아래 tbody <td> / 하단 모달 JSX / colSpan 값을 함께 복구할 것.
                  *
-                 * 복구 체크리스트: colSpan 10→11, 아래 두 블록 + 모달 블록 주석 해제.
+                 * 복구 체크리스트: colSpan 9→10, 아래 두 블록 + 모달 블록 주석 해제.
                  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                  *
                  * <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-semibold text-slate-600 min-w-[100px]">
@@ -434,12 +393,12 @@ export default function OrdersShippingPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
                     조건에 맞는 주문이 없습니다.
                   </td>
                 </tr>
@@ -505,9 +464,6 @@ export default function OrdersShippingPage() {
                           <span>{order.order_no}</span>
                         </span>
                       </button>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">
-                      {order.client.name}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">
                       {order.shipping_name}

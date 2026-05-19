@@ -273,12 +273,9 @@ export default function AdminAlimtalkMessagesPage() {
           title="알림톡 발송 관리"
           titleIcon={MessageSquare}
           description={
-            <Fragment>
-              <p>발송 건별 내역과 예상 정산(건당 {summary.unitWon}원)을 확인합니다.</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                조회 결과 그룹 {total.toLocaleString("ko-KR")}건
-              </p>
-            </Fragment>
+            <span className="break-keep [word-break:keep-all]">
+              알림톡 발송 내역을 검색과 필터로 빠르게 찾고, 발송 건별 상세 내역과 예상 정산 금액(건당 4원)을 확인합니다.
+            </span>
           }
         />
 
@@ -413,49 +410,49 @@ export default function AdminAlimtalkMessagesPage() {
                 <tr>
                   <th
                     rowSpan={3}
-                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-3 text-left text-sm font-bold text-slate-700"
+                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-2.5 text-left text-sm font-bold leading-tight text-slate-700"
                   >
                     발송일시
                   </th>
                   <th
                     rowSpan={3}
-                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-3 text-left text-sm font-bold text-slate-700"
+                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-2.5 text-left text-sm font-bold leading-tight text-slate-700"
                   >
                     발송 구분
                   </th>
                   <th
                     rowSpan={3}
-                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-3 text-left text-sm font-bold text-slate-700"
+                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-2.5 text-left text-sm font-bold leading-tight text-slate-700"
                   >
                     발송자
                   </th>
                   <th
                     rowSpan={3}
-                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-3 text-left text-sm font-bold text-slate-700"
+                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-2.5 text-left text-sm font-bold leading-tight text-slate-700"
                   >
                     발송 내용
                   </th>
                   <th
                     rowSpan={3}
-                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-3 text-center text-sm font-bold text-slate-700"
+                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-2.5 text-center text-sm font-bold leading-tight text-slate-700"
                   >
                     총발송
                   </th>
                   <th
                     rowSpan={3}
-                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-3 text-center text-sm font-bold text-green-700"
+                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-2.5 text-center text-sm font-bold leading-tight text-green-700"
                   >
                     성공
                   </th>
                   <th
                     rowSpan={3}
-                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-3 text-center text-sm font-bold text-red-600"
+                    className="whitespace-nowrap break-keep border-r border-slate-200/60 px-3 py-2.5 text-center text-sm font-bold leading-tight text-red-600"
                   >
                     실패
                   </th>
                   <th
                     colSpan={4}
-                    className="whitespace-nowrap break-keep border-b border-slate-200/60 px-3 py-2.5 text-center text-sm font-bold tracking-wide text-slate-800"
+                    className="whitespace-nowrap break-keep border-b border-slate-200/60 px-3 py-2 text-center text-sm font-bold leading-tight tracking-wide text-slate-800"
                   >
                     발송 유형별
                   </th>
@@ -463,11 +460,11 @@ export default function AdminAlimtalkMessagesPage() {
                 <tr>
                   <th
                     colSpan={2}
-                    className="whitespace-nowrap break-keep border-b border-r border-slate-200/60 px-2 py-2.5 text-center text-sm font-semibold text-slate-700"
+                    className="whitespace-nowrap break-keep border-b border-r border-slate-200/60 px-2 py-2 text-center text-sm font-semibold leading-tight text-slate-700"
                   >
                     <span className="inline-flex items-center justify-center gap-1">
                       <span
-                        className="select-none text-[1.05rem] leading-none"
+                        className="select-none text-[1rem] leading-none"
                         aria-hidden
                       >
                         💬
@@ -477,11 +474,11 @@ export default function AdminAlimtalkMessagesPage() {
                   </th>
                   <th
                     colSpan={2}
-                    className="whitespace-nowrap break-keep border-b border-slate-200/60 px-2 py-2.5 text-center text-sm font-semibold text-slate-700"
+                    className="whitespace-nowrap break-keep border-b border-slate-200/60 px-2 py-2 text-center text-sm font-semibold leading-tight text-slate-700"
                   >
                     <span className="inline-flex items-center justify-center gap-1">
                       <span
-                        className="select-none text-[1.05rem] leading-none"
+                        className="select-none text-[1rem] leading-none"
                         aria-hidden
                       >
                         ✉️
@@ -491,16 +488,16 @@ export default function AdminAlimtalkMessagesPage() {
                   </th>
                 </tr>
                 <tr>
-                  <th className="whitespace-nowrap break-keep border-r border-slate-200/60 px-2 py-2.5 text-center text-sm font-semibold text-green-700">
+                  <th className="whitespace-nowrap break-keep border-r border-slate-200/60 px-2 py-2 text-center text-sm font-semibold leading-tight text-green-700">
                     성공
                   </th>
-                  <th className="whitespace-nowrap break-keep border-r border-slate-200/60 px-2 py-2.5 text-center text-sm font-semibold text-red-600">
+                  <th className="whitespace-nowrap break-keep border-r border-slate-200/60 px-2 py-2 text-center text-sm font-semibold leading-tight text-red-600">
                     실패
                   </th>
-                  <th className="whitespace-nowrap break-keep border-r border-slate-200/60 px-2 py-2.5 text-center text-sm font-semibold text-green-700">
+                  <th className="whitespace-nowrap break-keep border-r border-slate-200/60 px-2 py-2 text-center text-sm font-semibold leading-tight text-green-700">
                     성공
                   </th>
-                  <th className="whitespace-nowrap break-keep px-2 py-2.5 text-center text-sm font-semibold text-red-600">
+                  <th className="whitespace-nowrap break-keep px-2 py-2 text-center text-sm font-semibold leading-tight text-red-600">
                     실패
                   </th>
                 </tr>

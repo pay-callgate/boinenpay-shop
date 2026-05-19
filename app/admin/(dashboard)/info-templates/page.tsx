@@ -172,7 +172,7 @@ export default function InfoTemplatesPage() {
         titleIcon={ScrollText}
         description={
           <span className="break-keep [word-break:keep-all]">
-            쇼핑몰 상세페이지 하단에 노출되는 배송 안내, 취소/환불, 상품 고시 등 공통 안내 사항을 템플릿으로 관리합니다.
+            쇼핑몰 상세페이지 하단에 노출되는 공통 안내 템플릿을 검색과 필터로 빠르게 찾고, 배송·환불·상품 고시 등의 정보를 수정 관리합니다.
           </span>
         }
       />

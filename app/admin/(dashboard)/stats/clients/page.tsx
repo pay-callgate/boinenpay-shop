@@ -109,9 +109,7 @@ export default function StatsClientsPage() {
               거래처별 분석
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-              <strong className="font-semibold text-slate-800">전용몰·거래처(브랜드)</strong>별 주문
-              건수와 <strong className="font-semibold text-slate-800">결제완료 매출</strong>을
-              비교합니다. 꽃배달 B2B에서 거래처 실적을 빠르게 파악할 수 있습니다.
+              전용몰·거래처(브랜드)별 주문 건수와 결제완료 매출을 비교합니다.
             </p>
           </div>
           <div

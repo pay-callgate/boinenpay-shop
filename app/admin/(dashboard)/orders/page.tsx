@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Calendar, Check, ClipboardList, Flower2, Search } from "lucide-react";
+import { Bell, Calendar, Check, ClipboardList, ListOrdered, Search } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import {
@@ -19,6 +19,10 @@ import { ADMIN_ORDER_NOTIFY_POLL_MS } from "@/lib/admin-order-notify-poll";
  * 무통장 입금 등으로 결제대기 탭을 다시 쓸 때 false로 바꿉니다.
  */
 const ADMIN_ORDER_LIST_EXCLUDE_PENDING = true;
+
+/** 상단 `AdminPageHeader`·카테고리 패널과 동일 톤의 목록 요약 헤더 */
+const ordersTableSummaryHeaderClass =
+  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-4 sm:px-6";
 
 /**
  * T5-1: 주문 목록 페이지 (파트너 어드민) — 중앙 집중형 /admin/orders
@@ -574,35 +578,22 @@ export default function OrdersPage() {
       {/* [2] 상단 고정: 타이틀·필터 (스크롤 시 찌그러짐 방지) */}
       <div className="shrink-0">
         <AdminPageHeader
+          className="shrink-0"
           eyebrow="Orders · List"
           title="주문 목록"
           titleIcon={ClipboardList}
-          description="전체 주문 내역을 조회하고 관리합니다."
-          rightSlot={
-            <button
-              type="button"
-              onClick={handleExcelDownload}
-              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              엑셀 다운로드
-            </button>
+          description={
+            <span className="break-keep [word-break:keep-all]">
+              쇼핑몰의 전체 주문 내역을 검색과 필터로 빠르게 찾고, 주문의 결제 및 배송 상태를 관리합니다.
+            </span>
           }
         />
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-800">
             <div className="mb-2.5 text-xs font-semibold text-slate-600">기간 설정</div>
-            <div className="flex min-w-0 flex-nowrap items-center gap-x-2 gap-y-0 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {/* 주문 · 희망배송 + 우측 검색 (한 줄) */}
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+              {/* 주문 · 희망배송 + 검색(좌측 이어 배치) + 엑셀(우측, 알림톡 패턴) */}
               <span className="w-12 shrink-0 text-xs font-medium text-slate-500 sm:w-14">주문</span>
               <input
                 type="date"
@@ -643,11 +634,11 @@ export default function OrdersPage() {
               />
               <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
 
-              <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-2 pl-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <select
                   value={draft.selectedClient}
                   onChange={(e) => setDraft((d) => ({ ...d, selectedClient: e.target.value }))}
-                  className="h-10 w-auto min-w-[9rem] max-w-[11rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="h-9 w-auto min-w-[9rem] max-w-[11rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                 >
                   <option value="">거래처 선택</option>
                   {clients.map((client) => (
@@ -661,7 +652,7 @@ export default function OrdersPage() {
                   onChange={(e) =>
                     setDraft((d) => ({ ...d, ...applyUnifiedPick(e.target.value) }))
                   }
-                  className="h-10 w-auto min-w-[9.5rem] max-w-[12.5rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="h-9 w-auto min-w-[9.5rem] max-w-[12.5rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                 >
                   <option value="all">상태 통합검색</option>
                   <optgroup label="주문 상태">
@@ -691,10 +682,29 @@ export default function OrdersPage() {
                 <button
                   type="button"
                   onClick={applySearch}
-                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 py-2 text-sm font-semibold whitespace-nowrap text-white hover:bg-gray-800"
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 text-sm font-semibold whitespace-nowrap text-white hover:bg-gray-800"
                 >
                   검색
                   <Search className="h-4 w-4 shrink-0" aria-hidden />
+                </button>
+              </div>
+
+              <div className="ml-auto flex shrink-0 items-center">
+                <button
+                  type="button"
+                  onClick={handleExcelDownload}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  엑셀 다운로드
                 </button>
               </div>
             </div>
@@ -707,35 +717,40 @@ export default function OrdersPage() {
       </div>
 
       {/* [3] 테이블 카드 + 내부 스크롤 / [4] 하단 고정 페이징 */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="flex items-center gap-2">
-              <Flower2
-                className="h-6 w-6 shrink-0 text-pink-300"
-                strokeWidth={1.75}
-                aria-hidden
-              />
-              <span className="text-[calc(1.25rem+2pt)] font-bold leading-7 text-blue-700">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+        <div
+          className={`flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 ${ordersTableSummaryHeaderClass}`}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
+              Orders · Summary
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+                <ListOrdered
+                  className="h-5 w-5 shrink-0 text-emerald-600 sm:h-6 sm:w-6"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
                 {listMonthTitle}
-              </span>
+              </h2>
+              {!loading ? (
+                <span className="text-xs text-slate-600 sm:text-sm">
+                  총발주 수: {total}건 ( {summaryAmountText} )
+                </span>
+              ) : (
+                <span className="text-xs text-slate-400 sm:text-sm">불러오는 중…</span>
+              )}
             </div>
-            {!loading ? (
-              <span className="text-sm font-medium text-gray-700">
-                총발주 수: {total}건 ( {summaryAmountText} )
-              </span>
-            ) : (
-              <span className="text-sm font-medium text-gray-400">불러오는 중…</span>
-            )}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-4 sm:ml-auto">
+          <div className="flex flex-wrap items-center justify-end gap-3 sm:ml-auto sm:gap-4">
             <button
               type="button"
               onClick={pickQuickAll}
               className={`text-sm transition-colors ${
                 quickTab === "all"
-                  ? "border-b-2 border-black pb-1 font-bold text-black"
-                  : "font-normal text-gray-500 hover:text-black"
+                  ? "border-b-2 border-emerald-600 pb-1 font-semibold text-slate-900"
+                  : "font-normal text-slate-500 hover:text-slate-800"
               }`}
             >
               전체{countAllOrders != null ? ` ${countAllOrders}건` : ""}
@@ -746,8 +761,8 @@ export default function OrdersPage() {
                 onClick={pickQuickPending}
                 className={`text-sm transition-colors ${
                   quickTab === "pending_payment"
-                    ? "border-b-2 border-black pb-1 font-bold text-black"
-                    : "font-normal text-gray-500 hover:text-black"
+                    ? "border-b-2 border-emerald-600 pb-1 font-semibold text-slate-900"
+                    : "font-normal text-slate-500 hover:text-slate-800"
                 }`}
               >
                 결제대기{countPendingPayment != null ? ` ${countPendingPayment}` : ""}
@@ -756,13 +771,14 @@ export default function OrdersPage() {
             <button
               type="button"
               onClick={pickQuickNewrunFail}
-              className={`text-sm font-bold ${
+              className={`inline-flex items-center gap-1 text-sm font-semibold ${
                 quickTab === "newrun_failed"
-                  ? "rounded-full bg-orange-50 px-3 py-1 text-orange-600 ring-2 ring-orange-300"
-                  : "rounded-full bg-orange-50 px-3 py-1 text-orange-600 hover:bg-orange-100"
+                  ? "rounded-full bg-orange-50 px-3 py-1.5 text-orange-700 ring-2 ring-orange-200"
+                  : "rounded-full bg-orange-50 px-3 py-1.5 text-orange-700 hover:bg-orange-100"
               }`}
             >
-              뉴런 발주 실패{countNewrunFailed != null ? ` ${countNewrunFailed}` : ""} 🚨
+              <Bell className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+              뉴런 발주 실패{countNewrunFailed != null ? ` ${countNewrunFailed}` : ""}
             </button>
           </div>
         </div>

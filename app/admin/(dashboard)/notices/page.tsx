@@ -13,12 +13,7 @@ export default function NoticesPage() {
       eyebrow="Board · Notices"
       title="공지사항"
       titleIcon={Megaphone}
-      description={
-        <>
-          파트너와 거래처(전용몰)에 전달할{" "}
-          <strong className="font-semibold text-slate-800">공지</strong>를 등록하고 관리합니다.
-        </>
-      }
+      description="파트너와 거래처(전용몰)에 전달할 공지를 등록하고 관리합니다."
     />
   );
 }

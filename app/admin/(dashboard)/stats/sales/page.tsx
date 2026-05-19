@@ -198,9 +198,7 @@ export default function StatsSalesPage() {
               매출 분석
             </h1>
             <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
-              화환·꽃배달 주문의{" "}
-              <strong className="font-semibold text-slate-800">결제완료 기준 매출</strong>과 월별 추이,
-              배송·접수 상태를 한눈에 확인합니다.
+              화환·꽃배달 주문의 결제완료 기준 매출과 월별 추이, 배송·접수 상태를 한눈에 확인합니다.
             </p>
           </div>
           <div
