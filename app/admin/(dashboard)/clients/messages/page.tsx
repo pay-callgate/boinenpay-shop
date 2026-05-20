@@ -254,15 +254,11 @@ export default function AdminAlimtalkMessagesPage() {
         <AlimtalkHistoryDetailModal
           isOpen={!!detailRow}
           onClose={() => setDetailRow(null)}
-          title={detailRow.title}
           body={detailRow.body}
           senderPhone={detailRow.senderPhone}
           receiverPhone={detailRow.recipientPhone}
           batchId={detailRow.batchId}
           listKind={detailRow.listKind}
-          providerResultCode={detailRow.providerResultCode ?? null}
-          providerErrorMessage={detailRow.providerErrorMessage ?? null}
-          deliveryOk={detailRow.failCount === 0}
         />
       )}
 

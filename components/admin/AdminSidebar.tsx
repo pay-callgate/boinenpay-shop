@@ -203,8 +203,9 @@ export function AdminSidebar({
 
           {/* 아코디언 섹션 */}
           {navSections.map(({ key, label, icon, items }) => {
-            const open = openSections[key];
             const sectionHasActive = hasActiveChild(items);
+            /** 활성 하위 페이지가 있으면 해당 섹션은 항상 펼침(직링크 진입 포함). 비활성 시에만 접힘 상태를 사용 */
+            const expanded = sectionHasActive ? true : openSections[key];
             return (
               <li key={key} className="pt-1">
                 <button
@@ -216,7 +217,7 @@ export function AdminSidebar({
                       : "text-slate-200 hover:bg-blue-500/15 hover:text-blue-300"
                   }`}
                   style={
-                    sectionHasActive && !open
+                    sectionHasActive && !expanded
                       ? { backgroundColor: `${BRAND_BLUE}22` }
                       : undefined
                   }
@@ -235,11 +236,11 @@ export function AdminSidebar({
                   </div>
                   <ChevronDown
                     className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
-                      open ? "rotate-180" : "rotate-0"
+                      expanded ? "rotate-180" : "rotate-0"
                     }`}
                   />
                 </button>
-                {open && (
+                {expanded && (
                   <ul className="mt-0.5 space-y-0.5 pl-6">
                     {items.map((item) => {
                       const active = isSubmenuActive(item.href);

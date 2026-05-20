@@ -39,19 +39,12 @@ export type AlimtalkBatchRecipient = {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
   body: string;
   senderPhone: string;
   receiverPhone: string;
   /** 대량 발송이면 수신자 탭·목록 API 조회 */
   batchId: string | null;
   listKind: "single" | "batch";
-  /** DB `result_code` — 단건·그룹 요약 시 */
-  providerResultCode?: string | null;
-  /** DB `error_message` 또는 배치 요약 문구 */
-  providerErrorMessage?: string | null;
-  /** 접수·집계 기준 성공 여부 (실패 건수 0) */
-  deliveryOk?: boolean;
 }
 
 /**
@@ -61,15 +54,11 @@ interface Props {
 export function AlimtalkHistoryDetailModal({
   isOpen,
   onClose,
-  title,
   body,
   senderPhone,
   receiverPhone,
   batchId,
   listKind,
-  providerResultCode = null,
-  providerErrorMessage = null,
-  deliveryOk = true,
 }: Props) {
   const byteCount = getByteCount(body);
   const showRecipientsTab = listKind === "batch" && !!batchId;
@@ -255,48 +244,6 @@ export function AlimtalkHistoryDetailModal({
             </div>
           ) : (
             <>
-              {(providerResultCode != null && providerResultCode !== "") ||
-              (providerErrorMessage != null && providerErrorMessage !== "") ||
-              !deliveryOk ? (
-                <div
-                  className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
-                    deliveryOk
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                      : "border-red-200 bg-red-50 text-red-900"
-                  }`}
-                  role="status"
-                >
-                  <p className="font-semibold">Agent2 접수 결과</p>
-                  <p className="mt-1 text-xs opacity-90">
-                    매뉴얼 [결과코드] — 숫자 <strong>0</strong>만 접수 성공, 그
-                    외 코드는 실패로 처리합니다.
-                  </p>
-                  {providerResultCode != null && providerResultCode !== "" && (
-                    <p className="mt-2 text-sm [overflow-wrap:anywhere]">
-                      <span className="font-semibold">result_code: </span>
-                      <span className="font-mono">
-                        {formatMsgagentResultCodeForAdminDisplay(
-                          providerResultCode
-                        )}
-                      </span>
-                    </p>
-                  )}
-                  {providerErrorMessage != null &&
-                    providerErrorMessage !== "" && (
-                      <p className="mt-2 whitespace-pre-wrap break-words leading-snug">
-                        {providerErrorMessage}
-                      </p>
-                    )}
-                  {!deliveryOk &&
-                    (!providerErrorMessage || providerErrorMessage === "") && (
-                      <p className="mt-2">
-                        이번 건은 접수 실패로 집계되었습니다. 결과코드·사유를
-                        확인해 주세요.
-                      </p>
-                    )}
-                </div>
-              ) : null}
-              <p className="mb-4 text-sm font-semibold text-gray-900">{title}</p>
               <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:min-h-[420px]">
                 <div className="flex flex-col gap-6 lg:col-span-5">
                   <div>
