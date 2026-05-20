@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { postSlack070C2wCompleteNotice } from "@/lib/integrations/slack-070-queue";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    console.info("[webhook/callcloud-sync] 수신", {
+      clientId: id.slice(0, 8) + "…",
+      statusPreview: String(status).slice(0, 32),
+    });
+
     const supabase = createServerSupabase();
 
     const { data: clientRow, error: clientErr } = await supabase
@@ -135,6 +141,17 @@ export async function POST(request: NextRequest) {
     if (updClientErr) {
       console.error("[webhook/callcloud-sync] clients 업데이트 실패", updClientErr);
       return NextResponse.json({ error: "DB 업데이트 실패" }, { status: 500 });
+    }
+
+    console.info("[webhook/callcloud-sync] 반영 완료", {
+      clientId: id.slice(0, 8) + "…",
+      alreadyComplete: wasAlreadyComplete,
+    });
+
+    try {
+      await postSlack070C2wCompleteNotice({ clientIdPrefix: id.slice(0, 8) });
+    } catch (slackErr) {
+      console.error("[webhook/callcloud-sync] C2W 완료 슬랙 알림 실패", slackErr);
     }
 
     return NextResponse.json({

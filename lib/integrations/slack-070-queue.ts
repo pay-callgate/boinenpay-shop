@@ -41,3 +41,38 @@ export async function postSlack070QueueNotification(opts: {
     throw new Error(`Slack webhook failed: HTTP ${res.status} ${body.slice(0, 240)}`);
   }
 }
+
+const C2W_COMPLETE_MESSAGE =
+  "콜링크 서버에서 C2W 연동 완료 처리 결과를 정상 수신하여 시스템 처리 완료하였습니다.";
+
+/**
+ * Callcloud 시트 "완료" → 웹훅으로 DB 반영 완료 시 동일 Incoming Webhook으로 고정 안내 발송.
+ * 클라이언트 식별자는 선택(마스킹된 짧은 id만 표시 가능).
+ */
+export async function postSlack070C2wCompleteNotice(opts?: {
+  clientIdPrefix?: string;
+}): Promise<void> {
+  const url =
+    process.env.SLACK_070_WEBHOOK_URL?.trim() ||
+    process.env.SLACK_WEBHOOK_URL?.trim();
+  if (!url) {
+    throw new Error(
+      "SLACK_070_WEBHOOK_URL (또는 SLACK_WEBHOOK_URL) is not configured"
+    );
+  }
+
+  const suffix = opts?.clientIdPrefix?.trim()
+    ? `\n• 거래처 id: \`${opts.clientIdPrefix}…\``
+    : "";
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: `${C2W_COMPLETE_MESSAGE}${suffix}` }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Slack webhook failed: HTTP ${res.status} ${body.slice(0, 240)}`);
+  }
+}
