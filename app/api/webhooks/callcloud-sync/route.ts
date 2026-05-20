@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     const { data: clientRow, error: clientErr } = await supabase
       .from("clients")
-      .select("id")
+      .select("id, name")
       .eq("id", id)
       .maybeSingle();
 
@@ -98,6 +98,11 @@ export async function POST(request: NextRequest) {
     if (!clientRow) {
       return NextResponse.json({ error: "거래처를 찾을 수 없습니다." }, { status: 404 });
     }
+
+    const clientDisplayName =
+      typeof clientRow.name === "string" && clientRow.name.trim()
+        ? clientRow.name.trim()
+        : "(이름 없음)";
 
     const { data: cfg, error: cfgErr } = await supabase
       .from("client_call_070_configs")
@@ -149,7 +154,10 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      await postSlack070C2wCompleteNotice({ clientIdPrefix: id.slice(0, 8) });
+      await postSlack070C2wCompleteNotice({
+        clientName: clientDisplayName,
+        clientId: id,
+      });
     } catch (slackErr) {
       console.error("[webhook/callcloud-sync] C2W 완료 슬랙 알림 실패", slackErr);
     }
