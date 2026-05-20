@@ -29,6 +29,7 @@ export async function postSlack070QueueNotification(opts: {
     `• 거래처: *${opts.clientName}* (${opts.clientId})`,
     `• ${rowHint}`,
     `• 시트 열기: ${sheetUrl}`,
+    "",
   ].join("\n");
 
   const res = await fetch(url, {
@@ -64,8 +65,8 @@ export async function postSlack070C2wCompleteNotice(opts: {
     "*070 연동 완료 안내(콜링크 쇼핑, Call2Web 모두 등록 완료)*",
     "",
     `• 거래처: *${name}* (${opts.clientId})`,
-    "",
     "• 응답메세지 : 콜링크 서버에서 C2W 등록 완료 결과를 정상 수신하였습니다.",
+    "",
   ].join("\n");
 
   const res = await fetch(url, {
