@@ -19,7 +19,7 @@ export type RibbonMessageSectionProps = {
   onRibbonPresetChange: (v: string) => void;
   ribbonMessageCustom: string;
   onRibbonMessageCustomChange: (v: string) => void;
-  /** 선택 — 뉴런 `rw_card` (입력 시에만 전송) */
+  /** 선택 — 카드에 들어갈 추가 문구 */
   ribbonCardExtra: string;
   onRibbonCardExtraChange: (v: string) => void;
 };
@@ -112,9 +112,6 @@ export function RibbonMessageSection(p: RibbonMessageSectionProps) {
         <label className={p.labelClass} style={{ color: p.textMutedColor }}>
           카드·추가 문구 <span className="text-xs font-normal">(선택)</span>
         </label>
-        <p className="mb-2 text-xs leading-snug" style={{ color: p.textMutedColor }}>
-          입력 시 뉴런 <span className="font-mono text-[11px]">rw_card</span>로 전달됩니다.
-        </p>
         <textarea
           value={p.ribbonCardExtra}
           onChange={(e) => p.onRibbonCardExtraChange(e.target.value)}
