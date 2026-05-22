@@ -7,8 +7,16 @@ type Props = {
   children: ReactNode;
 };
 
+/** Vercel 프로덕션 배포에서만 검증용 UI 비노출 (로컬·프리뷰는 유지) */
+const hideVerificationUi =
+  process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
+
 export function OrderNewrunAccordion({ children }: Props) {
   const [open, setOpen] = useState(false);
+
+  if (hideVerificationUi) {
+    return null;
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">

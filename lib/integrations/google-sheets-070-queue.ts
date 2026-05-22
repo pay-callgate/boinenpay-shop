@@ -15,7 +15,8 @@ export type Append070QueueRowInput = {
   smsTextTemplate: string;
 };
 
-/** GAS CONFIG와 동일: A~M 데이터, N=진행상태, O=완료일자(빈 값) */
+/** GAS CONFIG와 동일: A~M 데이터, N=진행상태, O=완료일자(빈 값)
+ * 시트 열: … G=업종, H=플랫폼/구분 드롭(서버에서 윗행 복사), I=관리자명 … N=진행상태(윗행 복사), O=완료일자 */
 export function build070QueueRowValues(input: Append070QueueRowInput): string[] {
   return [
     input.requestedAtKst,
@@ -25,14 +26,14 @@ export function build070QueueRowValues(input: Append070QueueRowInput): string[] 
     input.greetingMessage,
     input.call070Number,
     input.industry,
+    "", // H — append 시 바로 위 데이터 행에서 복사
     input.adminName,
     input.adminEmail,
     input.adminPhone,
     input.serviceUrl,
     input.smsTextTemplate,
-    "",
-    "연동 대기",
-    "",
+    "연동 대기", // N — append 시 윗행 복사로 덮어씀(템플릿·맨 위 행 없을 때 유지)
+    "", // O
   ];
 }
 
@@ -42,6 +43,65 @@ export function parseSheetAppendedRow(updatedRange: string | null | undefined): 
   if (!m) return null;
   const n = parseInt(m[1], 10);
   return Number.isFinite(n) ? n : null;
+}
+
+/** 열 H=8번째, N=14번째(1-based A=1) → 0-based 7, 13 */
+const COL_IDX_H = 7;
+const COL_IDX_N = 13;
+
+function rowHasAnyData(row: unknown[] | undefined): boolean {
+  if (!row?.length) return false;
+  return row.some((c) => c != null && String(c).trim() !== "");
+}
+
+function padToLength(row: unknown[], len: number): string[] {
+  const out = [...row].map((c) => (c == null ? "" : String(c)));
+  while (out.length < len) out.push("");
+  return out;
+}
+
+function get070DataStartRow(): number {
+  const n = parseInt(process.env.GOOGLE_SHEETS_070_DATA_START_ROW || "5", 10);
+  return Number.isFinite(n) && n >= 1 ? n : 5;
+}
+
+function get070TemplateRow(): number {
+  const n = parseInt(process.env.GOOGLE_SHEETS_070_TEMPLATE_ROW || "4", 10);
+  return Number.isFinite(n) && n >= 1 ? n : 4;
+}
+
+/**
+ * 시트에서 H·N 값: (1) 데이터 구간(A:O)에서 아래에서 위로 첫 "값이 있는 행"의 H·N
+ * (2) 없으면 TEMPLATE_ROW의 H~N 범위 첫 행 — H는 [0], N은 [6] (H…N 열 7칸)
+ */
+async function fetchHandNFromPreviousOrTemplate(
+  sheets: ReturnType<typeof google.sheets>,
+  spreadsheetId: string,
+  escapedSheet: string
+): Promise<{ h: string; n: string; source: "previous_data_row" | "template_row" }> {
+  const dataStart = get070DataStartRow();
+  const templateRow = get070TemplateRow();
+
+  const dataRange = `'${escapedSheet}'!A${dataStart}:O`;
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range: dataRange });
+  const rows = res.data.values ?? [];
+
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (!rowHasAnyData(rows[i])) continue;
+    const r = padToLength(rows[i] ?? [], 15);
+    return {
+      h: String(r[COL_IDX_H] ?? "").trim(),
+      n: String(r[COL_IDX_N] ?? "").trim(),
+      source: "previous_data_row",
+    };
+  }
+
+  const tr = `'${escapedSheet}'!H${templateRow}:N${templateRow}`;
+  const tres = await sheets.spreadsheets.values.get({ spreadsheetId, range: tr });
+  const trv = tres.data.values?.[0];
+  const h = trv?.[0] != null ? String(trv[0]).trim() : "";
+  const n = trv?.[6] != null ? String(trv[6]).trim() : "";
+  return { h, n, source: "template_row" };
 }
 
 /** 스프레드시트 전체 URL 또는 `/edit?gid=0`가 붙은 값에서 ID만 추출 */
@@ -152,9 +212,24 @@ export async function append070QueueRow(
   const sheets = google.sheets({ version: "v4", auth });
 
   const escaped = sheetName.replace(/'/g, "''");
-  const range = `'${escaped}'!A:O`;
+
+  const { h: copyH, n: copyN, source: hnSource } = await fetchHandNFromPreviousOrTemplate(
+    sheets,
+    spreadsheetId,
+    escaped
+  );
 
   const values = build070QueueRowValues(input);
+  values[COL_IDX_H] = copyH;
+  values[COL_IDX_N] = copyN || values[COL_IDX_N];
+
+  console.info("[google-sheets-070] H/N from row above or template", {
+    source: hnSource,
+    spreadsheetIdTail: spreadsheetId.slice(-8),
+    sheetName,
+  });
+
+  const range = `'${escaped}'!A:O`;
 
   try {
     const res = await sheets.spreadsheets.values.append({

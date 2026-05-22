@@ -14,8 +14,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  ADMIN_MODAL_CANCEL_BTN_CLASS,
-  ADMIN_MODAL_PRIMARY_BTN_CLASS,
+  ADMIN_MODAL_FOOTER_CANCEL_BTN_CLASS,
+  ADMIN_MODAL_FOOTER_PRIMARY_BTN_CLASS,
 } from "@/lib/admin-dialog-policy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -23,6 +23,8 @@ import {
   DEFAULT_PRODUCT_DELIVERY_METHODS,
   normalizeDeliveryMethodsForDb,
 } from "@/lib/product-delivery-methods";
+import { DEFAULT_NEW_PRODUCT_STOCK_QTY } from "@/lib/product-form-defaults";
+import { StockQtyStepper } from "@/components/admin/StockQtyStepper";
 
 /** 노출 순서: 당일배송 → 새벽배송 → 퀵서비스 → 택배 → 매장픽업 */
 const deliveryOptions = [
@@ -40,7 +42,10 @@ const formSchema = z.object({
   basePrice: z.coerce.number().min(0, "정상가는 0원 이상이어야 합니다.").default(0),
   salePrice: z.union([z.coerce.number().min(0, "비회원 판매가는 0원 이상이어야 합니다."), z.literal("")]),
   memberPrice: z.union([z.coerce.number().min(0, "회원 특별가는 0원 이상이어야 합니다."), z.literal("")]),
-  stockQty: z.coerce.number().min(0, "재고는 0개 이상이어야 합니다.").default(0),
+  stockQty: z.coerce
+    .number()
+    .min(0, "재고는 0개 이상이어야 합니다.")
+    .default(DEFAULT_NEW_PRODUCT_STOCK_QTY),
 });
 
 type FormValues = z.infer<typeof formSchema> & {
@@ -113,11 +118,12 @@ export function ProductRegistrationModal({
       basePrice: 0,
       salePrice: "",
       memberPrice: "",
-      stockQty: 0,
+      stockQty: DEFAULT_NEW_PRODUCT_STOCK_QTY,
     },
   });
 
   const basePrice = watch("basePrice");
+  const stockQtyRaw = watch("stockQty");
   const salePrice = watch("salePrice");
   const memberPrice = watch("memberPrice");
   const salePriceNum = typeof salePrice === "number" ? salePrice : Number(salePrice) || 0;
@@ -176,7 +182,7 @@ export function ProductRegistrationModal({
         basePrice: 0,
         salePrice: "",
         memberPrice: "",
-        stockQty: 0,
+        stockQty: DEFAULT_NEW_PRODUCT_STOCK_QTY,
         categoryId: "",
       });
       setGuestPctDraft("0");
@@ -202,6 +208,18 @@ export function ProductRegistrationModal({
   const regBase = register("basePrice", { valueAsNumber: true });
   const regSale = register("salePrice");
   const regMember = register("memberPrice");
+  const regStockQty = register("stockQty", { valueAsNumber: true });
+
+  const coerceStockQty = (raw: typeof stockQtyRaw): number => {
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return Math.floor(n);
+  };
+
+  const adjustStockQty = (delta: number) => {
+    const next = Math.max(0, coerceStockQty(stockQtyRaw) + delta);
+    setValue("stockQty", next, { shouldValidate: true, shouldDirty: true });
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -599,6 +617,22 @@ export function ProductRegistrationModal({
                       <p className="mt-1 text-xs text-red-600">{String(errors.memberPrice.message)}</p>
                     )}
                   </div>
+
+                  {/* 재고: sm 이상에서는 비회원 판매가 열 폭과 동일 (그리드 1열) */}
+                  <div className="min-w-0">
+                    <StockQtyStepper
+                      mode="rhf"
+                      id="product-stock-qty"
+                      label="재고 수량"
+                      registerReturn={regStockQty}
+                      decrementDisabled={coerceStockQty(stockQtyRaw) <= 0}
+                      onDecrement={() => adjustStockQty(-1)}
+                      onIncrement={() => adjustStockQty(1)}
+                      errorMessage={
+                        errors.stockQty ? String(errors.stockQty.message) : undefined
+                      }
+                    />
+                  </div>
                 </div>
 
                 {memberHigherThanGuest && (
@@ -606,15 +640,6 @@ export function ProductRegistrationModal({
                     회원가가 비회원가보다 높습니다.
                   </p>
                 )}
-                <div className="max-w-xs">
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">재고 수량</label>
-                  <input
-                    type="number"
-                    {...register("stockQty")}
-                    min={0}
-                    className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-                  />
-                </div>
               </CardContent>
             </Card>
 
@@ -658,7 +683,7 @@ export function ProductRegistrationModal({
           <button
             type="button"
             onClick={onClose}
-            className={ADMIN_MODAL_CANCEL_BTN_CLASS}
+            className={ADMIN_MODAL_FOOTER_CANCEL_BTN_CLASS}
           >
             취소
           </button>
@@ -666,7 +691,7 @@ export function ProductRegistrationModal({
             type="submit"
             form="product-reg-form"
             disabled={saving}
-            className={`${ADMIN_MODAL_PRIMARY_BTN_CLASS} whitespace-nowrap`}
+            className={ADMIN_MODAL_FOOTER_PRIMARY_BTN_CLASS}
           >
             {initialData ? "수정 저장" : "상품 등록"}
           </button>

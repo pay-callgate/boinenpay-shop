@@ -2,8 +2,11 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const headerCardClass =
+/** 어드민 상단 헤더 카드(주문 목록·매출 분석·주문 상세 등) 공통 톤 */
+export const ADMIN_PAGE_HEADER_CARD_CLASS =
   "rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-emerald-50/40 px-5 py-4 shadow-sm sm:px-6";
+
+const headerCardClass = ADMIN_PAGE_HEADER_CARD_CLASS;
 
 export type AdminPageHeaderProps = {
   eyebrow: string;

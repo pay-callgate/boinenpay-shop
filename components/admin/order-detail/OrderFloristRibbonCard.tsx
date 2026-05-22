@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Pencil } from "lucide-react";
+import { Calendar } from "lucide-react";
 import {
   formatAdminDeliveryMethod,
   formatDesiredDeliveryDateTimeLine,
@@ -15,7 +15,6 @@ type Props = {
   ribbonMessage: string | null | undefined;
   ribbonCardMessage: string | null | undefined;
   floristDesiredDeliveryIsToday: boolean;
-  onEditRibbon?: () => void;
 };
 
 export function OrderFloristRibbonCard({
@@ -27,7 +26,6 @@ export function OrderFloristRibbonCard({
   ribbonMessage,
   ribbonCardMessage,
   floristDesiredDeliveryIsToday,
-  onEditRibbon,
 }: Props) {
   const dateTimeLine = formatDesiredDeliveryDateTimeLine(
     desiredDeliveryDate,
@@ -37,23 +35,13 @@ export function OrderFloristRibbonCard({
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-2 border-b border-gray-100 pb-4">
+      <div className="mb-4 border-b border-gray-100 pb-4">
         <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
           <span className="text-xl leading-none" aria-hidden>
             🎀
           </span>
           화훼 배송 및 리본 정보
         </h2>
-        {onEditRibbon ? (
-          <button
-            type="button"
-            onClick={onEditRibbon}
-            className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-orange-500 hover:text-orange-600"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            수정
-          </button>
-        ) : null}
       </div>
 
       <div
@@ -79,38 +67,20 @@ export function OrderFloristRibbonCard({
         <p className="text-sm font-semibold text-gray-900">리본·카드 메시지</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-gray-200 bg-white p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-orange-500">
                 좌 · 보내는 분
               </span>
-              {onEditRibbon ? (
-                <button
-                  type="button"
-                  onClick={onEditRibbon}
-                  className="text-xs font-medium text-orange-500 hover:underline"
-                >
-                  수정
-                </button>
-              ) : null}
             </div>
             <p className="whitespace-pre-wrap break-words text-sm font-medium text-gray-900">
               {ribbonSender?.trim() || "—"}
             </p>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-orange-500">
                 우 · 경조사어
               </span>
-              {onEditRibbon ? (
-                <button
-                  type="button"
-                  onClick={onEditRibbon}
-                  className="text-xs font-medium text-orange-500 hover:underline"
-                >
-                  수정
-                </button>
-              ) : null}
             </div>
             <p className="whitespace-pre-wrap break-words text-sm font-medium text-gray-900">
               {ribbonMessage?.trim() || "—"}

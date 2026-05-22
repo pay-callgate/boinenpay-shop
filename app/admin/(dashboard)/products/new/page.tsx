@@ -6,6 +6,8 @@ import { Package } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { PRODUCT_IMAGE_UPLOAD_NOTICE } from "@/lib/product-image-guidance";
 import { ProductPolicyFormSection } from "@/components/admin/ProductPolicyFormSection";
+import { StockQtyStepper } from "@/components/admin/StockQtyStepper";
+import { DEFAULT_NEW_PRODUCT_STOCK_QTY } from "@/lib/product-form-defaults";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 /**
@@ -35,7 +37,7 @@ export default function ProductNewPage() {
     thumbnailUrl: "",
     basePrice: 0,
     salePrice: "",
-    stockQty: 0,
+    stockQty: DEFAULT_NEW_PRODUCT_STOCK_QTY,
     safetyStock: 0,
     status: "draft",
     allowDeliveryDate: false,
@@ -382,15 +384,14 @@ export default function ProductNewPage() {
             </div>
 
             <div>
-              <label style={labelStyle}>재고 수량</label>
-              <input
-                type="number"
+              <StockQtyStepper
+                mode="controlled"
+                id="product-new-stock-qty"
+                label="재고 수량"
                 value={formData.stockQty}
-                onChange={(e) =>
-                  setFormData({ ...formData, stockQty: parseInt(e.target.value) || 0 })
+                onChange={(n) =>
+                  setFormData((prev) => ({ ...prev, stockQty: n }))
                 }
-                min={0}
-                style={inputStyle}
               />
             </div>
 

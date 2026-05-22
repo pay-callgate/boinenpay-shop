@@ -1,45 +1,50 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { FileText } from "lucide-react";
+import { ADMIN_PAGE_HEADER_CARD_CLASS } from "@/components/admin/AdminPageHeader";
+import { cn } from "@/lib/utils";
 import {
   ORDER_STATUS_LABELS,
   isOrderStatusHighlightActive,
 } from "./order-detail-constants";
 
 type Props = {
-  orderNo: string;
   status: string;
-  onBack: () => void;
 };
 
-export function OrderDetailHeader({ orderNo, status, onBack }: Props) {
+export function OrderDetailHeader({ status }: Props) {
   const label = ORDER_STATUS_LABELS[status] || status;
   const highlight = isOrderStatusHighlightActive(status);
 
   return (
-    <header className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            주문 목록으로
-          </button>
-          <div className="hidden h-6 w-px bg-gray-200 sm:block" aria-hidden />
-          <h1 className="text-lg font-bold text-gray-900 sm:text-xl">
-            주문상세: <span className="font-mono">{orderNo}</span>
+    <header className={cn("mb-6", ADMIN_PAGE_HEADER_CARD_CLASS)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
+            Orders · Detail
+          </p>
+          <h1 className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+            <FileText
+              className="h-6 w-6 shrink-0 text-emerald-600 sm:h-7 sm:w-7"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            주문 상세
           </h1>
+          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm break-keep [word-break:keep-all]">
+            결제·배송·화훼 정보를 확인하고 상태를 변경할 수 있습니다.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-500">현재상태</span>
+
+        <div className="flex shrink-0 flex-col gap-1 sm:items-end">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[11px]">
+            현재 상태
+          </span>
           <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${
+            className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm ${
               highlight
                 ? "bg-orange-500 text-white"
-                : "bg-gray-100 text-gray-900"
+                : "border border-slate-200 bg-white text-slate-900"
             }`}
           >
             {label}

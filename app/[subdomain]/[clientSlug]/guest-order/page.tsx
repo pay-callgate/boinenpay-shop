@@ -347,10 +347,6 @@ export default function GuestOrderPage() {
       toast("배달지 주소를 입력해 주세요. 우편번호 찾기를 이용해 주세요.");
       return;
     }
-    if (!venueDetail.trim()) {
-      toast("장례식장·예식장명, 빈소 및 홀 호수 등을 입력해 주세요.");
-      return;
-    }
     if (!ribbonSender.trim()) {
       toast("보내는 분(리본)을 입력해 주세요.");
       return;
@@ -635,7 +631,7 @@ export default function GuestOrderPage() {
                       {item.product.name}
                     </p>
                     <p className="mt-1 text-xs sm:text-sm" style={{ color: TEXT_MUTED }}>
-                      비회원 판매가 {formatPrice(getItemUnit(item))}원 × {item.quantity}개
+                      {formatPrice(getItemUnit(item))}원 × {item.quantity}개
                     </p>
                     <p className="mt-0.5 text-sm font-bold" style={{ color: TEXT }}>
                       {formatPrice(getItemPrice(item))}원
@@ -881,7 +877,7 @@ export default function GuestOrderPage() {
               </div>
               <div>
                 <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                  장소 상세 <span className="text-rose-500">*</span>
+                  장소 상세 <span className="text-xs font-normal">(선택)</span>
                 </label>
                 <p className="mb-2 text-xs leading-snug" style={{ color: TEXT_MUTED }}>
                   <span className="block">배달 기사님이 쉽게 찾으실 수 있게 자세한 사항을 적어 주세요.</span>

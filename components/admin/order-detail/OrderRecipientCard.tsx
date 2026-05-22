@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, MapPin, Phone } from "lucide-react";
+import { Copy, MapPin } from "lucide-react";
 import { stripFloristShippingDetailMeta } from "@/lib/checkout-florist-fields";
 
 type Props = {
@@ -54,17 +54,8 @@ export function OrderRecipientCard({
       <dl className="space-y-3">
         <div className="flex gap-3">
           <dt className="w-24 shrink-0 text-sm font-medium text-gray-500">받는 분</dt>
-          <dd className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <dd className="min-w-0 flex-1">
             <span className="text-sm font-medium text-gray-900">{name || "—"}</span>
-            {phone ? (
-              <a
-                href={`tel:${phone.replace(/\s/g, "")}`}
-                className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 p-1.5 text-orange-500 hover:bg-gray-100"
-                aria-label="전화 걸기"
-              >
-                <Phone className="h-4 w-4" />
-              </a>
-            ) : null}
           </dd>
         </div>
         <div className="flex gap-3">
@@ -96,18 +87,18 @@ export function OrderRecipientCard({
                     href={mapHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-gray-800"
                   >
-                    <MapPin className="h-4 w-4" />
+                    <MapPin className="h-4 w-4 shrink-0" aria-hidden />
                     지도에서 위치 확인
                   </a>
                 ) : null}
                 <button
                   type="button"
                   onClick={() => void copyText(fullAddress, "addr")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-900 hover:bg-gray-100"
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   주소 복사
                 </button>
               </div>

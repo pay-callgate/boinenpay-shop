@@ -525,15 +525,12 @@ export default function OrderDetailPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900">
-      <OrderDetailHeader
-        orderNo={order.order_no}
-        status={order.status}
-        onBack={() => router.push("/admin/orders")}
-      />
+      <OrderDetailHeader status={order.status} />
 
       <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-10">
         <div className="flex flex-col gap-6 lg:col-span-7">
           <OrderProductCard
+            orderNo={order.order_no}
             items={items}
             totalAmount={order.total_amount}
             formatPrice={formatPrice}
@@ -567,11 +564,6 @@ export default function OrderDetailPage() {
             ribbonMessage={order.ribbon_message}
             ribbonCardMessage={order.ribbon_card_message}
             floristDesiredDeliveryIsToday={floristDesiredDeliveryIsToday}
-            onEditRibbon={() =>
-              alert(
-                "리본·카드 문구 수정 API는 준비 중입니다. 필요 시 백오피스에서 직접 처리해 주세요."
-              )
-            }
           />
         </div>
 

@@ -356,11 +356,6 @@ export default function CheckoutPage() {
       addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (!venueDetail.trim()) {
-      toast("장소 상세(장례·예식장 호실, 홀 위치 등)를 입력해 주세요.");
-      addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
     if (!ribbonSender.trim()) {
       toast("보내는 분(리본)을 입력해 주세요.");
       return;
@@ -965,7 +960,7 @@ export default function CheckoutPage() {
             </div>
             <div>
               <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                장소 상세 <span className="text-rose-500">*</span>
+                장소 상세 <span className="text-xs font-normal">(선택)</span>
               </label>
               <p className="mb-2 text-xs leading-snug" style={{ color: TEXT_MUTED }}>
                 빈소·예식장 호실, 층수, 홀 이름 등 배달 기사님이 찾으실 수 있게 적어 주세요.
