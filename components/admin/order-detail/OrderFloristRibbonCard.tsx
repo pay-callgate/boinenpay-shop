@@ -69,7 +69,7 @@ export function OrderFloristRibbonCard({
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="mb-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-orange-500">
-                좌 · 보내는 분
+                보내는 분
               </span>
             </div>
             <p className="whitespace-pre-wrap break-words text-sm font-medium text-gray-900">
@@ -79,7 +79,7 @@ export function OrderFloristRibbonCard({
           <div className="rounded-lg border border-gray-200 bg-white p-3">
             <div className="mb-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-orange-500">
-                우 · 경조사어
+                경조사어
               </span>
             </div>
             <p className="whitespace-pre-wrap break-words text-sm font-medium text-gray-900">

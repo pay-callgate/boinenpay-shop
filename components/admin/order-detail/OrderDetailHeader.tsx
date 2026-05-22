@@ -32,7 +32,7 @@ export function OrderDetailHeader({ status }: Props) {
             주문 상세
           </h1>
           <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm break-keep [word-break:keep-all]">
-            결제·배송·화훼 정보를 확인하고 상태를 변경할 수 있습니다.
+            주문·결제·배송 정보를 한눈에 확인하고, 필요한 경우 결제를 취소할 수 있습니다.
           </p>
         </div>
 
