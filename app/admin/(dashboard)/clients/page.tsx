@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Link2, Link as LinkIcon, Phone, Settings } from "lucide-react";
+import { Calendar, ChevronDown, Link2, Link as LinkIcon, Phone, Settings } from "lucide-react";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
 import { CallcloudIntegrationModal, type CallcloudModalEntry } from "@/components/admin/CallcloudIntegrationModal";
 import { getStorefrontUrl } from "@/lib/app-url";
@@ -62,6 +62,8 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+  const [filterDetailExpanded, setFilterDetailExpanded] = useState(false);
 
   const ITEMS_PER_PAGE = 7;
   const [currentPage, setCurrentPage] = useState(1);
@@ -220,7 +222,7 @@ export default function ClientsPage() {
         />
       )}
 
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
         {/* 상단 고정: 타이틀·필터·총 거래처 수 (스크롤 시 찌그러짐 방지) */}
         <div className="shrink-0">
           <div className="mb-6">
@@ -231,57 +233,82 @@ export default function ClientsPage() {
           </div>
 
           <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3">
-              <input
-                type="text"
-                placeholder="거래처명 또는 사업자번호 검색..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-10 min-w-[220px] rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              />
-              <select
-                value={deliveryType}
-                onChange={(e) => setDeliveryType(e.target.value)}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              >
-                {DELIVERY_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value || "all"} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              >
-                {STATUS_FILTER_OPTIONS.map((opt) => (
-                  <option key={opt.value || "all"} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                className="h-10 rounded-md border border-slate-300 bg-slate-800 px-4 text-sm font-medium text-white hover:bg-slate-900"
-              >
-                검색
-              </button>
-              <div className="ml-auto">
+            <form onSubmit={handleSearch}>
+              <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="거래처명 또는 사업자번호 검색..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 sm:min-w-[220px] sm:flex-initial"
+                />
+                <button
+                  type="submit"
+                  className="h-10 shrink-0 rounded-md border border-slate-300 bg-slate-800 px-4 text-sm font-medium text-white hover:bg-slate-900"
+                >
+                  검색
+                </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingClient(null);
-                    setRegistrationModalOpen(true);
-                  }}
-                  className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                  onClick={() => setFilterDetailExpanded((v) => !v)}
+                  className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold whitespace-nowrap transition-colors sm:text-sm ${
+                    filterDetailExpanded
+                      ? "border-slate-900 bg-white text-slate-900"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  aria-expanded={filterDetailExpanded}
                 >
-                  + 거래처 등록
+                  <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+                  배송·거래상태
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                      filterDetailExpanded ? "rotate-180" : ""
+                    }`}
+                    aria-hidden
+                  />
                 </button>
+                <div className="ml-auto flex shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingClient(null);
+                      setRegistrationModalOpen(true);
+                    }}
+                    className="inline-flex h-10 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                  >
+                    + 거래처 등록
+                  </button>
+                </div>
               </div>
+              {filterDetailExpanded ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3">
+                  <select
+                    value={deliveryType}
+                    onChange={(e) => setDeliveryType(e.target.value)}
+                    className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                  >
+                    {DELIVERY_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value || "all"} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                  >
+                    {STATUS_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value || "all"} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
             </form>
           </div>
 
@@ -302,10 +329,56 @@ export default function ClientsPage() {
           <p className="mb-3 text-sm text-slate-600">총 {filteredClients.length}개 거래처</p>
         </div>
 
-        {/* 테이블 & 페이징: 남는 공간 전부 채움, 본문만 스크롤 */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="flex-1 overflow-auto min-h-0">
-            <table className="w-full border-collapse relative">
+        {/* 테이블 & 페이징: 최소 높이 · 모바일 카드 */}
+        <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="scrollbar-thin flex-1 overflow-y-auto pb-4 md:hidden">
+            <div className="space-y-3 p-3">
+              {loading ? (
+                <p className="py-12 text-center text-sm text-slate-500">불러오는 중…</p>
+              ) : displayedClients.length === 0 ? (
+                <p className="py-12 text-center text-sm text-slate-500">등록된 거래처가 없습니다.</p>
+              ) : (
+                displayedClients.map((c, idx) => (
+                  <div
+                    key={c.id}
+                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs text-slate-500">
+                          No. {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                        </p>
+                        <p className="mt-1 text-base font-bold text-slate-800">{c.name}</p>
+                      </div>
+                      {getStatusBadge(c.verification_status)}
+                    </div>
+                    <p className="mt-3 text-lg font-bold text-rose-600">{formatRevenue(0)}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingClient(c);
+                          setRegistrationModalOpen(true);
+                        }}
+                        className="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                      >
+                        상세 보기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(c.id)}
+                        className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
+            <table className="relative w-full border-collapse">
               <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm shadow-[0_1px_0_#e2e8f0]">
                 <tr>
                   <th className="w-12 px-4 py-3 text-center text-xs font-semibold text-slate-600">
@@ -341,6 +414,7 @@ export default function ClientsPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
+                      불러오는 중…
                     </td>
                   </tr>
                 ) : displayedClients.length === 0 ? (

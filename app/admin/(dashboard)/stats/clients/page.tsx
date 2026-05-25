@@ -97,7 +97,7 @@ export default function StatsClientsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto">
       <header className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-teal-50/35 px-6 py-7 shadow-sm sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -243,7 +243,7 @@ export default function StatsClientsPage() {
           )}
 
           <section
-            className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm"
+            className="flex min-h-[300px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm"
             aria-labelledby="table-heading"
           >
             <div className="border-b border-slate-100 bg-slate-50/90 px-6 py-4">
@@ -254,7 +254,7 @@ export default function StatsClientsPage() {
                 매출 기준 내림차순 · 결제완료 금액만 집계
               </p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="scrollbar-thin min-h-0 flex-1 overflow-x-auto overflow-y-auto">
               <table className="w-full min-w-[640px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Bell, Calendar, Check, ClipboardList, ListOrdered, Search } from "lucide-react";
+import { Bell, Calendar, Check, ChevronDown, ClipboardList, ListOrdered, Search } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import {
@@ -304,6 +304,8 @@ export default function OrdersPage() {
   const [draft, setDraft] = useState<FilterState>(() => ({ ...EMPTY_FILTERS }));
   const [applied, setApplied] = useState<FilterState>(() => ({ ...EMPTY_FILTERS }));
   const [quickTab, setQuickTab] = useState<QuickTab>("all");
+  /** 기본 접힘: 짧은 뷰포트에서 테이블 영역 확보 */
+  const [filterDetailExpanded, setFilterDetailExpanded] = useState(false);
 
   const [countAllOrders, setCountAllOrders] = useState<number | null>(null);
   const [countPendingPayment, setCountPendingPayment] = useState<number | null>(null);
@@ -563,9 +565,15 @@ export default function OrdersPage() {
   const summaryAmountText =
     summaryAmountExact == null ? "—" : `${formatPrice(summaryAmountExact)} 원`;
 
+  const isDemoSubstitute =
+    process.env.NODE_ENV === "development" &&
+    orders.length === 0 &&
+    ORDER_LIST_DEMO_ROWS.length > 0;
+  const rowsForDisplay = isDemoSubstitute ? ORDER_LIST_DEMO_ROWS : orders;
+
   if (status === "loading" || !partnerId) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
         <div className="flex items-center justify-center py-12">
           <p className="text-slate-600"></p>
         </div>
@@ -574,7 +582,7 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
       {/* [2] 상단 고정: 타이틀·필터 (스크롤 시 찌그러짐 방지) */}
       <div className="shrink-0">
         <AdminPageHeader
@@ -591,104 +599,78 @@ export default function OrdersPage() {
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-800">
-            <div className="mb-2.5 text-xs font-semibold text-slate-600">기간 설정</div>
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
-              {/* 주문 · 희망배송 + 검색(좌측 이어 배치) + 엑셀(우측, 알림톡 패턴) */}
-              <span className="w-12 shrink-0 text-xs font-medium text-slate-500 sm:w-14">주문</span>
-              <input
-                type="date"
-                value={draft.startDate}
-                onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))}
-                className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
-              />
-              <span className="shrink-0 text-slate-400">~</span>
-              <input
-                type="date"
-                value={draft.endDate}
-                onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
-                className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
-              />
-              <span
-                className="mx-1 hidden shrink-0 text-slate-300 sm:inline"
-                aria-hidden
+              <select
+                value={draft.selectedClient}
+                onChange={(e) => setDraft((d) => ({ ...d, selectedClient: e.target.value }))}
+                className="h-9 w-auto min-w-[9rem] max-w-[11rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
               >
-                |
-              </span>
-              <span className="w-12 shrink-0 text-xs font-medium text-slate-500 sm:w-14">희망배송</span>
-              <input
-                type="date"
-                value={draft.desiredDeliveryFrom}
+                <option value="">거래처 선택</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={getUnifiedFilterValue(draft)}
                 onChange={(e) =>
-                  setDraft((d) => ({ ...d, desiredDeliveryFrom: e.target.value }))
+                  setDraft((d) => ({ ...d, ...applyUnifiedPick(e.target.value) }))
                 }
-                className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
-              />
-              <span className="shrink-0 text-slate-400">~</span>
-              <input
-                type="date"
-                value={draft.desiredDeliveryTo}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, desiredDeliveryTo: e.target.value }))
-                }
-                className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
-              />
-              <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
-
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <select
-                  value={draft.selectedClient}
-                  onChange={(e) => setDraft((d) => ({ ...d, selectedClient: e.target.value }))}
-                  className="h-9 w-auto min-w-[9rem] max-w-[11rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                >
-                  <option value="">거래처 선택</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
+                className="h-9 w-auto min-w-[9.5rem] max-w-[12.5rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              >
+                <option value="all">상태 통합검색</option>
+                <optgroup label="주문 상태">
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={`order:${value}`}>
+                      {label}
                     </option>
                   ))}
-                </select>
-                <select
-                  value={getUnifiedFilterValue(draft)}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, ...applyUnifiedPick(e.target.value) }))
-                  }
-                  className="h-9 w-auto min-w-[9.5rem] max-w-[12.5rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                >
-                  <option value="all">상태 통합검색</option>
-                  <optgroup label="주문 상태">
-                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={`order:${value}`}>
+                </optgroup>
+                <optgroup label="결제">
+                  {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={`pay:${value}`}>
+                      {label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="뉴런 발주">
+                  {NEWRUN_SUBMIT_FILTER_OPTIONS.filter((o) => o.value !== "all").map(
+                    ({ value, label }) => (
+                      <option key={value} value={`newrun:${value}`}>
                         {label}
                       </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="결제">
-                    {Object.entries(PAYMENT_STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={`pay:${value}`}>
-                        {label}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="뉴런 발주">
-                    {NEWRUN_SUBMIT_FILTER_OPTIONS.filter((o) => o.value !== "all").map(
-                      ({ value, label }) => (
-                        <option key={value} value={`newrun:${value}`}>
-                          {label}
-                        </option>
-                      )
-                    )}
-                  </optgroup>
-                </select>
-                <button
-                  type="button"
-                  onClick={applySearch}
-                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 text-sm font-semibold whitespace-nowrap text-white hover:bg-gray-800"
-                >
-                  검색
-                  <Search className="h-4 w-4 shrink-0" aria-hidden />
-                </button>
-              </div>
-
+                    )
+                  )}
+                </optgroup>
+              </select>
+              <button
+                type="button"
+                onClick={applySearch}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 text-sm font-semibold whitespace-nowrap text-white hover:bg-gray-800"
+              >
+                검색
+                <Search className="h-4 w-4 shrink-0" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterDetailExpanded((v) => !v)}
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold whitespace-nowrap transition-colors sm:text-sm ${
+                  filterDetailExpanded
+                    ? "border-slate-900 bg-white text-slate-900"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+                aria-expanded={filterDetailExpanded}
+              >
+                <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+                기간·희망배송
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                    filterDetailExpanded ? "rotate-180" : ""
+                  }`}
+                  aria-hidden
+                />
+              </button>
               <div className="ml-auto flex shrink-0 items-center">
                 <button
                   type="button"
@@ -708,6 +690,55 @@ export default function OrdersPage() {
                 </button>
               </div>
             </div>
+
+            {filterDetailExpanded ? (
+              <div className="mt-3 border-t border-slate-200/90 pt-3">
+                <div className="mb-2 text-xs font-semibold text-slate-600">기간 설정</div>
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+                  <span className="w-12 shrink-0 text-xs font-medium text-slate-500 sm:w-14">주문</span>
+                  <input
+                    type="date"
+                    value={draft.startDate}
+                    onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))}
+                    className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
+                  />
+                  <span className="shrink-0 text-slate-400">~</span>
+                  <input
+                    type="date"
+                    value={draft.endDate}
+                    onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
+                    className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
+                  />
+                  <span
+                    className="mx-1 hidden shrink-0 text-slate-300 sm:inline"
+                    aria-hidden
+                  >
+                    |
+                  </span>
+                  <span className="w-12 shrink-0 text-xs font-medium text-slate-500 sm:w-14">
+                    희망배송
+                  </span>
+                  <input
+                    type="date"
+                    value={draft.desiredDeliveryFrom}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, desiredDeliveryFrom: e.target.value }))
+                    }
+                    className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
+                  />
+                  <span className="shrink-0 text-slate-400">~</span>
+                  <input
+                    type="date"
+                    value={draft.desiredDeliveryTo}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, desiredDeliveryTo: e.target.value }))
+                    }
+                    className="h-9 shrink-0 rounded border border-slate-200 bg-white px-2 text-sm sm:min-w-[7.5rem]"
+                  />
+                </div>
+              </div>
+            ) : null}
+
             <span className="sr-only">
               {fmtYmdDot(draft.startDate)} ~ {fmtYmdDot(draft.endDate)}, 희망 배송{" "}
               {fmtYmdDot(draft.desiredDeliveryFrom)} ~ {fmtYmdDot(draft.desiredDeliveryTo)}
@@ -716,8 +747,8 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* [3] 테이블 카드 + 내부 스크롤 / [4] 하단 고정 페이징 */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+      {/* [3] 테이블 카드: 최소 높이 방어 + 데스크톱은 내부 스크롤 */}
+      <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <div
           className={`flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 ${ordersTableSummaryHeaderClass}`}
         >
@@ -782,9 +813,66 @@ export default function OrdersPage() {
             </button>
           </div>
         </div>
-        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
+
+        {/* 모바일: 카드 목록 */}
+        <div className="scrollbar-thin flex-1 overflow-y-auto pb-4 md:hidden">
+          <div className="space-y-3 p-3 pb-4">
+            {loading ? (
+              <p className="py-8 text-center text-sm text-slate-500">불러오는 중…</p>
+            ) : rowsForDisplay.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">주문 내역이 없습니다.</p>
+            ) : (
+              rowsForDisplay.map((order) => {
+                const pay = paymentListPill(order);
+                const nr = newrunListBadge(order);
+                return (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => {
+                      if (order.id.startsWith("demo-list-")) return;
+                      router.push(`/admin/orders/${order.id}`);
+                    }}
+                    className="block w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-xs text-slate-600">{order.order_no}</span>
+                      {order.notify_unread_for_me ? (
+                        <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          New
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                      {orderListFirstProductName(order)}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                      {orderListAddressLine(order)}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-600">
+                      {formatOrderListReceivedDateTime(order.created_at)}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-orange-600">
+                      {formatDeliveryRequiredListLine(order)}
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-bold text-slate-900">
+                        {formatPrice(Number(order.total_amount) || 0)} 원
+                      </span>
+                      <span className={pay.className}>{pay.label}</span>
+                      <span className={nr.className}>{nr.label}</span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* 데스크톱: 테이블 + 세로 스크롤 */}
+        <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 z-10 bg-gray-50 shadow-[0_1px_0_#e5e7eb]">
+            <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_#e5e7eb]">
               <tr>
                 <th className="border-y border-gray-200 px-4 py-3 text-left text-xs font-semibold whitespace-nowrap text-gray-500">
                   주문번호
@@ -816,18 +904,14 @@ export default function OrdersPage() {
                     불러오는 중…
                   </td>
                 </tr>
-              ) : orders.length === 0 &&
-                !(process.env.NODE_ENV === "development" && ORDER_LIST_DEMO_ROWS.length > 0) ? (
+              ) : rowsForDisplay.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
                     주문 내역이 없습니다.
                   </td>
                 </tr>
               ) : (
-                (orders.length === 0 && process.env.NODE_ENV === "development"
-                  ? ORDER_LIST_DEMO_ROWS
-                  : orders
-                ).map((order) => {
+                rowsForDisplay.map((order) => {
                   const pay = paymentListPill(order);
                   const nr = newrunListBadge(order);
                   return (

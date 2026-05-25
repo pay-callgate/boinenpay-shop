@@ -2,81 +2,49 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, LayoutDashboard, Package, Building2, ClipboardList, BarChart3, MessageSquare, User } from "lucide-react";
-import { adminFetch } from "@/lib/admin-fetch";
-import { useToast } from "@/components/shop/ToastContext";
-import { ADMIN_ORDER_NOTIFY_POLL_MS } from "@/lib/admin-order-notify-poll";
+import React, { useState } from "react";
+import {
+  ChevronDown,
+  LayoutDashboard,
+  Package,
+  Building2,
+  ClipboardList,
+  BarChart3,
+  MessageSquare,
+  User,
+} from "lucide-react";
 
 const BRAND_BLUE = "#2B78C5"; // 로그인 화면 신뢰감 파란색
 
+type AdminSidebarProps = {
+  partnerDisplayName: string;
+  userName?: string | null;
+  /** `useAdminOrderUnreadNotify` — 셸에서 단일 폴링 (온보딩 등 비대시보드 레이아웃에서는 생략 가능) */
+  unreadOrderNotify?: number | null;
+  /** 모바일 드로어 등에서 링크 클릭 시 닫기 */
+  onNavigate?: () => void;
+  /** 래퍼 (데스크톱: hidden md:flex 등) */
+  className?: string;
+  /** 드로어 상단 닫기 버튼 */
+  showDrawerClose?: boolean;
+  onDrawerClose?: () => void;
+};
+
 /**
  * T1-4: 파트너 어드민 사이드바 (B2B SaaS 스타일)
- * 다크 네이비 배경, 브랜드 블루 액센트, 세련된 아코디언, 넉넉한 패딩
+ * 미확인 알림 폴링은 `useAdminOrderUnreadNotify` + 셸 단일 인스턴스.
  */
-/** 중앙 집중형: base=/admin, 상단 표시명은 partnerDisplayName(company_name 또는 subdomain) */
 export function AdminSidebar({
   partnerDisplayName,
   userName,
-}: {
-  partnerDisplayName: string;
-  userName?: string | null;
-}) {
+  unreadOrderNotify = null,
+  onNavigate,
+  className = "hidden w-64 shrink-0 border-r border-slate-800 bg-slate-900 md:flex md:flex-col",
+  showDrawerClose,
+  onDrawerClose,
+}: AdminSidebarProps) {
   const base = "/admin";
   const pathname = usePathname();
-  const { toast } = useToast();
-  const [unreadOrderNotify, setUnreadOrderNotify] = useState<number | null>(null);
-  const partnerIdRef = useRef<string | null>(null);
-  /** 이전 폴링 미확인 건수 — setState 업데이터 안에서 toast 호출 시 ToastProvider와 렌더 단계 충돌 */
-  const lastUnreadPollRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    async function ensurePartner(): Promise<string | null> {
-      if (partnerIdRef.current) return partnerIdRef.current;
-      try {
-        const res = await adminFetch("/api/partner");
-        if (!res.ok) return null;
-        const j = await res.json();
-        const id = j.success && j.data?.id ? String(j.data.id) : null;
-        if (id) partnerIdRef.current = id;
-        return id;
-      } catch {
-        return null;
-      }
-    }
-    async function poll() {
-      const pid = await ensurePartner();
-      if (!alive || !pid) return;
-      try {
-        const res = await adminFetch(
-          `/api/partner/order-notifications?partnerId=${encodeURIComponent(pid)}`
-        );
-        if (!res.ok || !alive) return;
-        const j = await res.json();
-        const n = typeof j.unreadCount === "number" ? j.unreadCount : 0;
-        const last = lastUnreadPollRef.current;
-        if (last !== null && n > last) {
-          const delta = n - last;
-          window.setTimeout(() => {
-            toast(`미확인 결제 완료 알림이 ${delta}건 늘었습니다.`, "default");
-          }, 0);
-        }
-        lastUnreadPollRef.current = n;
-        setUnreadOrderNotify(n);
-      } catch {
-        /* adminFetch가 401 시 리다이렉트 */
-      }
-    }
-    void poll();
-    const intervalId = window.setInterval(() => {
-      void poll();
-    }, ADMIN_ORDER_NOTIFY_POLL_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(intervalId);
-    };
-  }, [toast]);
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     products: false,
@@ -90,9 +58,7 @@ export function AdminSidebar({
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // 서브메뉴(2차): 정확히 일치할 때만 활성화 (한 개만 파란색 하이라이트)
   const isSubmenuActive = (href: string) => pathname === href;
-  // 1차 메뉴 아코디언: 해당 섹션 하위에 활성 서브메뉴가 있을 때만 강조/열림용
   const hasActiveChild = (items: { href: string }[]) => items.some((item) => isSubmenuActive(item.href));
 
   const navSections: {
@@ -151,11 +117,28 @@ export function AdminSidebar({
     },
   ];
 
+  const linkAfterNav = () => {
+    onNavigate?.();
+  };
+
   return (
-    <aside className="w-64 shrink-0 border-r border-slate-800 bg-slate-900">
-      {/* 상단 헤더 - 고객사명 + 사용자 정보 */}
+    <aside className={className}>
+      {showDrawerClose ? (
+        <div className="flex items-center justify-between border-b border-slate-700 bg-slate-800/80 px-3 py-2 md:hidden">
+          <span className="text-sm font-semibold text-white">메뉴</span>
+          <button
+            type="button"
+            onClick={onDrawerClose}
+            className="rounded-md px-2 py-1 text-sm font-medium text-slate-200 hover:bg-slate-700 hover:text-white"
+            aria-label="메뉴 닫기"
+          >
+            닫기
+          </button>
+        </div>
+      ) : null}
+
       <div className="border-b border-slate-700/80 bg-slate-800/50 px-4 py-5">
-        <p className="text-lg font-bold text-white mb-3">{partnerDisplayName}</p>
+        <p className="mb-3 text-lg font-bold text-white">{partnerDisplayName}</p>
         <div className="flex items-center gap-3">
           <div
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
@@ -169,19 +152,17 @@ export function AdminSidebar({
         </div>
       </div>
 
-      {/* 메뉴 네비게이션 */}
-      <nav className="p-3">
+      <nav className="flex-1 overflow-y-auto p-3">
         <ul className="space-y-0.5">
-          {/* 대시보드 - 1차 메뉴 스타일 (파란 박스 제거 및 톤 통일) */}
           <li>
             <Link
               href={base}
+              onClick={linkAfterNav}
               className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-[15px] font-semibold transition-colors ${
                 pathname === base
-                  ? "text-blue-400 bg-slate-800/60" // 2차 메뉴의 예쁜 활성화 톤과 동일하게 맞춤
+                  ? "bg-slate-800/60 text-blue-400"
                   : "text-slate-300 hover:bg-blue-500/15 hover:text-blue-300"
               }`}
-              // 문제의 원인이었던 하드코딩된 파란색 style 속성 완전 삭제
             >
               <LayoutDashboard className="h-5 w-5 shrink-0" />
               <span>대시보드</span>
@@ -190,9 +171,10 @@ export function AdminSidebar({
           <li>
             <Link
               href={`${base}/dashboard-real`}
+              onClick={linkAfterNav}
               className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-[15px] font-semibold transition-colors ${
                 pathname === `${base}/dashboard-real`
-                  ? "text-blue-400 bg-slate-800/60"
+                  ? "bg-slate-800/60 text-blue-400"
                   : "text-slate-300 hover:bg-blue-500/15 hover:text-blue-300"
               }`}
             >
@@ -201,10 +183,8 @@ export function AdminSidebar({
             </Link>
           </li>
 
-          {/* 아코디언 섹션 */}
           {navSections.map(({ key, label, icon, items }) => {
             const sectionHasActive = hasActiveChild(items);
-            /** 활성 하위 페이지가 있으면 해당 섹션은 항상 펼침(직링크 진입 포함). 비활성 시에만 접힘 상태를 사용 */
             const expanded = sectionHasActive ? true : openSections[key];
             return (
               <li key={key} className="pt-1">
@@ -222,7 +202,7 @@ export function AdminSidebar({
                       : undefined
                   }
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex min-w-0 items-center gap-3">
                     {icon}
                     <span className="truncate">{label}</span>
                     {key === "orders" && unreadOrderNotify !== null && unreadOrderNotify > 0 ? (
@@ -248,16 +228,13 @@ export function AdminSidebar({
                         <li key={item.href}>
                           <Link
                             href={item.href}
+                            onClick={linkAfterNav}
                             className={`flex items-center justify-between gap-2 rounded-lg border-l-2 py-2.5 pl-4 pr-4 text-[14px] font-medium transition-colors ${
                               active
-                                ? "text-blue-400 bg-slate-800/60"
+                                ? "bg-slate-800/60 text-blue-400"
                                 : "border-transparent text-slate-400 hover:border-slate-600 hover:bg-blue-500/10 hover:text-slate-200"
                             }`}
-                            style={
-                              active
-                                ? { borderLeftColor: BRAND_BLUE }
-                                : undefined
-                            }
+                            style={active ? { borderLeftColor: BRAND_BLUE } : undefined}
                           >
                             <span>{item.label}</span>
                             {item.href === `${base}/orders` &&

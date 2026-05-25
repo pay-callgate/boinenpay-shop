@@ -236,7 +236,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-6">
       <AdminPageHeader
         eyebrow="Catalog · Categories"
         title="카테고리 관리"
@@ -271,7 +271,7 @@ export default function CategoriesPage() {
               항목을 선택하면 오른쪽 패널에서 상세를 편집할 수 있습니다.
             </p>
           </div>
-          <div className="max-h-[calc(100vh-300px)] overflow-y-auto p-3 sm:p-4">
+          <div className="min-h-[300px] overflow-y-auto p-3 sm:p-4">
             {categories.length === 0 ? (
               <p className="py-6 text-center text-sm text-slate-500">등록된 카테고리가 없습니다.</p>
             ) : (

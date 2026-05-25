@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Truck } from "lucide-react";
+import { Calendar, ChevronDown, Truck } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { COURIER_OPTIONS, formatTrackingDisplay } from "@/lib/courier";
@@ -93,6 +93,8 @@ export default function OrdersShippingPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /** 필터 카드 압축: 날짜 범위는 기본 접힘 */
+  const [filterDetailExpanded, setFilterDetailExpanded] = useState(false);
 
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
@@ -235,7 +237,7 @@ export default function OrdersShippingPage() {
 
   if (!partnerId) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
         <div className="flex items-center justify-center py-12">
           <p className="text-slate-600"></p>
         </div>
@@ -245,7 +247,7 @@ export default function OrdersShippingPage() {
 
   return (
     <>
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
       {/* [2] 상단 고정: 타이틀·필터 */}
       <div className="shrink-0">
         <AdminPageHeader
@@ -260,7 +262,7 @@ export default function OrdersShippingPage() {
         />
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex min-w-0 flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">배송 상태</label>
               <select
@@ -280,63 +282,153 @@ export default function OrdersShippingPage() {
                 <option value="delivered">배송완료</option>
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">주문일 시작</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+            <button
+              type="button"
+              onClick={() => setFilterDetailExpanded((v) => !v)}
+              className={`inline-flex h-10 shrink-0 items-center gap-1.5 self-end rounded-md border px-3 text-xs font-semibold whitespace-nowrap transition-colors sm:text-sm ${
+                filterDetailExpanded
+                  ? "border-slate-900 bg-white text-slate-900"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+              aria-expanded={filterDetailExpanded}
+            >
+              <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+              주문일·희망배송 기간
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                  filterDetailExpanded ? "rotate-180" : ""
+                }`}
+                aria-hidden
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">주문일 종료</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">희망 배송일 시작</label>
-              <input
-                type="date"
-                value={desiredDeliveryFrom}
-                onChange={(e) => {
-                  setDesiredDeliveryFrom(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">희망 배송일 종료</label>
-              <input
-                type="date"
-                value={desiredDeliveryTo}
-                onChange={(e) => {
-                  setDesiredDeliveryTo(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
-              />
-            </div>
+            </button>
           </div>
+          {filterDetailExpanded ? (
+            <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-slate-200 pt-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">주문일 시작</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setOffset(0);
+                  }}
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">주문일 종료</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setOffset(0);
+                  }}
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">희망 배송일 시작</label>
+                <input
+                  type="date"
+                  value={desiredDeliveryFrom}
+                  onChange={(e) => {
+                    setDesiredDeliveryFrom(e.target.value);
+                    setOffset(0);
+                  }}
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">희망 배송일 종료</label>
+                <input
+                  type="date"
+                  value={desiredDeliveryTo}
+                  onChange={(e) => {
+                    setDesiredDeliveryTo(e.target.value);
+                    setOffset(0);
+                  }}
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <p className="mb-3 text-sm text-slate-600">총 {total}건</p>
       </div>
 
-      {/* [3] 테이블 카드 + 내부 스크롤 / [4] 하단 고정 페이징 */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
+      {/* [3] 테이블 카드: 최소 높이 · 모바일 카드 */}
+      <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="scrollbar-thin flex-1 overflow-y-auto pb-4 md:hidden">
+          <div className="space-y-3 p-3">
+            {loading ? (
+              <p className="py-12 text-center text-sm text-slate-500">불러오는 중…</p>
+            ) : orders.length === 0 ? (
+              <p className="py-12 text-center text-sm text-slate-500">조건에 맞는 주문이 없습니다.</p>
+            ) : (
+              orders.map((order) => {
+                const deliveryToday = isDesiredDeliveryToday(
+                  order.desired_delivery_date,
+                  shippingListTodayYmd
+                );
+                const deliveryLine = formatDesiredDeliveryDateTimeLine(
+                  order.desired_delivery_date,
+                  order.delivery_time_slot
+                );
+                const addr = `${order.shipping_postcode ? `[${order.shipping_postcode}] ` : ""}${order.shipping_address}${
+                  order.shipping_detail ? ` ${order.shipping_detail}` : ""
+                }`;
+                return (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => router.push(`/admin/orders/${order.id}`)}
+                    className="block w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-xs text-slate-600">{order.order_no}</span>
+                      {order.notify_unread_for_me ? (
+                        <span className="rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                          NEW
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className={`mt-2 text-xs ${deliveryToday ? "font-bold text-red-600" : "text-slate-700"}`}>
+                      {deliveryToday ? (
+                        <span className="mr-1 rounded bg-red-100 px-1 py-0.5 text-[10px] font-bold text-red-700">
+                          오늘
+                        </span>
+                      ) : null}
+                      희망 배송 · {deliveryLine}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">주문 {formatDate(order.created_at)}</p>
+                    <p className="mt-2 text-sm font-medium text-slate-800">{order.shipping_name}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">{addr}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span
+                        className="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                        style={{
+                          backgroundColor: `${getStatusColor(order.status)}20`,
+                          color: getStatusColor(order.status),
+                        }}
+                      >
+                        {STATUS_LABELS[order.status] || order.status}
+                      </span>
+                      {shouldShowAdminNewrunShippingBadge(order) ? (
+                        <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-semibold text-teal-900">
+                          협회 배송 추적
+                        </span>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+        <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
               <tr>
@@ -394,6 +486,7 @@ export default function OrdersShippingPage() {
               {loading ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
+                    불러오는 중…
                   </td>
                 </tr>
               ) : orders.length === 0 ? (

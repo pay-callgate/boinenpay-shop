@@ -37,7 +37,11 @@ function CogIcon({ className }: { className?: string }) {
  * 우측: 뉴런 연동 테스트, 파트너 설정(모달), 로그아웃
  * 중앙 집중형: /admin 기준 링크만 사용.
  */
-export function AdminHeader() {
+export function AdminHeader({
+  onOpenMobileNav,
+}: {
+  onOpenMobileNav?: () => void;
+}) {
   const { openPartnerSettings } = usePartnerSettingsModal();
   const [devAutoSubmit, setDevAutoSubmit] = useState<{
     toggleAvailable: boolean;
@@ -92,11 +96,25 @@ export function AdminHeader() {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between bg-black px-4 text-white">
-      <Link href="/admin" className="text-lg font-bold">
-        Partner Admin
-      </Link>
-      <div className="flex items-center gap-4 text-sm">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-2 bg-black px-3 text-white sm:px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        {onOpenMobileNav ? (
+          <button
+            type="button"
+            onClick={onOpenMobileNav}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white hover:bg-white/10 md:hidden"
+            aria-label="메뉴 열기"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        ) : null}
+        <Link href="/admin" className="truncate text-base font-bold sm:text-lg">
+          Partner Admin
+        </Link>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs sm:gap-4 sm:text-sm">
         <Link
           href="/admin/settings/integrations"
           className="hover:underline"

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Package } from "lucide-react";
+import { Calendar, ChevronDown, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { ProductRegistrationModal } from "@/components/admin/ProductRegistrationModal";
@@ -53,6 +53,8 @@ export default function ProductsPage() {
   const [total, setTotal] = useState(0);
   const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  /** 짧은 뷰포트에서 필터 부피 압축 (기본 접힘) */
+  const [filterDetailExpanded, setFilterDetailExpanded] = useState(false);
 
   const LIMIT = 10;
 
@@ -167,6 +169,9 @@ export default function ProductsPage() {
     return <Badge variant="active">판매중</Badge>;
   };
 
+  const categoryLabelForProduct = (p: Product) =>
+    p.product_category_mappings?.map((m) => m.product_categories?.name).filter(Boolean).join(", ") || "-";
+
   return (
     <>
       <ProductRegistrationModal
@@ -180,7 +185,7 @@ export default function ProductsPage() {
         initialData={editingProduct}
         onSuccess={fetchProducts}
       />
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
         {/* 상단 고정: 타이틀·필터·총 상품 수 (스크롤 시 찌그러짐 방지) */}
         <div className="shrink-0">
           <AdminPageHeader
@@ -195,69 +200,168 @@ export default function ProductsPage() {
           />
 
           <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3">
-              <input
-                type="text"
-                placeholder="상품명 검색..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-10 min-w-[200px] rounded-md border border-gray-200 bg-slate-50 px-3 text-sm text-slate-900 shadow-none placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-              />
-              <select
-                value={categoryId}
-                onChange={(e) => {
-                  setCategoryId(e.target.value);
-                  setPage(1);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              >
-                <option value="">전체 카테고리</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <select
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              >
-                <option value="">전체 상태</option>
-                <option value="active">판매중</option>
-                <option value="draft">임시저장</option>
-                <option value="sold_out">품절</option>
-                <option value="inactive">비활성</option>
-              </select>
-              <button
-                type="submit"
-                className="h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                검색
-              </button>
-              <div className="ml-auto">
+            <form onSubmit={handleSearch}>
+              <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="상품명 검색..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-10 min-w-0 flex-1 rounded-md border border-gray-200 bg-slate-50 px-3 text-sm text-slate-900 shadow-none placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 sm:min-w-[200px] sm:flex-initial"
+                />
+                <button
+                  type="submit"
+                  className="h-10 shrink-0 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  검색
+                </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingProduct(null);
-                    setRegistrationModalOpen(true);
-                  }}
-                  className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
-                  style={{ backgroundColor: "#1e293b" }}
+                  onClick={() => setFilterDetailExpanded((v) => !v)}
+                  className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold whitespace-nowrap transition-colors sm:text-sm ${
+                    filterDetailExpanded
+                      ? "border-slate-900 bg-white text-slate-900"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  aria-expanded={filterDetailExpanded}
                 >
-                  + 상품 등록
+                  <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+                  카테고리·상태
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                      filterDetailExpanded ? "rotate-180" : ""
+                    }`}
+                    aria-hidden
+                  />
                 </button>
+                <div className="ml-auto flex shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setRegistrationModalOpen(true);
+                    }}
+                    className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
+                    style={{ backgroundColor: "#1e293b" }}
+                  >
+                    + 상품 등록
+                  </button>
+                </div>
               </div>
+              {filterDetailExpanded ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3">
+                  <select
+                    value={categoryId}
+                    onChange={(e) => {
+                      setCategoryId(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                  >
+                    <option value="">전체 카테고리</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={status}
+                    onChange={(e) => {
+                      setStatus(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                  >
+                    <option value="">전체 상태</option>
+                    <option value="active">판매중</option>
+                    <option value="draft">임시저장</option>
+                    <option value="sold_out">품절</option>
+                    <option value="inactive">비활성</option>
+                  </select>
+                </div>
+              ) : null}
             </form>
           </div>
 
           <p className="mb-3 text-sm text-slate-600">총 {total}개 상품</p>
         </div>
 
-        {/* 테이블 & 페이징: 거래처/링크 관리와 동일한 스크롤 구조 */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
+        {/* 테이블 & 페이징: 최소 높이 방어 · 모바일 카드 */}
+        <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="scrollbar-thin flex-1 overflow-y-auto pb-4 md:hidden">
+            <div className="space-y-3 p-3">
+              {loading ? (
+                <p className="py-12 text-center text-sm text-slate-500">불러오는 중…</p>
+              ) : products.length === 0 ? (
+                <p className="py-12 text-center text-sm text-slate-500">등록된 상품이 없습니다.</p>
+              ) : (
+                products.map((p) => (
+                  <div
+                    key={p.id}
+                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex gap-3">
+                      {p.thumbnail_url ? (
+                        <img
+                          src={p.thumbnail_url}
+                          alt={p.name}
+                          className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-xs text-slate-400">
+                          No img
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-800">{p.name}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{categoryLabelForProduct(p)}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {getStatusBadgeForProduct(p)}
+                          <span
+                            className={`text-sm font-medium ${isLowStock(p) ? "text-red-600" : "text-slate-700"}`}
+                          >
+                            재고 {p.stock_qty}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-right">
+                          {p.sale_price != null && p.sale_price !== p.base_price && (
+                            <span className="mr-2 text-xs text-slate-400 line-through">
+                              {formatPrice(p.base_price)}
+                            </span>
+                          )}
+                          <span className="text-base font-bold text-red-500">
+                            {p.sale_price != null ? formatPrice(p.sale_price) : formatPrice(p.base_price)}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingProduct(p);
+                              setRegistrationModalOpen(true);
+                            }}
+                            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(p.id)}
+                            className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
               <tr>
@@ -273,6 +377,7 @@ export default function ProductsPage() {
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">
+                    불러오는 중…
                   </td>
                 </tr>
               ) : products.length === 0 ? (
@@ -302,20 +407,12 @@ export default function ProductsPage() {
                         )}
                         <div>
                           <p className="font-bold text-slate-800">{p.name}</p>
-                          <p className="text-xs text-slate-500">
-                            {p.product_category_mappings
-                              ?.map((m) => m.product_categories?.name)
-                              .filter(Boolean)
-                              .join(", ") || "-"}
-                          </p>
+                          <p className="text-xs text-slate-500">{categoryLabelForProduct(p)}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-600">
-                      {p.product_category_mappings
-                        ?.map((m) => m.product_categories?.name)
-                        .filter(Boolean)
-                        .join(", ") || "-"}
+                      {categoryLabelForProduct(p)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex flex-col items-end gap-0.5">

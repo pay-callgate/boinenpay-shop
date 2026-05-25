@@ -1,6 +1,6 @@
 "use client";
 
-import type { FieldValues, UseFormRegisterReturn } from "react-hook-form";
+import type { UseFormRegisterReturn } from "react-hook-form";
 
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ type RhfMode = {
   label: string;
   /** 루트 래퍼 (모달에서는 그리드 셀 폭 등을 맞출 때 비우거나 `min-w-0 w-full`) */
   className?: string;
-  registerReturn: UseFormRegisterReturn<FieldValues>;
+  registerReturn: UseFormRegisterReturn;
   decrementDisabled: boolean;
   onDecrement: () => void;
   onIncrement: () => void;

@@ -262,7 +262,7 @@ export default function AdminAlimtalkMessagesPage() {
         />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 px-4 sm:px-6">
         <AdminPageHeader
           className="shrink-0"
           eyebrow="Clients · Alimtalk"
@@ -396,8 +396,8 @@ export default function AdminAlimtalkMessagesPage() {
           </p>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
-          <div className="scrollbar-thin max-h-[calc(100vh-380px)] min-h-0 flex-1 overflow-x-auto overflow-y-auto">
+        <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+          <div className="scrollbar-thin min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-4">
             <table className="w-full min-w-[72rem] border-collapse text-sm">
               <caption className="sr-only">
                 알림톡 발송 내역. 좌측은 발송 정보, 우측은 접수 건수 요약입니다.

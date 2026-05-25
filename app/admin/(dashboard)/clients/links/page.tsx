@@ -245,7 +245,7 @@ export default function ClientsLinksPage() {
         />
       )}
 
-      <div className="flex flex-1 flex-col overflow-hidden bg-slate-50 p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
         {/* 헤더: 재고 관리와 동일한 여백 */}
         <AdminPageHeader
           className="shrink-0"
@@ -304,9 +304,69 @@ export default function ClientsLinksPage() {
           <p className="mb-3 text-sm text-red-600">{error}</p>
         )}
 
-        {/* 테이블: 재고 관리와 동일한 구조·스타일 */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
+        {/* 테이블: 최소 높이 · 모바일 카드 */}
+        <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="scrollbar-thin flex-1 overflow-y-auto pb-4 md:hidden">
+            <div className="space-y-3 p-3">
+              {loading ? (
+                <p className="py-12 text-center text-sm text-slate-500">불러오는 중…</p>
+              ) : displayedClients.length === 0 ? (
+                <p className="py-12 text-center text-sm text-slate-500">등록된 거래처가 없습니다.</p>
+              ) : (
+                displayedClients.map((c, idx) => (
+                  <div
+                    key={c.id}
+                    className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm"
+                  >
+                    <p className="text-xs text-slate-500">
+                      #{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                    </p>
+                    <p className="mt-1 text-base font-bold text-slate-800">{c.name}</p>
+                    <p className="mt-2 text-xs text-slate-600">
+                      담당 {c.contact_name || "-"} · {c.contact_phone || "-"}
+                    </p>
+                    <p className="mt-2 truncate font-mono text-xs text-slate-700" title={getOrderLinkDisplay(c.slug)}>
+                      {getOrderLinkDisplay(c.slug)}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(c.id, c.slug)}
+                        className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+                      >
+                        {copiedId === c.id ? "복사됨" : "링크 복사"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openInNewTab(c.slug)}
+                        className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
+                      >
+                        열기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openCallcloudModal(c, "connect")}
+                        className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
+                      >
+                        070 연동
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLinkModalClient(c);
+                          setIsLinkModalOpen(true);
+                        }}
+                        className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
+                      >
+                        Link 안내
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
                 <tr>
@@ -340,6 +400,7 @@ export default function ClientsLinksPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
+                      불러오는 중…
                     </td>
                   </tr>
                 ) : displayedClients.length === 0 ? (

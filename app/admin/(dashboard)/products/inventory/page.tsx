@@ -135,7 +135,7 @@ export default function InventoryPage() {
       .join(", ") || "-";
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
       {/* 상단 고정: 타이틀·대시보드·필터 (스크롤 시 찌그러짐 방지) */}
       <div className="shrink-0">
         <AdminPageHeader
@@ -249,10 +249,112 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {/* 테이블 & 페이징: 남는 공간 전부 채움, 본문만 스크롤 */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex-1 overflow-auto min-h-0">
-          <table className="w-full border-collapse relative">
+      {/* 테이블 & 페이징: 최소 높이 · 모바일 카드 */}
+      <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="scrollbar-thin flex-1 overflow-y-auto pb-4 md:hidden">
+          <div className="space-y-3 p-3">
+            {loading ? (
+              <p className="py-12 text-center text-sm text-slate-500">불러오는 중…</p>
+            ) : displayedProducts.length === 0 ? (
+              <p className="py-12 text-center text-sm text-slate-500">
+                {filter === "low" ? "재고 부족 상품이 없습니다." : "등록된 상품이 없습니다."}
+              </p>
+            ) : (
+              displayedProducts.map((p) => (
+                <div
+                  key={p.id}
+                  className={`rounded-xl border border-slate-200 p-4 shadow-sm ${
+                    isLowStock(p) ? "bg-red-50/50" : "bg-white"
+                  }`}
+                >
+                  <div className="flex gap-3">
+                    {p.thumbnail_url ? (
+                      <img
+                        src={p.thumbnail_url}
+                        alt={p.name}
+                        className="h-12 w-12 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-slate-200 text-xs text-slate-400">
+                        —
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-800">{p.name}</p>
+                      <p className="text-xs text-slate-500">{categoryNames(p)}</p>
+                      <div className="mt-2">{isLowStock(p) ? <Badge variant="sold_out">재고 부족</Badge> : <Badge variant="active">정상</Badge>}</div>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    {editingId === p.id ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="number"
+                          value={editValues.stockQty}
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              stockQty: parseInt(e.target.value, 10) || 0,
+                            })
+                          }
+                          min={0}
+                          className="h-9 w-20 rounded-md border border-slate-300 px-2 text-center text-sm"
+                        />
+                        <span className="text-slate-400">/</span>
+                        <input
+                          type="number"
+                          value={editValues.safetyStock}
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              safetyStock: parseInt(e.target.value, 10) || 0,
+                            })
+                          }
+                          min={0}
+                          className="h-9 w-20 rounded-md border border-slate-300 px-2 text-center text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSave(p.id)}
+                          className="rounded-md border border-slate-300 bg-slate-800 px-3 py-1.5 text-xs font-medium text-white"
+                        >
+                          저장
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2">
+                        <span>
+                          <span
+                            className={`text-lg font-bold ${isLowStock(p) ? "text-red-600" : "text-slate-700"}`}
+                          >
+                            {p.stock_qty}
+                          </span>
+                          <span className="ml-1.5 text-sm text-slate-500">(안전 {p.safety_stock})</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(p)}
+                          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
+                        >
+                          수정
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
+          <table className="relative w-full border-collapse">
             <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm shadow-[0_1px_0_#e2e8f0]">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
@@ -276,6 +378,7 @@ export default function InventoryPage() {
                     colSpan={4}
                     className="px-4 py-12 text-center text-sm text-slate-500"
                   >
+                    불러오는 중…
                   </td>
                 </tr>
               ) : displayedProducts.length === 0 ? (

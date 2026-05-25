@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw } from "lucide-react";
+import { Calendar, ChevronDown, RotateCcw } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { formatAdminOrdererListLabel } from "@/lib/admin-orderer-display";
@@ -61,6 +61,7 @@ export default function OrdersReturnsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filterDetailExpanded, setFilterDetailExpanded] = useState(false);
 
   const [selectedClient, setSelectedClient] = useState<string>("");
   /** 취소만 / 반품만 / 둘 다 (API `statusIn`) */
@@ -138,7 +139,7 @@ export default function OrdersReturnsPage() {
 
   if (!partnerId) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
         <div className="flex items-center justify-center py-12">
           <p className="text-slate-600"></p>
         </div>
@@ -147,7 +148,7 @@ export default function OrdersReturnsPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
       {/* [2] 상단 고정: 타이틀·필터 */}
       <div className="shrink-0">
         <AdminPageHeader
@@ -162,7 +163,7 @@ export default function OrdersReturnsPage() {
         />
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex min-w-0 flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">유형</label>
               <select
@@ -196,39 +197,100 @@ export default function OrdersReturnsPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">시작일</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+            <button
+              type="button"
+              onClick={() => setFilterDetailExpanded((v) => !v)}
+              className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold whitespace-nowrap transition-colors sm:text-sm ${
+                filterDetailExpanded
+                  ? "border-slate-900 bg-white text-slate-900"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+              aria-expanded={filterDetailExpanded}
+            >
+              <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+              조회 기간
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                  filterDetailExpanded ? "rotate-180" : ""
+                }`}
+                aria-hidden
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">종료일</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setOffset(0);
-                }}
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-              />
-            </div>
+            </button>
           </div>
+          {filterDetailExpanded ? (
+            <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-slate-200 pt-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">시작일</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setOffset(0);
+                  }}
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">종료일</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setOffset(0);
+                  }}
+                  className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <p className="mb-3 text-sm text-slate-600">총 {total}건</p>
       </div>
 
-      {/* [3] 테이블 카드 + 내부 스크롤 / [4] 하단 고정 페이징 */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto max-h-[calc(100vh-300px)]">
+      {/* [3] 테이블 카드 · 모바일 카드 */}
+      <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="scrollbar-thin flex-1 overflow-y-auto pb-4 md:hidden">
+          <div className="space-y-3 p-3">
+            {loading ? (
+              <p className="py-12 text-center text-sm text-slate-500">불러오는 중…</p>
+            ) : orders.length === 0 ? (
+              <p className="py-12 text-center text-sm text-slate-500">조건에 맞는 주문이 없습니다.</p>
+            ) : (
+              orders.map((order) => (
+                <button
+                  key={order.id}
+                  type="button"
+                  onClick={() => router.push(`/admin/orders/${order.id}`)}
+                  className="block w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-mono text-xs text-slate-600">{order.order_no}</span>
+                    {order.notify_unread_for_me ? (
+                      <span className="rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        NEW
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm font-medium text-slate-900">
+                    {STATUS_LABELS[order.status] ?? order.status}{" · "}
+                    {order.client?.name ?? "-"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">{formatDate(order.created_at)}</p>
+                  <p className="mt-2 text-sm font-bold text-slate-800">
+                    {formatPrice(Number(order.total_amount))}원
+                  </p>
+                  <span className="mt-2 inline-block text-xs text-slate-600">
+                    {PAYMENT_STATUS_LABELS[order.payment_status] ?? order.payment_status ?? "-"}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
               <tr>
@@ -247,6 +309,7 @@ export default function OrdersReturnsPage() {
               {loading ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">
+                    불러오는 중…
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
