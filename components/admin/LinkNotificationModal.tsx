@@ -98,9 +98,10 @@ function maskPhoneDisplay(digits: string): string {
   return formatPhoneDisplay(digits);
 }
 
-function getByteCount(text: string): number {
-  return new TextEncoder().encode(text).length;
-}
+// 추후 고객 요청으로 메시지 내용 수정 기능을 다시 제공할 때 사용합니다.
+// function getByteCount(text: string): number {
+//   return new TextEncoder().encode(text).length;
+// }
 
 function downloadAlimtalkSampleCsv(): void {
   const bom = "\uFEFF";
@@ -147,7 +148,8 @@ export function LinkNotificationModal({
   const [receiverNumber, setReceiverNumber] = useState("");
   const [senderEditable, setSenderEditable] = useState(false);
   const [receiverEditable, setReceiverEditable] = useState(false);
-  const [messageEditable, setMessageEditable] = useState(false);
+  // 추후 고객 요청으로 메시지 내용 수정 기능을 다시 제공할 때 사용합니다.
+  // const [messageEditable, setMessageEditable] = useState(false);
   const senderInputRef = useRef<HTMLInputElement>(null);
   const receiverInputRef = useRef<HTMLInputElement>(null);
 
@@ -185,7 +187,7 @@ export function LinkNotificationModal({
     );
     setSenderEditable(false);
     setReceiverEditable(false);
-    setMessageEditable(false);
+    // setMessageEditable(false);
     setSendMode("single");
     setBulkRecipients([]);
     setBulkFileLabel(null);
@@ -373,7 +375,7 @@ export function LinkNotificationModal({
     }
   };
 
-  const byteCount = getByteCount(message);
+  // const byteCount = getByteCount(message);
 
   const tabClass = (active: boolean) =>
     `px-4 py-2.5 text-sm transition-colors -mb-px border-b-2 ${
@@ -420,7 +422,7 @@ export function LinkNotificationModal({
                   알림톡 미리보기
                 </h3>
                 <div
-                  className="h-[400px] max-w-sm overflow-y-auto rounded-xl bg-[#bacee0] p-4 shadow-inner"
+                  className="h-[clamp(460px,62vh,520px)] max-w-sm overflow-y-auto rounded-xl bg-[#bacee0] p-4 shadow-inner"
                   aria-label="카카오톡 알림톡 미리보기"
                 >
                   <div className="flex items-start gap-2">
@@ -477,30 +479,33 @@ export function LinkNotificationModal({
                 </div>
               </div>
 
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold text-gray-900">
-                    메시지 내용 수정
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setMessageEditable((v) => !v)}
-                    className="shrink-0 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                  >
-                    {messageEditable ? "미리보기로 보기" : "내용 수정"}
-                  </button>
+              {/*
+                추후 고객 요청으로 메시지 내용 수정 기능을 다시 제공할 때 사용합니다.
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-gray-900">
+                      메시지 내용 수정
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setMessageEditable((v) => !v)}
+                      className="shrink-0 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      {messageEditable ? "미리보기로 보기" : "내용 수정"}
+                    </button>
+                  </div>
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    readOnly={!messageEditable}
+                    rows={4}
+                    className="max-h-[140px] w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-gray-800 placeholder-gray-400 read-only:bg-gray-50 focus:border-[#1e293b] focus:outline-none focus:ring-1 focus:ring-[#1e293b]"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    글자 수: {message.length}자 / {byteCount} byte (최대 1,000자 가능)
+                  </p>
                 </div>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  readOnly={!messageEditable}
-                  rows={4}
-                  className="max-h-[140px] w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-gray-800 placeholder-gray-400 read-only:bg-gray-50 focus:border-[#1e293b] focus:outline-none focus:ring-1 focus:ring-[#1e293b]"
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                  글자 수: {message.length}자 / {byteCount} byte (최대 1,000자 가능)
-                </p>
-              </div>
+              */}
             </div>
 
             {/* 우측: 탭 → 발신 → 수신/대량 */}

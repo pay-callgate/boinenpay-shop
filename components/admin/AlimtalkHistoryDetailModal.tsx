@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -11,9 +12,50 @@ import { Badge } from "@/components/ui/badge";
 import { ADMIN_MODAL_HEADER_BAR_CLASS } from "@/lib/admin-dialog-policy";
 import { formatMsgagentResultCodeForAdminDisplay } from "@/lib/msgagent-webshot-result-codes";
 
-function getByteCount(text: string): number {
-  return new TextEncoder().encode(text).length;
+/** `public/images` — LinkNotificationModal과 동일한 카카오톡 채널 CI PNG */
+const CALLLINK_KAKAO_CHANNEL_PROFILE_SRC = "/images/calllink-kakao-channel-ci.png";
+
+/**
+ * 알림톡 본문 미리보기: http(s) 및 www… 를 카카오톡과 같이 파란 밑줄 링크 스타일로 표시.
+ */
+function alimtalkPreviewBodyWithLinks(text: string): ReactNode {
+  const t = text.trim();
+  if (!t) return "내용 없음";
+  const re = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  const out: ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  re.lastIndex = 0;
+  while ((m = re.exec(t)) !== null) {
+    if (m.index > last) {
+      out.push(t.slice(last, m.index));
+    }
+    out.push(
+      <span
+        key={`${m.index}-${m[0].slice(0, 24)}`}
+        className="text-[#1264d4] underline underline-offset-1"
+      >
+        {m[0]}
+      </span>
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < t.length) out.push(t.slice(last));
+  return out.length ? out : t;
 }
+
+function formatKakaoPreviewClock(): string {
+  return new Date().toLocaleTimeString("ko-KR", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+// 추후 메시지 내용 본문 영역을 다시 제공할 때 사용합니다.
+// function getByteCount(text: string): number {
+//   return new TextEncoder().encode(text).length;
+// }
 
 function formatPhoneDisplay(raw: string): string {
   const d = raw.replace(/\D/g, "");
@@ -60,8 +102,9 @@ export function AlimtalkHistoryDetailModal({
   batchId,
   listKind,
 }: Props) {
-  const byteCount = getByteCount(body);
+  // const byteCount = getByteCount(body);
   const showRecipientsTab = listKind === "batch" && !!batchId;
+  const alimtalkPreviewClock = formatKakaoPreviewClock();
 
   const [tab, setTab] = useState<"message" | "recipients">("message");
   const [recipients, setRecipients] = useState<AlimtalkBatchRecipient[]>([]);
@@ -244,46 +287,88 @@ export function AlimtalkHistoryDetailModal({
             </div>
           ) : (
             <>
-              <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:min-h-[420px]">
+              <div className="grid min-w-0 grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:min-h-[520px]">
                 <div className="flex flex-col gap-6 lg:col-span-5">
                   <div>
                     <h3 className="mb-2 text-sm font-bold text-gray-900">
                       알림톡 미리보기
                     </h3>
                     <div
-                      className="flex min-h-[280px] max-h-[380px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-[#f3f4f6] shadow-sm"
-                      style={{
-                        boxShadow: "inset 0 0 16px rgba(0,0,0,0.04)",
-                      }}
+                      className="h-[clamp(460px,62vh,520px)] max-w-sm overflow-y-auto rounded-xl bg-[#bacee0] p-4 shadow-inner"
+                      aria-label="카카오톡 알림톡 미리보기"
                     >
-                      <div className="flex shrink-0 justify-center border-b border-gray-200/80 py-2">
-                        <div className="h-4 w-12 rounded-full bg-gray-300" />
-                      </div>
-                      <div className="min-h-[200px] min-w-0 flex-1 overflow-y-auto p-4">
-                        <div className="min-w-0 max-w-full rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-                          <p className="min-w-0 whitespace-pre-wrap text-sm leading-relaxed text-gray-800 [overflow-wrap:anywhere]">
-                            {body || "내용 없음"}
-                          </p>
+                      <div className="flex items-start gap-2">
+                        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-[#1a2b4a] ring-1 ring-black/10">
+                          <Image
+                            src={CALLLINK_KAKAO_CHANNEL_PROFILE_SRC}
+                            alt="콜링크쇼핑"
+                            width={96}
+                            height={96}
+                            sizes="36px"
+                            className="h-full w-full object-cover"
+                            priority
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1">
+                            <span className="text-[15px] font-normal leading-tight text-black">
+                              콜링크쇼핑
+                            </span>
+                          </div>
+
+                          <div className="relative pt-0.5">
+                            <div
+                              className="absolute -right-0.5 -top-0.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[#191919] shadow-sm ring-2 ring-[#bacee0]"
+                              aria-hidden
+                            >
+                              <span className="text-[7.5px] font-normal lowercase leading-none tracking-tighter text-white">
+                                kakao
+                              </span>
+                            </div>
+                            <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.06]">
+                              <div className="rounded-t-2xl bg-[#ffeb00] px-3.5 py-2.5">
+                                <span className="text-[15px] font-bold leading-snug text-black">
+                                  알림톡 도착
+                                </span>
+                              </div>
+                              <div className="px-3.5 py-3">
+                                <div className="whitespace-pre-wrap break-all text-[15px] leading-[1.5] text-black">
+                                  {alimtalkPreviewBodyWithLinks(body)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {alimtalkPreviewClock ? (
+                            <div className="mt-1 flex justify-end">
+                              <span className="text-[11px] leading-none text-[#576575]">
+                                {alimtalkPreviewClock}
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="mb-2 text-sm font-bold text-gray-900">
-                      메시지 내용
-                    </h3>
-                    <textarea
-                      value={body}
-                      readOnly
-                      rows={5}
-                      className="max-h-[160px] w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-800"
-                    />
-                    <p className="mt-2 text-xs text-gray-500">
-                      [알림톡 본문] {body.length}자 · {byteCount} byte (매뉴얼
-                      기준 MSG 최대 1000자)
-                    </p>
-                  </div>
+                  {/*
+                    추후 고객 요청으로 메시지 내용 본문 영역을 다시 제공할 때 사용합니다.
+                    <div>
+                      <h3 className="mb-2 text-sm font-bold text-gray-900">
+                        메시지 내용
+                      </h3>
+                      <textarea
+                        value={body}
+                        readOnly
+                        rows={5}
+                        className="max-h-[160px] w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-800"
+                      />
+                      <p className="mt-2 text-xs text-gray-500">
+                        [알림톡 본문] {body.length}자 · {byteCount} byte (매뉴얼
+                        기준 MSG 최대 1000자)
+                      </p>
+                    </div>
+                  */}
                 </div>
 
                 <div className="flex min-h-0 w-full min-w-0 flex-col gap-6 lg:col-span-7">

@@ -366,32 +366,32 @@ export default function ClientsLinksPage() {
               )}
             </div>
           </div>
-          <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
-            <table className="w-full border-collapse">
+          <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-auto pb-4 md:block">
+            <table className="min-w-[1280px] w-full table-fixed border-collapse">
               <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
                 <tr>
                   <th className="w-12 px-4 py-3 text-center text-xs font-semibold text-slate-600">
                     #
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                  <th className="w-[190px] px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">
                     거래처명
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                  <th className="w-[96px] px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">
                     담당자
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                  <th className="w-[130px] px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">
                     연락처
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                  <th className="w-[330px] px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">
                     주문링크
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                  <th className="w-[250px] px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">
                     CallLink 연동
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600">
+                  <th className="w-[170px] px-4 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">
                     고객사 Link 안내
                   </th>
-                  <th className="w-28 px-4 py-3 text-center text-xs font-semibold text-slate-600">
+                  <th className="w-[96px] px-4 py-3 text-center text-xs font-semibold text-slate-600 whitespace-nowrap">
                     관리
                   </th>
                 </tr>
@@ -421,29 +421,31 @@ export default function ClientsLinksPage() {
                       </td>
 
                       {/* 거래처명 */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                      <td className="w-[190px] px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-2">
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-rose-50 text-rose-600">
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                           </span>
-                          <span className="font-bold text-slate-800">{c.name}</span>
+                          <span className="min-w-0 flex-1 truncate whitespace-nowrap font-bold text-slate-800" title={c.name}>
+                            {c.name}
+                          </span>
                         </div>
                       </td>
 
                       {/* 담당자 */}
-                      <td className="px-4 py-3 text-sm text-slate-600">
+                      <td className="w-[96px] px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
                         {c.contact_name || "-"}
                       </td>
 
                       {/* 연락처 */}
-                      <td className="px-4 py-3 text-sm text-slate-600">
+                      <td className="w-[130px] px-4 py-3 text-sm tabular-nums text-slate-600 whitespace-nowrap">
                         {c.contact_phone || "-"}
                       </td>
 
                       {/* 주문링크 — 좌측 정렬, 칩+아이콘 찰싹 그룹 (w-full·justify-between 없음) */}
-                      <td className="px-4 py-3 align-middle">
+                      <td className="w-[330px] px-4 py-3 align-middle">
                         <div className="inline-flex items-center justify-start gap-2">
                           <span
                             className={ORDER_LINK_CHIP_CLASS}
@@ -483,7 +485,7 @@ export default function ClientsLinksPage() {
                       </td>
 
                       {/* CallLink — 좌측 기준선 정렬 */}
-                      <td className="px-4 py-3 align-middle">
+                      <td className="w-[250px] px-4 py-3 align-middle">
                         {(() => {
                           const call070Number =
                             c.client_call_070_configs?.[0]?.call_070_number?.trim() || null;
@@ -575,7 +577,7 @@ export default function ClientsLinksPage() {
                       </td>
 
                       {/* 고객사 Link 안내 (헤더) / Link 안내 발송 (버튼) */}
-                      <td className="px-4 py-3 text-center align-middle">
+                      <td className="w-[170px] px-4 py-3 text-center align-middle">
                         <button
                           type="button"
                           onClick={() => {
@@ -590,7 +592,7 @@ export default function ClientsLinksPage() {
                       </td>
 
                       {/* 관리 */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="w-[96px] px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           {/* 수정 버튼 */}
                           <button
