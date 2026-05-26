@@ -139,7 +139,7 @@ export default function OrdersReturnsPage() {
 
   if (!partnerId) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         <div className="flex items-center justify-center py-12">
           <p className="text-slate-600"></p>
         </div>
@@ -148,7 +148,7 @@ export default function OrdersReturnsPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
       {/* [2] 상단 고정: 타이틀·필터 */}
       <div className="shrink-0">
         <AdminPageHeader
@@ -162,7 +162,7 @@ export default function OrdersReturnsPage() {
           }
         />
 
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
           <div className="flex min-w-0 flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">유형</label>
@@ -247,7 +247,7 @@ export default function OrdersReturnsPage() {
           ) : null}
         </div>
 
-        <p className="mb-3 text-sm text-slate-600">총 {total}건</p>
+        <p className="mb-3 text-sm text-slate-600 [@media(min-width:768px)_and_(max-height:860px)]:mb-2">총 {total}건</p>
       </div>
 
       {/* [3] 테이블 카드 · 모바일 카드 */}

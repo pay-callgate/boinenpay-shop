@@ -185,7 +185,7 @@ export default function ProductsPage() {
         initialData={editingProduct}
         onSuccess={fetchProducts}
       />
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         {/* 상단 고정: 타이틀·필터·총 상품 수 (스크롤 시 찌그러짐 방지) */}
         <div className="shrink-0">
           <AdminPageHeader
@@ -199,7 +199,7 @@ export default function ProductsPage() {
             }
           />
 
-          <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
             <form onSubmit={handleSearch}>
               <div className="flex min-w-0 flex-wrap items-center gap-3">
                 <input
@@ -284,7 +284,7 @@ export default function ProductsPage() {
             </form>
           </div>
 
-          <p className="mb-3 text-sm text-slate-600">총 {total}개 상품</p>
+          <p className="mb-3 text-sm text-slate-600 [@media(min-width:768px)_and_(max-height:860px)]:mb-2">총 {total}개 상품</p>
         </div>
 
         {/* 테이블 & 페이징: 최소 높이 방어 · 모바일 카드 */}

@@ -17,21 +17,21 @@ export function OrderDetailHeader({ status }: Props) {
   const highlight = isOrderStatusHighlightActive(status);
 
   return (
-    <header className={cn("mb-6", ADMIN_PAGE_HEADER_CARD_CLASS)}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <header className={cn("mb-6 [@media(min-width:768px)_and_(max-height:860px)]:mb-2", ADMIN_PAGE_HEADER_CARD_CLASS)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between [@media(min-width:768px)_and_(max-height:860px)]:gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
             Orders · Detail
           </p>
-          <h1 className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+          <h1 className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl [@media(min-width:768px)_and_(max-height:860px)]:text-lg">
             <FileText
-              className="h-6 w-6 shrink-0 text-emerald-600 sm:h-7 sm:w-7"
+              className="h-6 w-6 shrink-0 text-emerald-600 sm:h-7 sm:w-7 [@media(min-width:768px)_and_(max-height:860px)]:h-5 [@media(min-width:768px)_and_(max-height:860px)]:w-5"
               strokeWidth={1.75}
               aria-hidden
             />
             주문 상세
           </h1>
-          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm break-keep [word-break:keep-all]">
+          <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm break-keep [word-break:keep-all] [@media(min-width:768px)_and_(max-height:860px)]:hidden">
             주문·결제·배송 정보를 한눈에 확인하고, 필요한 경우 결제를 취소할 수 있습니다.
           </p>
         </div>

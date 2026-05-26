@@ -135,7 +135,7 @@ export default function InventoryPage() {
       .join(", ") || "-";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
       {/* 상단 고정: 타이틀·대시보드·필터 (스크롤 시 찌그러짐 방지) */}
       <div className="shrink-0">
         <AdminPageHeader
@@ -150,10 +150,10 @@ export default function InventoryPage() {
         />
 
         {/* 1. 상단 요약 대시보드 (Dashboard Card) - Soft Pink Theme */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3 [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
         <Card className="border-rose-100 bg-rose-50 shadow-sm">
-          <CardContent className="flex h-24 min-h-[6rem] items-center gap-4 p-6">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-rose-500 shadow-sm">
+          <CardContent className="flex h-24 min-h-[6rem] items-center gap-4 p-6 [@media(min-width:768px)_and_(max-height:860px)]:h-16 [@media(min-width:768px)_and_(max-height:860px)]:min-h-[4rem] [@media(min-width:768px)_and_(max-height:860px)]:gap-3 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-rose-500 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:h-9 [@media(min-width:768px)_and_(max-height:860px)]:w-9">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -169,14 +169,14 @@ export default function InventoryPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-rose-600">전체 상품</p>
-              <p className="text-3xl font-bold text-rose-950">{products.length}</p>
+              <p className="text-sm font-medium text-rose-600 [@media(min-width:768px)_and_(max-height:860px)]:text-xs">전체 상품</p>
+              <p className="text-3xl font-bold text-rose-950 [@media(min-width:768px)_and_(max-height:860px)]:text-2xl">{products.length}</p>
             </div>
           </CardContent>
         </Card>
         <Card className="border-rose-100 bg-rose-50 shadow-sm">
-          <CardContent className="flex h-24 min-h-[6rem] items-center gap-4 p-6">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-rose-500 shadow-sm">
+          <CardContent className="flex h-24 min-h-[6rem] items-center gap-4 p-6 [@media(min-width:768px)_and_(max-height:860px)]:h-16 [@media(min-width:768px)_and_(max-height:860px)]:min-h-[4rem] [@media(min-width:768px)_and_(max-height:860px)]:gap-3 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-rose-500 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:h-9 [@media(min-width:768px)_and_(max-height:860px)]:w-9">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -192,14 +192,14 @@ export default function InventoryPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-rose-600">정상 재고</p>
-              <p className="text-3xl font-bold text-rose-950">{normalCount}</p>
+              <p className="text-sm font-medium text-rose-600 [@media(min-width:768px)_and_(max-height:860px)]:text-xs">정상 재고</p>
+              <p className="text-3xl font-bold text-rose-950 [@media(min-width:768px)_and_(max-height:860px)]:text-2xl">{normalCount}</p>
             </div>
           </CardContent>
         </Card>
         <Card className="border-red-200 bg-white shadow-sm">
-          <CardContent className="flex h-24 min-h-[6rem] items-center gap-4 p-6">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 shadow-sm">
+          <CardContent className="flex h-24 min-h-[6rem] items-center gap-4 p-6 [@media(min-width:768px)_and_(max-height:860px)]:h-16 [@media(min-width:768px)_and_(max-height:860px)]:min-h-[4rem] [@media(min-width:768px)_and_(max-height:860px)]:gap-3 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:h-9 [@media(min-width:768px)_and_(max-height:860px)]:w-9">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -215,15 +215,15 @@ export default function InventoryPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-red-600">재고 부족</p>
-              <p className="text-3xl font-bold text-red-600">{lowStockCount}</p>
+              <p className="text-sm font-medium text-red-600 [@media(min-width:768px)_and_(max-height:860px)]:text-xs">재고 부족</p>
+              <p className="text-3xl font-bold text-red-600 [@media(min-width:768px)_and_(max-height:860px)]:text-2xl">{lowStockCount}</p>
             </div>
           </CardContent>
         </Card>
         </div>
 
         {/* 2. 필터 탭 (Tabs 스타일) */}
-        <div className="mb-4 flex gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm w-fit">
+        <div className="mb-4 flex gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm w-fit [@media(min-width:768px)_and_(max-height:860px)]:mb-3">
           <button
             type="button"
             onClick={() => setFilter("all")}

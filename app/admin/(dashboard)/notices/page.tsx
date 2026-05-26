@@ -18,7 +18,7 @@ export default function NoticesPage() {
   }> = [];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
       <div className="shrink-0">
         <AdminPageHeader
           eyebrow="Board · Notices"
@@ -27,7 +27,7 @@ export default function NoticesPage() {
           description="파트너와 거래처(전용몰)에 전달할 공지를 등록하고 관리합니다."
         />
 
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <input
               type="search"
@@ -53,7 +53,7 @@ export default function NoticesPage() {
           </div>
         </div>
 
-        <p className="mb-3 text-sm text-slate-600">총 {notices.length}개 공지</p>
+        <p className="mb-3 text-sm text-slate-600 [@media(min-width:768px)_and_(max-height:860px)]:mb-2">총 {notices.length}개 공지</p>
       </div>
 
       <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">

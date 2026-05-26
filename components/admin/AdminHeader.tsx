@@ -96,7 +96,7 @@ export function AdminHeader({
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-2 bg-black px-3 text-white sm:px-4">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-2 bg-black px-3 text-white sm:px-4 [@media(min-width:768px)_and_(max-height:860px)]:h-11">
       <div className="flex min-w-0 items-center gap-2">
         {onOpenMobileNav ? (
           <button
@@ -110,11 +110,11 @@ export function AdminHeader({
             </svg>
           </button>
         ) : null}
-        <Link href="/admin" className="truncate text-base font-bold sm:text-lg">
+        <Link href="/admin" className="truncate text-base font-bold sm:text-lg [@media(min-width:768px)_and_(max-height:860px)]:text-base">
           Partner Admin
         </Link>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs sm:gap-4 sm:text-sm">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs sm:gap-4 sm:text-sm [@media(min-width:768px)_and_(max-height:860px)]:gap-x-2 [@media(min-width:768px)_and_(max-height:860px)]:text-xs">
         <Link
           href="/admin/settings/integrations"
           className="hover:underline"
@@ -132,12 +132,12 @@ export function AdminHeader({
                 aria-checked={devAutoSubmit.enabled}
                 disabled={devAutoSaving}
                 onClick={() => void toggleDevAuto()}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-50 ${
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-50 [@media(min-width:768px)_and_(max-height:860px)]:h-6 [@media(min-width:768px)_and_(max-height:860px)]:w-11 ${
                   devAutoSubmit.enabled ? "bg-emerald-600" : "bg-gray-600"
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                  className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform [@media(min-width:768px)_and_(max-height:860px)]:h-5 [@media(min-width:768px)_and_(max-height:860px)]:w-5 ${
                     devAutoSubmit.enabled ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
@@ -152,9 +152,9 @@ export function AdminHeader({
         <button
           type="button"
           onClick={openPartnerSettings}
-          className="flex items-center gap-1.5 hover:underline"
+          className="flex items-center gap-1.5 hover:underline [@media(min-width:768px)_and_(max-height:860px)]:gap-1"
         >
-          <CogIcon className="h-5 w-5" />
+          <CogIcon className="h-5 w-5 [@media(min-width:768px)_and_(max-height:860px)]:h-4 [@media(min-width:768px)_and_(max-height:860px)]:w-4" />
           <span>파트너 설정</span>
         </button>
         <span className="text-gray-300">|</span>

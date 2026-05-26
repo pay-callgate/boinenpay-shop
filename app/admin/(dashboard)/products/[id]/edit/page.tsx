@@ -312,14 +312,17 @@ export default function ProductEditPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: "24px" }}>
+      <div className="p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         <p></p>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "24px", maxWidth: "800px" }}>
+    <div
+      className="p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3"
+      style={{ maxWidth: "800px" }}
+    >
       <AdminPageHeader
         className="!mb-4"
         eyebrow="Catalog · Products"

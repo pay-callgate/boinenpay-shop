@@ -185,19 +185,19 @@ export default function StatsSalesPage() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 [@media(min-width:768px)_and_(max-height:860px)]:space-y-2">
       {/* 상단 헤더 */}
-      <header className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-emerald-50/40 px-5 py-4 shadow-sm sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <header className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-emerald-50/40 px-5 py-4 shadow-sm sm:px-6 [@media(min-width:768px)_and_(max-height:860px)]:rounded-xl [@media(min-width:768px)_and_(max-height:860px)]:px-4 [@media(min-width:768px)_and_(max-height:860px)]:py-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between [@media(min-width:768px)_and_(max-height:860px)]:gap-2">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
               Sales · Analytics
             </p>
-            <h1 className="mt-0.5 flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-              <BarChart3 className="h-6 w-6 text-emerald-600 sm:h-7 sm:w-7" strokeWidth={1.75} aria-hidden />
+            <h1 className="mt-0.5 flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl [@media(min-width:768px)_and_(max-height:860px)]:text-lg">
+              <BarChart3 className="h-6 w-6 text-emerald-600 sm:h-7 sm:w-7 [@media(min-width:768px)_and_(max-height:860px)]:h-5 [@media(min-width:768px)_and_(max-height:860px)]:w-5" strokeWidth={1.75} aria-hidden />
               매출 분석
             </h1>
-            <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm">
+            <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-600 sm:text-sm [@media(min-width:768px)_and_(max-height:860px)]:hidden">
               화환·꽃배달 주문의 결제완료 기준 매출과 월별 추이, 배송·접수 상태를 한눈에 확인합니다.
             </p>
           </div>
@@ -213,7 +213,7 @@ export default function StatsSalesPage() {
                 role="tab"
                 aria-selected={period === opt.value}
                 onClick={() => setPeriod(opt.value)}
-                className={`rounded-lg px-3 py-1.5 text-left transition-all sm:min-w-[5rem] sm:px-3.5 sm:py-2 ${
+                className={`rounded-lg px-3 py-1.5 text-left transition-all sm:min-w-[5rem] sm:px-3.5 sm:py-2 [@media(min-width:768px)_and_(max-height:860px)]:py-1 ${
                   period === opt.value
                     ? "bg-slate-900 text-white shadow-md"
                     : "text-slate-600 hover:bg-slate-50"
@@ -249,8 +249,8 @@ export default function StatsSalesPage() {
       ) : (
         <>
           {/* KPI 카드 */}
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="요약 지표">
-            <article className="group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md sm:p-4">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 [@media(min-width:768px)_and_(max-height:860px)]:gap-2" aria-label="요약 지표">
+            <article className="group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md sm:p-4 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-[11px] font-medium text-slate-500 sm:text-xs">기간 내 주문 건수</p>
@@ -265,7 +265,7 @@ export default function StatsSalesPage() {
               </div>
             </article>
 
-            <article className="group rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-white to-emerald-50/60 p-5 shadow-sm transition-shadow hover:shadow-md">
+            <article className="group rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-white to-emerald-50/60 p-5 shadow-sm transition-shadow hover:shadow-md [@media(min-width:768px)_and_(max-height:860px)]:p-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-medium text-emerald-800/80">결제완료 매출</p>
@@ -281,7 +281,7 @@ export default function StatsSalesPage() {
               </div>
             </article>
 
-            <article className="group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md sm:p-4">
+            <article className="group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md sm:p-4 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-[11px] font-medium text-slate-500 sm:text-xs">결제완료 주문 수</p>
@@ -296,7 +296,7 @@ export default function StatsSalesPage() {
               </div>
             </article>
 
-            <article className="group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md sm:p-4">
+            <article className="group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-shadow hover:shadow-md sm:p-4 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-[11px] font-medium text-slate-500 sm:text-xs">평균 객단가 (결제완료)</p>
@@ -427,7 +427,7 @@ export default function StatsSalesPage() {
                 : "결제완료 주문만 집계 · 최근 6개월"
             }
             compact
-            minHeightClass="min-h-[420px] sm:min-h-[460px]"
+            minHeightClass="min-h-[420px] sm:min-h-[460px] [@media(min-width:768px)_and_(max-height:860px)]:min-h-[300px]"
           />
         </>
       )}

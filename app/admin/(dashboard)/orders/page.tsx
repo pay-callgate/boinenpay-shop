@@ -22,7 +22,7 @@ const ADMIN_ORDER_LIST_EXCLUDE_PENDING = true;
 
 /** 상단 `AdminPageHeader`·카테고리 패널과 동일 톤의 목록 요약 헤더 */
 const ordersTableSummaryHeaderClass =
-  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-4 sm:px-6";
+  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-4 sm:px-6 [@media(min-width:768px)_and_(max-height:860px)]:px-4 [@media(min-width:768px)_and_(max-height:860px)]:py-3";
 
 /**
  * T5-1: 주문 목록 페이지 (파트너 어드민) — 중앙 집중형 /admin/orders
@@ -573,7 +573,7 @@ export default function OrdersPage() {
 
   if (status === "loading" || !partnerId) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         <div className="flex items-center justify-center py-12">
           <p className="text-slate-600"></p>
         </div>
@@ -582,11 +582,15 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
       {/* [2] 상단 고정: 타이틀·필터 (스크롤 시 찌그러짐 방지) */}
       <div className="shrink-0">
         <AdminPageHeader
-          className="shrink-0"
+          className="shrink-0 [@media(min-width:768px)_and_(max-height:860px)]:!mb-2 [@media(min-width:768px)_and_(max-height:860px)]:!rounded-lg [@media(min-width:768px)_and_(max-height:860px)]:!px-3 [@media(min-width:768px)_and_(max-height:860px)]:!py-2 [@media(min-width:768px)_and_(max-height:620px)]:!py-1.5"
+          eyebrowClassName="[@media(min-width:768px)_and_(max-height:620px)]:hidden"
+          titleClassName="[@media(min-width:768px)_and_(max-height:860px)]:!mt-0 [@media(min-width:768px)_and_(max-height:860px)]:!text-lg"
+          iconClassName="[@media(min-width:768px)_and_(max-height:860px)]:!h-5 [@media(min-width:768px)_and_(max-height:860px)]:!w-5"
+          descriptionClassName="[@media(min-width:768px)_and_(max-height:860px)]:hidden"
           eyebrow="Orders · List"
           title="주문 목록"
           titleIcon={ClipboardList}
@@ -597,13 +601,13 @@ export default function OrdersPage() {
           }
         />
 
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-800">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mb-2 [@media(min-width:768px)_and_(max-height:860px)]:p-2">
+          <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-3 text-sm text-slate-800 [@media(min-width:768px)_and_(max-height:860px)]:px-2 [@media(min-width:768px)_and_(max-height:860px)]:py-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2 [@media(min-width:768px)_and_(max-height:860px)]:gap-y-1.5">
               <select
                 value={draft.selectedClient}
                 onChange={(e) => setDraft((d) => ({ ...d, selectedClient: e.target.value }))}
-                className="h-9 w-auto min-w-[9rem] max-w-[11rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="h-9 w-auto min-w-[9rem] max-w-[11rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 [@media(min-width:768px)_and_(max-height:860px)]:h-8 [@media(min-width:768px)_and_(max-height:860px)]:text-xs"
               >
                 <option value="">거래처 선택</option>
                 {clients.map((client) => (
@@ -617,7 +621,7 @@ export default function OrdersPage() {
                 onChange={(e) =>
                   setDraft((d) => ({ ...d, ...applyUnifiedPick(e.target.value) }))
                 }
-                className="h-9 w-auto min-w-[9.5rem] max-w-[12.5rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="h-9 w-auto min-w-[9.5rem] max-w-[12.5rem] shrink-0 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 [@media(min-width:768px)_and_(max-height:860px)]:h-8 [@media(min-width:768px)_and_(max-height:860px)]:text-xs"
               >
                 <option value="all">상태 통합검색</option>
                 <optgroup label="주문 상태">
@@ -647,7 +651,7 @@ export default function OrdersPage() {
               <button
                 type="button"
                 onClick={applySearch}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 text-sm font-semibold whitespace-nowrap text-white hover:bg-gray-800"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-black px-4 text-sm font-semibold whitespace-nowrap text-white hover:bg-gray-800 [@media(min-width:768px)_and_(max-height:860px)]:h-8 [@media(min-width:768px)_and_(max-height:860px)]:px-3 [@media(min-width:768px)_and_(max-height:860px)]:text-xs"
               >
                 검색
                 <Search className="h-4 w-4 shrink-0" aria-hidden />
@@ -655,7 +659,7 @@ export default function OrdersPage() {
               <button
                 type="button"
                 onClick={() => setFilterDetailExpanded((v) => !v)}
-                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold whitespace-nowrap transition-colors sm:text-sm ${
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold whitespace-nowrap transition-colors sm:text-sm [@media(min-width:768px)_and_(max-height:860px)]:h-8 [@media(min-width:768px)_and_(max-height:860px)]:px-2 [@media(min-width:768px)_and_(max-height:860px)]:text-xs ${
                   filterDetailExpanded
                     ? "border-slate-900 bg-white text-slate-900"
                     : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
@@ -675,7 +679,7 @@ export default function OrdersPage() {
                 <button
                   type="button"
                   onClick={handleExcelDownload}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 [@media(min-width:768px)_and_(max-height:860px)]:h-8 [@media(min-width:768px)_and_(max-height:860px)]:px-3 [@media(min-width:768px)_and_(max-height:860px)]:text-xs"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <path
@@ -750,14 +754,14 @@ export default function OrdersPage() {
       {/* [3] 테이블 카드: 최소 높이 방어 + 데스크톱은 내부 스크롤 */}
       <div className="flex min-h-[300px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
         <div
-          className={`flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 ${ordersTableSummaryHeaderClass}`}
+          className={`flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-y-2 ${ordersTableSummaryHeaderClass}`}
         >
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/90 sm:text-xs">
               Orders · Summary
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+              <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 sm:text-xl [@media(min-width:768px)_and_(max-height:860px)]:text-lg">
                 <ListOrdered
                   className="h-5 w-5 shrink-0 text-emerald-600 sm:h-6 sm:w-6"
                   strokeWidth={1.75}
@@ -774,7 +778,7 @@ export default function OrdersPage() {
               )}
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3 sm:ml-auto sm:gap-4">
+          <div className="flex flex-wrap items-center justify-end gap-3 sm:ml-auto sm:gap-4 [@media(min-width:768px)_and_(max-height:860px)]:gap-2">
             <button
               type="button"
               onClick={pickQuickAll}

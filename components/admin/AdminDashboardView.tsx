@@ -47,11 +47,11 @@ export function AdminDashboardView({
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-h-screen bg-slate-50 p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-2">
         <div>
           <h1 className="text-xl font-bold text-slate-800">{title}</h1>
-          <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>
+          <p className="mt-0.5 text-sm text-slate-500 [@media(min-width:768px)_and_(max-height:860px)]:hidden">{subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
@@ -66,7 +66,7 @@ export function AdminDashboardView({
                 key={opt.value}
                 type="button"
                 onClick={() => onPeriodChange(opt.value)}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors [@media(min-width:768px)_and_(max-height:860px)]:py-1 ${
                   period === opt.value
                     ? "bg-slate-800 text-white"
                     : "text-slate-600 hover:bg-slate-100"
@@ -82,7 +82,7 @@ export function AdminDashboardView({
                 key={a.href}
                 type="button"
                 onClick={() => router.push(a.href)}
-                className={`flex h-10 items-center gap-1.5 rounded-lg border px-4 text-sm font-medium transition-colors ${
+                className={`flex h-10 items-center gap-1.5 rounded-lg border px-4 text-sm font-medium transition-colors [@media(min-width:768px)_and_(max-height:860px)]:h-8 [@media(min-width:768px)_and_(max-height:860px)]:px-3 [@media(min-width:768px)_and_(max-height:860px)]:text-xs ${
                   a.primary
                     ? "border-slate-800 bg-slate-800 text-white hover:bg-slate-700"
                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -96,26 +96,26 @@ export function AdminDashboardView({
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">{kpis}</div>
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">{kpis}</div>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3 [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
         {chart}
 
-        <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
+        <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-4">
+          <div className="mb-3 flex items-center gap-2 [@media(min-width:768px)_and_(max-height:860px)]:mb-2">
             <CreditCard className="h-5 w-5 text-slate-500" />
             <h2 className="text-base font-semibold text-slate-800">
               최근 주문 목록
             </h2>
           </div>
-          <p className="mb-3 text-xs text-slate-500">
+          <p className="mb-3 text-xs text-slate-500 [@media(min-width:768px)_and_(max-height:860px)]:mb-2 [@media(min-width:768px)_and_(max-height:860px)]:line-clamp-1">
             최근 접수된 주문 흐름을 한눈에 확인할 수 있습니다.
           </p>
           {recentOrders}
           <button
             type="button"
             onClick={() => router.push(`${base}/orders`)}
-            className="mt-4 inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            className="mt-4 inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 [@media(min-width:768px)_and_(max-height:860px)]:mt-3 [@media(min-width:768px)_and_(max-height:860px)]:h-8"
           >
             전체 주문 보기
           </button>
@@ -134,12 +134,12 @@ export function AdminDashboardKpiCard(props: {
 }) {
   const { title, value, icon, subline } = props;
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-3">
       <div className="absolute right-3 top-3 text-slate-200">{icon}</div>
       <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
         {title}
       </p>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-2xl font-bold text-slate-900 [@media(min-width:768px)_and_(max-height:860px)]:text-xl">{value}</p>
       {subline ? (
         <div className="mt-1 text-xs font-medium text-slate-500">{subline}</div>
       ) : null}

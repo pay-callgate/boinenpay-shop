@@ -60,7 +60,7 @@ export function AdminDashboardShell({
             unreadOrderNotify={unreadOrderNotify}
             className="hidden h-full w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 md:flex"
           />
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden p-4 sm:p-6">
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden p-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
             {children}
           </main>
         </div>

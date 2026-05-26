@@ -262,7 +262,7 @@ export default function AdminAlimtalkMessagesPage() {
         />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 px-4 sm:px-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 px-4 sm:px-6 [@media(min-width:768px)_and_(max-height:860px)]:px-3">
         <AdminPageHeader
           className="shrink-0"
           eyebrow="Clients · Alimtalk"
@@ -276,39 +276,39 @@ export default function AdminAlimtalkMessagesPage() {
         />
 
         {/* 요약 카드 */}
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-gray-600">
+        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3 [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+            <p className="text-sm font-medium text-gray-600 [@media(min-width:768px)_and_(max-height:860px)]:text-xs">
               이번달 발송 성공
             </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">
+            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:text-xl">
               {summary.totalSuccessCount.toLocaleString("ko-KR")} 건
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 [@media(min-width:768px)_and_(max-height:860px)]:mt-0.5">
               (카카오톡 {summary.totalSuccessCount.toLocaleString("ko-KR")} / 문자{" "}
               {smsSuccessSummary.toLocaleString("ko-KR")})
             </p>
-            <p className="mt-1 text-[11px] text-gray-400">
+            <p className="mt-1 text-[11px] text-gray-400 [@media(min-width:768px)_and_(max-height:860px)]:hidden">
               * 조회 기간·상태·검색과 동일 집계
             </p>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-gray-600">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+            <p className="text-sm font-medium text-gray-600 [@media(min-width:768px)_and_(max-height:860px)]:text-xs">
               이번달 발송 실패 🚨
             </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-red-600">
+            <p className="mt-1 text-2xl font-bold tabular-nums text-red-600 [@media(min-width:768px)_and_(max-height:860px)]:text-xl">
               {summary.totalFailCount.toLocaleString("ko-KR")} 건
             </p>
             <p className="mt-1 text-xs text-gray-500">
               (실패율 {failRatePct}%)
             </p>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-medium text-gray-600">예상 정산 금액</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-blue-600">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+            <p className="text-sm font-medium text-gray-600 [@media(min-width:768px)_and_(max-height:860px)]:text-xs">예상 정산 금액</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-blue-600 [@media(min-width:768px)_and_(max-height:860px)]:text-xl">
               {summary.estimatedSettlementWon.toLocaleString("ko-KR")} 원
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 [@media(min-width:768px)_and_(max-height:860px)]:mt-0.5">
               * 성공 {summary.totalSuccessCount.toLocaleString("ko-KR")}건 ×{" "}
               {summary.unitWon}원 기준
             </p>
@@ -318,7 +318,7 @@ export default function AdminAlimtalkMessagesPage() {
         {/* 검색·필터 */}
         <form
           onSubmit={handleSearch}
-          className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4"
+          className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-2 [@media(min-width:768px)_and_(max-height:860px)]:p-3"
         >
           <div className="flex flex-wrap items-center gap-2 text-sm text-gray-800">
             <input

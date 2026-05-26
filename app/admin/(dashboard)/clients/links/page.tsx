@@ -245,7 +245,7 @@ export default function ClientsLinksPage() {
         />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         {/* 헤더: 재고 관리와 동일한 여백 */}
         <AdminPageHeader
           className="shrink-0"
@@ -260,7 +260,7 @@ export default function ClientsLinksPage() {
         />
 
         {/* 검색 필터: 재고 관리 필터와 동일한 mb-4, gap 정렬 */}
-        <div className="shrink-0 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="shrink-0 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-2 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
           <form onSubmit={handleSearch} className="flex flex-1 flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[200px] max-w-md">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">

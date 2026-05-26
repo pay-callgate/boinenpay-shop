@@ -97,18 +97,18 @@ export default function StatsClientsPage() {
   }
 
   return (
-    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto">
-      <header className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-teal-50/35 px-6 py-7 shadow-sm sm:px-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto [@media(min-width:768px)_and_(max-height:860px)]:space-y-3">
+      <header className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-teal-50/35 px-6 py-7 shadow-sm sm:px-8 [@media(min-width:768px)_and_(max-height:860px)]:rounded-xl [@media(min-width:768px)_and_(max-height:860px)]:px-4 [@media(min-width:768px)_and_(max-height:860px)]:py-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between [@media(min-width:768px)_and_(max-height:860px)]:gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-teal-800/80">
               Partner stores · Rankings
             </p>
-            <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              <Store className="h-8 w-8 text-teal-600" strokeWidth={1.75} aria-hidden />
+            <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl [@media(min-width:768px)_and_(max-height:860px)]:text-lg">
+              <Store className="h-8 w-8 text-teal-600 [@media(min-width:768px)_and_(max-height:860px)]:h-5 [@media(min-width:768px)_and_(max-height:860px)]:w-5" strokeWidth={1.75} aria-hidden />
               거래처별 분석
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 [@media(min-width:768px)_and_(max-height:860px)]:hidden">
               전용몰·거래처(브랜드)별 주문 건수와 결제완료 매출을 비교합니다.
             </p>
           </div>
@@ -124,7 +124,7 @@ export default function StatsClientsPage() {
                 role="tab"
                 aria-selected={period === opt.value}
                 onClick={() => setPeriod(opt.value)}
-                className={`rounded-lg px-3.5 py-2 text-left transition-all sm:min-w-[5.5rem] sm:px-4 ${
+                className={`rounded-lg px-3.5 py-2 text-left transition-all sm:min-w-[5.5rem] sm:px-4 [@media(min-width:768px)_and_(max-height:860px)]:py-1 ${
                   period === opt.value
                     ? "bg-slate-900 text-white shadow-md"
                     : "text-slate-600 hover:bg-slate-50"
@@ -155,8 +155,8 @@ export default function StatsClientsPage() {
         </div>
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-3" aria-label="거래처 요약">
-            <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+          <section className="grid gap-4 sm:grid-cols-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3" aria-label="거래처 요약">
+            <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-medium text-slate-500">활성 거래처 수</p>
@@ -170,7 +170,7 @@ export default function StatsClientsPage() {
                 </span>
               </div>
             </article>
-            <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+            <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-medium text-slate-500">총 주문 건수</p>
@@ -184,7 +184,7 @@ export default function StatsClientsPage() {
                 </span>
               </div>
             </article>
-            <article className="rounded-2xl border border-teal-200/70 bg-gradient-to-br from-white to-teal-50/50 p-5 shadow-sm">
+            <article className="rounded-2xl border border-teal-200/70 bg-gradient-to-br from-white to-teal-50/50 p-5 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-medium text-teal-900/70">총 매출 (결제완료)</p>
@@ -210,7 +210,7 @@ export default function StatsClientsPage() {
                 <Medal className="h-4 w-4 text-amber-600" aria-hidden />
                 매출 상위 거래처
               </h2>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-2">
                 {topThree.map((row, idx) => {
                   const rank = idx + 1;
                   const share =
@@ -218,7 +218,7 @@ export default function StatsClientsPage() {
                   return (
                     <article
                       key={row.clientId}
-                      className={`rounded-2xl px-5 py-4 ${rankStyle(rank)}`}
+                      className={`rounded-2xl px-5 py-4 [@media(min-width:768px)_and_(max-height:860px)]:px-3 [@media(min-width:768px)_and_(max-height:860px)]:py-2.5 ${rankStyle(rank)}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold uppercase tracking-wide">
@@ -246,7 +246,7 @@ export default function StatsClientsPage() {
             className="flex min-h-[300px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm"
             aria-labelledby="table-heading"
           >
-            <div className="border-b border-slate-100 bg-slate-50/90 px-6 py-4">
+            <div className="border-b border-slate-100 bg-slate-50/90 px-6 py-4 [@media(min-width:768px)_and_(max-height:860px)]:px-4 [@media(min-width:768px)_and_(max-height:860px)]:py-3">
               <h2 id="table-heading" className="text-base font-bold text-slate-900">
                 거래처별 상세
               </h2>

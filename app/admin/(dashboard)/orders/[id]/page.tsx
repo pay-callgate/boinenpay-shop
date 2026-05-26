@@ -491,7 +491,7 @@ export default function OrderDetailPage() {
 
   if (sessionStatus === "loading" || loading) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         <div className="flex items-center justify-center py-12">
           <p className="text-sm text-gray-500">불러오는 중…</p>
         </div>
@@ -501,7 +501,7 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         <div className="flex flex-col items-center justify-center py-12">
           <h1 className="mb-2 text-xl font-bold text-gray-900">주문을 찾을 수 없습니다</h1>
           <button
@@ -524,18 +524,18 @@ export default function OrderDetailPage() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900">
+    <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
       <OrderDetailHeader status={order.status} />
 
-      <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-10">
-        <div className="flex flex-col gap-6 lg:col-span-7">
+      <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-10 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
+        <div className="flex flex-col gap-6 lg:col-span-7 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
           <OrderProductCard
             orderNo={order.order_no}
             items={items}
             totalAmount={order.total_amount}
             formatPrice={formatPrice}
           />
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
             <OrderOrdererCard
               user={order.user}
               isGuest={order.is_guest}
@@ -567,9 +567,9 @@ export default function OrderDetailPage() {
           />
         </div>
 
-        <div className="flex flex-col gap-6 lg:col-span-3">
+        <div className="flex flex-col gap-6 lg:col-span-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
           <div className="lg:sticky lg:top-6">
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
               {/*
                * 주문 상태 업데이트: 화면 비노출(DOM·상태·핸들러 유지, 추후 재사용)
                */}

@@ -8,19 +8,19 @@ export default function DashboardRealPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen animate-pulse bg-slate-50 p-6">
-          <div className="mb-6 h-8 max-w-md rounded bg-slate-200" />
-          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="min-h-screen animate-pulse bg-slate-50 p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+          <div className="mb-6 h-8 max-w-md rounded bg-slate-200 [@media(min-width:768px)_and_(max-height:860px)]:mb-3" />
+          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="h-28 rounded-2xl bg-slate-200"
+                className="h-28 rounded-2xl bg-slate-200 [@media(min-width:768px)_and_(max-height:860px)]:h-20"
               />
             ))}
           </div>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 min-h-[400px] rounded-2xl bg-slate-200" />
-            <div className="min-h-[320px] rounded-2xl bg-slate-200" />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
+            <div className="lg:col-span-2 min-h-[400px] rounded-2xl bg-slate-200 [@media(min-width:768px)_and_(max-height:860px)]:min-h-[260px]" />
+            <div className="min-h-[320px] rounded-2xl bg-slate-200 [@media(min-width:768px)_and_(max-height:860px)]:min-h-[240px]" />
           </div>
         </div>
       }

@@ -26,7 +26,7 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 /** 상단 페이지 헤더와 톤을 맞춘 패널 헤더 (그라데이션·테두리) */
 const categoryPanelHeaderClass =
-  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-3.5 sm:px-6";
+  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-3.5 sm:px-6 [@media(min-width:768px)_and_(max-height:860px)]:px-4 [@media(min-width:768px)_and_(max-height:860px)]:py-2.5";
 
 interface Category {
   id: string;
@@ -237,7 +237,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-6">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
       <AdminPageHeader
         eyebrow="Catalog · Categories"
         title="카테고리 관리"
@@ -253,7 +253,7 @@ export default function CategoriesPage() {
         <p className="mb-4 text-sm text-red-600">{error}</p>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
         {/* 좌측: 카테고리 목록 카드 */}
         <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
           <div className={categoryPanelHeaderClass}>
@@ -350,8 +350,8 @@ export default function CategoriesPage() {
                 : "새 카테고리를 등록한 뒤 목록에서 순서·노출을 조정할 수 있습니다."}
             </p>
           </div>
-          <form onSubmit={handleSubmit} className="p-4 sm:p-5">
-            <div className="space-y-5">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-5 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+            <div className="space-y-5 [@media(min-width:768px)_and_(max-height:860px)]:space-y-3">
               <div>
                 <label className={labelClass} htmlFor="cat-name">
                   카테고리명 <span className="font-semibold text-red-500">*</span>

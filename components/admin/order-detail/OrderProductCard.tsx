@@ -34,8 +34,8 @@ export function OrderProductCard({
   formatPrice,
 }: Props) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 border-b border-gray-100 pb-4">
+    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-4">
+      <div className="mb-4 border-b border-gray-100 pb-4 [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:pb-3">
         <h2 className="flex flex-wrap items-center gap-2 text-lg font-bold text-gray-900">
           <span
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-50 via-amber-50/80 to-orange-100/60 shadow-sm ring-1 ring-orange-100/80"

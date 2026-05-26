@@ -118,21 +118,21 @@ export default function AdminNewrunIntegrationsTestPage() {
 
   return (
     <div className="min-h-full w-full max-w-3xl">
-      <div className="mb-6">
+      <div className="mb-6 [@media(min-width:768px)_and_(max-height:860px)]:mb-3">
         <p className="text-sm text-slate-600">
           <Link href="/admin/settings" className="text-blue-600 hover:underline">
             ← 파트너 설정
           </Link>
         </p>
-        <h2 className="mt-2 text-2xl font-bold text-slate-800">뉴런 연동 사전 테스트</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="mt-2 text-2xl font-bold text-slate-800 [@media(min-width:768px)_and_(max-height:860px)]:text-xl">뉴런 연동 사전 테스트</h2>
+        <p className="mt-1 text-sm text-slate-600 [@media(min-width:768px)_and_(max-height:860px)]:hidden">
           발주(POST) 전 협회 검색 URL·<code className="text-xs">var_ret</code> 콜백 경로를 확인합니다.
           운영·스테이징·Ngrok 모두{" "}
           <strong className="font-semibold text-slate-700">HTTPS에서 접속한 동일 호스트</strong>로 테스트해 주세요.
         </p>
       </div>
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 [@media(min-width:768px)_and_(max-height:860px)]:p-3 [@media(min-width:768px)_and_(max-height:860px)]:text-xs">
         <p className="font-semibold">배포·로컬 공통</p>
         <ul className="mt-2 list-inside list-disc space-y-1">
           <li>
@@ -147,7 +147,7 @@ export default function AdminNewrunIntegrationsTestPage() {
         </ul>
       </div>
 
-      <div className="mt-6 rounded-lg border border-violet-200 bg-violet-50/80 p-6 shadow-sm">
+      <div className="mt-6 rounded-lg border border-violet-200 bg-violet-50/80 p-6 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mt-3 [@media(min-width:768px)_and_(max-height:860px)]:p-4">
         <h3 className="text-base font-semibold text-violet-950">intranet_post 발주 연동 테스트</h3>
         <p className="mt-2 text-sm text-violet-900/90">
           결제·실주문 없이 서버가 샘플 <code className="text-xs">rw_*</code> 폼을 만들어 뉴런{" "}
@@ -157,7 +157,7 @@ export default function AdminNewrunIntegrationsTestPage() {
           동일하게 반영됩니다. 상품코드 샘플은 <code className="text-xs">var_mcode</code>{" "}
           <code className="text-xs">09</code>입니다.
         </p>
-        <div className="mt-4 rounded-md border border-violet-200/80 bg-white/90 p-4">
+        <div className="mt-4 rounded-md border border-violet-200/80 bg-white/90 p-4 [@media(min-width:768px)_and_(max-height:860px)]:mt-3 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
           <p className="text-xs font-semibold text-violet-950">intranet_post 인증·협회·수주 (테스트용)</p>
           <p className="mt-1 text-xs text-violet-800/85">
             기본값은 코드와 동일합니다. 비밀번호가 바뀌면 여기서 수정 후 다시 전송하세요.{" "}
@@ -264,7 +264,7 @@ export default function AdminNewrunIntegrationsTestPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-lg bg-white p-6 shadow-sm">
+      <div className="mt-6 rounded-lg bg-white p-6 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mt-3 [@media(min-width:768px)_and_(max-height:860px)]:p-4">
         <h3 className="text-base font-semibold text-slate-800">수주화원·상품·옵션 검색 (팝업)</h3>
         <p className="mt-2 text-sm text-slate-600">
           아래 버튼은 동일 출처 API로 연 뒤 서버가 협회 HTTP URL로 리다이렉트합니다(Mixed Content 회피).
@@ -295,7 +295,7 @@ export default function AdminNewrunIntegrationsTestPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-lg bg-white p-6 shadow-sm">
+      <div className="mt-6 rounded-lg bg-white p-6 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mt-3 [@media(min-width:768px)_and_(max-height:860px)]:p-4">
         <h3 className="text-base font-semibold text-slate-800">마지막 var_ret (postMessage)</h3>
         {lastMessage ? (
           <pre className="mt-3 max-h-80 overflow-auto rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">

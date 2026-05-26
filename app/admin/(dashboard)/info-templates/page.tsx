@@ -31,7 +31,7 @@ const labelClass = "mb-1 block text-xs font-medium text-slate-600";
 
 /** 상단 페이지 헤더·카테고리 패널과 톤을 맞춘 카드 헤더 */
 const infoPanelHeaderClass =
-  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-3.5 sm:px-6";
+  "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-3.5 sm:px-6 [@media(min-width:768px)_and_(max-height:860px)]:px-4 [@media(min-width:768px)_and_(max-height:860px)]:py-2.5";
 
 function formatTemplateUpdatedAt(value?: string) {
   if (!value) return "-";
@@ -171,7 +171,7 @@ export default function InfoTemplatesPage() {
 
   if (loading && templates.length === 0 && !error) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-slate-50 p-12 text-sm text-slate-500">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-slate-50 p-12 text-sm text-slate-500 [@media(min-width:768px)_and_(max-height:860px)]:p-6">
         불러오는 중…
       </div>
     );
@@ -192,8 +192,8 @@ export default function InfoTemplatesPage() {
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-start lg:gap-4 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-4 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
           <div className="flex min-h-[300px] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm lg:w-[18.5rem] lg:max-w-[18.5rem] lg:shrink-0">
             <div className={infoPanelHeaderClass}>
               <div className="flex items-start justify-between gap-3">
@@ -327,7 +327,7 @@ export default function InfoTemplatesPage() {
                 : "배송·환불·상품 고시 문구를 입력한 뒤 저장하면 목록에 추가됩니다."}
             </p>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-3 p-4 sm:p-5">
+          <form onSubmit={handleSubmit} className="space-y-3 p-4 sm:p-5 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
             <div>
               <label className={labelClass}>템플릿 이름 *</label>
               <input

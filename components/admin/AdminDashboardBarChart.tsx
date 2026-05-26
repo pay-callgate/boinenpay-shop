@@ -135,7 +135,7 @@ export function AdminDashboardBarChart({
   if (loading) {
     return (
       <div
-        className={`col-span-2 flex ${minH} flex-col rounded-2xl border ${pad} shadow-lg animate-pulse ${theme.pulseCard}`}
+        className={`col-span-2 flex ${minH} flex-col rounded-2xl border ${pad} shadow-lg animate-pulse [@media(min-width:768px)_and_(max-height:860px)]:min-h-[260px] [@media(min-width:768px)_and_(max-height:860px)]:p-4 ${theme.pulseCard}`}
       >
         <div className={`${compact ? "mb-3" : "mb-6"} h-8 w-48 rounded bg-slate-200`} />
         <div className={`flex flex-1 items-end gap-3 px-4 ${compact ? "pb-6" : "pb-8"}`}>
@@ -155,7 +155,7 @@ export function AdminDashboardBarChart({
 
   return (
     <div
-      className={`col-span-2 flex ${minH} flex-col rounded-2xl border ${pad} shadow-lg ${theme.card}`}
+      className={`col-span-2 flex ${minH} flex-col rounded-2xl border ${pad} shadow-lg [@media(min-width:768px)_and_(max-height:860px)]:min-h-[260px] [@media(min-width:768px)_and_(max-height:860px)]:p-4 ${theme.card}`}
     >
       <div className={`mb-2 flex flex-col gap-2 ${compact ? "sm:mb-3" : "sm:mb-6"}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">

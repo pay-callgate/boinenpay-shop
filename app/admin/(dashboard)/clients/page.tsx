@@ -222,17 +222,17 @@ export default function ClientsPage() {
         />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-4 sm:p-6 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         {/* 상단 고정: 타이틀·필터·총 거래처 수 (스크롤 시 찌그러짐 방지) */}
         <div className="shrink-0">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">거래처 관리</h1>
-            <p className="mt-1 text-sm text-slate-600">
+          <div className="mb-6 [@media(min-width:768px)_and_(max-height:860px)]:mb-3">
+            <h1 className="text-2xl font-bold text-slate-800 [@media(min-width:768px)_and_(max-height:860px)]:text-xl">거래처 관리</h1>
+            <p className="mt-1 text-sm text-slate-600 [@media(min-width:768px)_and_(max-height:860px)]:hidden">
               VIP 파트너 거래처를 조회하고 연동 정보를 관리할 수 있습니다.
             </p>
           </div>
 
-          <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
             <form onSubmit={handleSearch}>
               <div className="flex min-w-0 flex-wrap items-center gap-3">
                 <input
@@ -326,7 +326,7 @@ export default function ClientsPage() {
             </div>
           )}
 
-          <p className="mb-3 text-sm text-slate-600">총 {filteredClients.length}개 거래처</p>
+          <p className="mb-3 text-sm text-slate-600 [@media(min-width:768px)_and_(max-height:860px)]:mb-2">총 {filteredClients.length}개 거래처</p>
         </div>
 
         {/* 테이블 & 페이징: 최소 높이 · 모바일 카드 */}

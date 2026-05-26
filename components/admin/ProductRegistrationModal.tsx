@@ -299,7 +299,7 @@ export function ProductRegistrationModal({
 
         <DialogBody className="flex-1 min-h-0 bg-gray-50">
           <form id="product-reg-form" onSubmit={handleSubmit(onSubmit)} className="h-full">
-            <div className="grid grid-cols-12 gap-6 p-6">
+            <div className="grid grid-cols-12 gap-6 p-6 [@media(min-width:768px)_and_(max-height:860px)]:gap-4 [@media(min-width:768px)_and_(max-height:860px)]:p-4">
               {/* 좌측: 미디어 — 대표 이미지 + 업로드 가이드 */}
               <div className="col-span-5 flex flex-col gap-4">
                 <p className="text-sm font-semibold text-slate-700">미디어</p>

@@ -46,8 +46,8 @@ export function OrderRecipientCard({
   const mapHref = `https://map.kakao.com/link/search/${encodeURIComponent(mapSearchQuery)}`;
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 flex items-center gap-2 border-b border-gray-100 pb-4 text-lg font-bold text-gray-900">
+    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-4">
+      <h2 className="mb-4 flex items-center gap-2 border-b border-gray-100 pb-4 text-lg font-bold text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:mb-3 [@media(min-width:768px)_and_(max-height:860px)]:pb-3">
         <MapPin className="h-5 w-5 shrink-0 text-orange-500" aria-hidden />
         수령인 및 배송지 정보
       </h2>
