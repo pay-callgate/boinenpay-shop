@@ -33,6 +33,17 @@ const labelClass = "mb-1 block text-xs font-medium text-slate-600";
 const infoPanelHeaderClass =
   "border-b border-slate-200/80 bg-gradient-to-br from-sky-50/40 via-white to-emerald-50/40 px-5 py-3.5 sm:px-6";
 
+function formatTemplateUpdatedAt(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
 export default function InfoTemplatesPage() {
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<InfoTemplateRow[]>([]);
@@ -160,12 +171,14 @@ export default function InfoTemplatesPage() {
 
   if (loading && templates.length === 0 && !error) {
     return (
-      <div className="flex items-center justify-center p-12 text-sm text-slate-500">불러오는 중…</div>
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-slate-50 p-12 text-sm text-slate-500">
+        불러오는 중…
+      </div>
     );
   }
 
   return (
-    <div className="w-full bg-slate-50">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50">
       <AdminPageHeader
         eyebrow="Catalog · Info"
         title="공통 안내 관리"
@@ -179,9 +192,9 @@ export default function InfoTemplatesPage() {
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-4">
-          <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm lg:w-[18.5rem] lg:max-w-[18.5rem] lg:shrink-0">
+          <div className="flex min-h-[300px] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm lg:w-[18.5rem] lg:max-w-[18.5rem] lg:shrink-0">
             <div className={infoPanelHeaderClass}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -209,29 +222,81 @@ export default function InfoTemplatesPage() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-h-[10rem] overflow-y-auto p-2 sm:p-3 lg:min-h-0">
-              {templates.length === 0 ? (
-                <p className="py-6 text-center text-xs text-slate-500">등록된 템플릿이 없습니다.</p>
-              ) : (
-                <ul className="space-y-0.5">
-                  {templates.map((t) => (
-                    <li key={t.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelect(t)}
-                        title={t.name}
-                        className={`w-full truncate rounded-md px-2 py-2 text-left text-xs transition-colors sm:text-sm ${
-                          selectedId === t.id
-                            ? "bg-slate-100 font-medium text-blue-600"
-                            : "text-slate-700 hover:bg-slate-50"
+            <div className="scrollbar-thin flex-1 overflow-y-auto pb-4 md:hidden">
+              <div className="space-y-2 p-3">
+                {templates.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                    <p className="text-xs font-medium text-slate-600">등록된 템플릿이 없습니다.</p>
+                  </div>
+                ) : (
+                  templates.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => handleSelect(t)}
+                      title={t.name}
+                      className={`block w-full rounded-xl border px-3 py-3 text-left shadow-sm transition-colors ${
+                        selectedId === t.id
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="block truncate text-sm font-semibold">{t.name}</span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        수정일 {formatTemplateUpdatedAt(t.updated_at)}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="scrollbar-thin hidden min-h-0 flex-1 overflow-y-auto pb-4 md:flex md:flex-col">
+              <table className="w-full border-collapse text-sm">
+                <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_#e5e7eb]">
+                  <tr>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-600">
+                      템플릿명
+                    </th>
+                    <th className="hidden px-3 py-2.5 text-left text-xs font-semibold text-slate-600 xl:table-cell">
+                      수정일
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {templates.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-3 py-8 text-center text-xs text-slate-500">
+                        등록된 템플릿이 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    templates.map((t) => (
+                      <tr
+                        key={t.id}
+                        className={`border-b border-slate-100 transition-colors ${
+                          selectedId === t.id ? "bg-blue-50/70" : "hover:bg-slate-50/70"
                         }`}
                       >
-                        {t.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                        <td className="px-3 py-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSelect(t)}
+                            title={t.name}
+                            className={`block w-full truncate text-left text-xs font-medium sm:text-sm ${
+                              selectedId === t.id ? "text-blue-700" : "text-slate-700"
+                            }`}
+                          >
+                            {t.name}
+                          </button>
+                        </td>
+                        <td className="hidden whitespace-nowrap px-3 py-2.5 text-xs text-slate-500 xl:table-cell">
+                          {formatTemplateUpdatedAt(t.updated_at)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 

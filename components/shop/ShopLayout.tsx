@@ -62,6 +62,8 @@ export interface ShopLayoutProps {
 }
 
 const PRIMARY = "#D6A8E0";
+const SHOP_VIEWPORT_HEIGHT_VAR = "--shop-viewport-height";
+const SHOP_VISUAL_VIEWPORT_BOTTOM_VAR = "--shop-visual-viewport-bottom";
 
 /** 마스터 템플릿 미리보기용 가상 거래처 slug. 이 경로로 진입 시 주문/결제만 차단하고 모든 화면 열람 허용 */
 export const PREVIEW_SLUG = "_preview";
@@ -85,6 +87,48 @@ function mainScrollPaddingBottom(
     homes.add(`/${subdomain}/${clientSlug}`);
   }
   return homes.has(normalized) ? 0 : BOTTOM_NAV_HEIGHT;
+}
+
+function useShopVisualViewportCssVars() {
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+
+    let rafId = 0;
+    const root = document.documentElement;
+
+    const applyViewportVars = () => {
+      window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
+        const visualViewport = window.visualViewport;
+        const viewportHeight = visualViewport?.height ?? window.innerHeight;
+        const viewportBottomInset = visualViewport
+          ? Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop)
+          : 0;
+
+        root.style.setProperty(SHOP_VIEWPORT_HEIGHT_VAR, `${Math.round(viewportHeight)}px`);
+        root.style.setProperty(
+          SHOP_VISUAL_VIEWPORT_BOTTOM_VAR,
+          `${Math.round(viewportBottomInset)}px`
+        );
+      });
+    };
+
+    applyViewportVars();
+    window.addEventListener("resize", applyViewportVars);
+    window.addEventListener("orientationchange", applyViewportVars);
+    window.visualViewport?.addEventListener("resize", applyViewportVars);
+    window.visualViewport?.addEventListener("scroll", applyViewportVars);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", applyViewportVars);
+      window.removeEventListener("orientationchange", applyViewportVars);
+      window.visualViewport?.removeEventListener("resize", applyViewportVars);
+      window.visualViewport?.removeEventListener("scroll", applyViewportVars);
+      root.style.removeProperty(SHOP_VIEWPORT_HEIGHT_VAR);
+      root.style.removeProperty(SHOP_VISUAL_VIEWPORT_BOTTOM_VAR);
+    };
+  }, []);
 }
 
 /**
@@ -357,6 +401,7 @@ export function ShopLayout({
   client,
   children,
 }: ShopLayoutProps) {
+  useShopVisualViewportCssVars();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -387,8 +432,11 @@ export function ShopLayout({
   return (
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>
-      <div className="flex min-h-[100dvh] flex-col bg-[#F3F4F6]">
-        <div className="relative mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-[430px] flex-col overflow-hidden bg-white shadow-2xl">
+      <div
+        className="flex min-h-[100svh] flex-col bg-[#F3F4F6]"
+        style={{ minHeight: "var(--shop-viewport-height, 100svh)" }}
+      >
+        <div className="relative mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col bg-white shadow-2xl">
           <SideMenu
             isOpen={menuOpen}
             onClose={() => setMenuOpen(false)}
@@ -461,6 +509,7 @@ export function ShopGlobalLayout({
   client,
   children,
 }: ShopGlobalLayoutProps) {
+  useShopVisualViewportCssVars();
   const orderAllowed = !!client;
   const pathname = usePathname();
 
@@ -484,8 +533,11 @@ export function ShopGlobalLayout({
   return (
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>
-      <div className="flex min-h-[100dvh] flex-col bg-[#F3F4F6]">
-        <div className="relative mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-[430px] flex-col overflow-hidden bg-white shadow-2xl">
+      <div
+        className="flex min-h-[100svh] flex-col bg-[#F3F4F6]"
+        style={{ minHeight: "var(--shop-viewport-height, 100svh)" }}
+      >
+        <div className="relative mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col bg-white shadow-2xl">
           {partner && (
             <SideMenu
               isOpen={menuOpen}

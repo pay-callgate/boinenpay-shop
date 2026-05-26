@@ -1,5 +1,5 @@
 import React from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { KakaoInAppBrowserGate } from "@/components/KakaoInAppBrowserGate";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
@@ -7,6 +7,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Call-Link Shopping Mall",
   description: "콜링크 쇼핑몰 플랫폼",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

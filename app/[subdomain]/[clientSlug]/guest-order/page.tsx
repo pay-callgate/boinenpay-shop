@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
-import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
+import { BOTTOM_NAV_HEIGHT, HEADER_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { effectiveGuestUnitPrice } from "@/lib/product-pricing";
@@ -76,6 +76,19 @@ const inputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
 const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
 const sectionCardClass = "overflow-hidden rounded-xl border border-gray-200 bg-gray-50/90 p-5";
+const CHECKOUT_STICKY_FOOTER_HEIGHT = 136;
+
+function checkoutTunnelMinHeight() {
+  return `calc(var(--shop-viewport-height, 100svh) - ${HEADER_HEIGHT}px)`;
+}
+
+function checkoutStickyBottom(stickyAboveNav: number) {
+  return `calc(var(--shop-visual-viewport-bottom, 0px) + ${stickyAboveNav}px)`;
+}
+
+function checkoutBodyPaddingBottom(stickyAboveNav: number) {
+  return `calc(${CHECKOUT_STICKY_FOOTER_HEIGHT}px + var(--shop-visual-viewport-bottom, 0px) + env(safe-area-inset-bottom, 0px) + ${stickyAboveNav}px)`;
+}
 
 export default function GuestOrderPage() {
   const params = useParams();
@@ -569,9 +582,10 @@ export default function GuestOrderPage() {
     >
       <form
         onSubmit={handleSubmit}
-        className="checkout-tunnel-form mx-auto min-h-screen min-h-[100dvh] max-w-[430px] bg-white pb-40"
+        className="checkout-tunnel-form mx-auto min-h-[100svh] max-w-[430px] bg-white"
         style={{
-          paddingBottom: `calc(9rem + env(safe-area-inset-bottom, 0px))`,
+          minHeight: checkoutTunnelMinHeight(),
+          paddingBottom: checkoutBodyPaddingBottom(stickyAboveNav),
         }}
       >
         <div className="px-4 py-5">
@@ -960,10 +974,11 @@ export default function GuestOrderPage() {
 
         {/* Sticky footer */}
         <div
-          className="fixed left-0 right-0 z-50 mx-auto max-w-[430px] border-t bg-white px-4 py-4 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]"
+          className="fixed left-0 right-0 z-50 mx-auto max-w-[430px] border-t bg-white px-4 pt-4 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]"
           style={{
             borderColor: BORDER,
-            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${stickyAboveNav}px)`,
+            bottom: checkoutStickyBottom(stickyAboveNav),
+            paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
           }}
         >
           <label className="mb-3 flex cursor-pointer items-start gap-3">

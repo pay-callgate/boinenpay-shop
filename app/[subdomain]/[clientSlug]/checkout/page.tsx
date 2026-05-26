@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronUp, Calendar, ChevronRight } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
-import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
+import { BOTTOM_NAV_HEIGHT, HEADER_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
@@ -43,6 +43,19 @@ const inputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
 const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
 const sectionCardClass = "overflow-hidden rounded-xl border border-gray-200 bg-gray-50/90 p-5";
+const CHECKOUT_STICKY_FOOTER_HEIGHT = 136;
+
+function checkoutTunnelMinHeight() {
+  return `calc(var(--shop-viewport-height, 100svh) - ${HEADER_HEIGHT}px)`;
+}
+
+function checkoutStickyBottom(stickyAboveNav: number) {
+  return `calc(var(--shop-visual-viewport-bottom, 0px) + ${stickyAboveNav}px)`;
+}
+
+function checkoutBodyPaddingBottom(stickyAboveNav: number) {
+  return `calc(${CHECKOUT_STICKY_FOOTER_HEIGHT}px + var(--shop-visual-viewport-bottom, 0px) + env(safe-area-inset-bottom, 0px) + ${stickyAboveNav}px)`;
+}
 
 interface CartItem {
   id: string;
@@ -1067,7 +1080,14 @@ export default function CheckoutPage() {
       requireAuth={!isGuestCheckout}
       blockAffiliationMismatch={!isGuestCheckout}
     >
-      <form onSubmit={handleSubmit} className="checkout-tunnel-form mx-auto min-h-screen min-h-[100dvh] max-w-[430px] bg-white pb-36 lg:max-w-6xl lg:px-6 lg:pb-40">
+      <form
+        onSubmit={handleSubmit}
+        className="checkout-tunnel-form mx-auto min-h-[100svh] max-w-[430px] bg-white lg:max-w-6xl lg:px-6"
+        style={{
+          minHeight: checkoutTunnelMinHeight(),
+          paddingBottom: checkoutBodyPaddingBottom(stickyAboveNav),
+        }}
+      >
         <div className="px-4 py-4 lg:py-6">
           {pendingOrderId && pendingPrepareSnapshot && (
             <div
@@ -1083,10 +1103,11 @@ export default function CheckoutPage() {
 
         {/* Sticky Footer - 개인정보 동의 + [총 결제금액] 결제하기 */}
         <div
-          className="fixed left-0 right-0 bottom-0 z-50 mx-auto max-w-[430px] border-t bg-white px-4 py-4 lg:max-w-6xl"
+          className="fixed left-0 right-0 z-50 mx-auto max-w-[430px] border-t bg-white px-4 pt-4 lg:max-w-6xl"
           style={{
             borderColor: BORDER,
-            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${stickyAboveNav}px)`,
+            bottom: checkoutStickyBottom(stickyAboveNav),
+            paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
           }}
         >
           <label className="mb-3 flex cursor-pointer items-start gap-2">
