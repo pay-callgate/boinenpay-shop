@@ -1,5 +1,6 @@
 "use client";
 
+import NextLink from "next/link";
 import { useState, useEffect, useCallback, type FormEvent, type ReactNode } from "react";
 import {
   FolderPlus,
@@ -464,9 +465,16 @@ export default function CategoriesPage() {
                   <p>
                     선택한 템플릿이 이 카테고리 상품들의 배송/환불 안내에 기본으로 적용됩니다.
                   </p>
-                  <p>
-                    ※ 새로운 템플릿은 [공통 안내 관리] 메뉴에서 등록할 수 있습니다.
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span>※ 새로운 템플릿은 아래 메뉴에서 등록할 수 있습니다.</span>
+                    <NextLink
+                      href="/admin/info-templates"
+                      className="inline-flex h-6 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-semibold leading-none text-emerald-800 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-900"
+                    >
+                      <Link2 className="h-3 w-3" strokeWidth={2} aria-hidden />
+                      공통 안내 관리로 이동
+                    </NextLink>
+                  </div>
                 </div>
               </div>
             </div>
