@@ -93,6 +93,13 @@ function useShopVisualViewportCssVars() {
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
+    const ua = window.navigator.userAgent;
+    const isIosTouchDevice =
+      /iP(hone|ad|od)/.test(ua) ||
+      (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+
+    if (!isIosTouchDevice) return;
+
     let rafId = 0;
     const root = document.documentElement;
 
@@ -433,10 +440,9 @@ export function ShopLayout({
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>
       <div
-        className="flex min-h-[100svh] flex-col bg-[#F3F4F6]"
-        style={{ minHeight: "var(--shop-viewport-height, 100svh)" }}
+        className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#F3F4F6]"
       >
-        <div className="relative mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col bg-white shadow-2xl">
+        <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-1 flex-col overflow-hidden bg-white shadow-2xl">
           <SideMenu
             isOpen={menuOpen}
             onClose={() => setMenuOpen(false)}
@@ -534,10 +540,9 @@ export function ShopGlobalLayout({
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>
       <div
-        className="flex min-h-[100svh] flex-col bg-[#F3F4F6]"
-        style={{ minHeight: "var(--shop-viewport-height, 100svh)" }}
+        className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#F3F4F6]"
       >
-        <div className="relative mx-auto flex min-h-0 w-full max-w-[430px] flex-1 flex-col bg-white shadow-2xl">
+        <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-1 flex-col overflow-hidden bg-white shadow-2xl">
           {partner && (
             <SideMenu
               isOpen={menuOpen}
