@@ -74,6 +74,7 @@ interface Product {
 
 const PRIMARY = "#D6A8E0";
 const ROSE = "#F43F5E";
+const PDP_ACTION_BAR_HEIGHT = 56;
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -578,8 +579,8 @@ export default function ProductDetailPage() {
       <div
         className="mx-auto w-full max-w-[430px] bg-white tracking-tight"
         style={{
-          /** 고정 CTA 바 높이만큼만 추가 (하단 탭: ShopGlobalLayout main padding) */
-          paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 56px)`,
+          /** 고정 CTA 바 높이만 추가한다. 하단 탭 여백은 ShopGlobalLayout main padding이 담당한다. */
+          paddingBottom: PDP_ACTION_BAR_HEIGHT,
         }}
       >
         {/*
@@ -824,7 +825,7 @@ export default function ProductDetailPage() {
         <div
           className="fixed left-0 right-0 z-50 border-t border-gray-200 bg-white"
           style={{
-            bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM_NAV_HEIGHT}px)`,
+            bottom: BOTTOM_NAV_HEIGHT,
           }}
         >
           <div
