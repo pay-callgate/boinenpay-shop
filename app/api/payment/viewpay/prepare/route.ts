@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!buyerName?.trim() || !buyerPhone?.trim() || !buyerEmail?.trim()) {
+    if (!buyerName?.trim() || !buyerPhone?.trim()) {
       logger.warn(`${LOG} 주문자 정보 누락`, { action: "payment_viewpay_prepare_buyer_missing", data: { orderId } });
       return NextResponse.json(
-        { success: false, message: "주문자 정보(이름, 연락처, 이메일)가 필요합니다." },
+        { success: false, message: "주문자 정보(이름, 연락처)가 필요합니다." },
         { status: 400 }
       );
     }
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       cancelUrl,
       buyerName: String(buyerName).trim(),
       buyerPhone: String(buyerPhone).trim(),
-      buyerEmail: String(buyerEmail).trim(),
+      buyerEmail: typeof buyerEmail === "string" ? buyerEmail.trim() : "",
       merchantOrderNo,
       metaData,
     });

@@ -10,6 +10,10 @@ import { ToastProvider, toast } from "./ToastContext";
 import { SideMenu } from "./SideMenu";
 import { ProductSearchModal } from "./ProductSearchModal";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
+import {
+  getShopHomeHref,
+  handleShopHomeLogoClick,
+} from "@/lib/shop-home-nav";
 
 function MasterTemplateIcon({ className }: { className?: string }) {
   return (
@@ -163,7 +167,7 @@ function SmartHeader({
   const searchParams = useSearchParams();
   const base = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
 
-  const homeHref = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;
+  const homeHref = getShopHomeHref(subdomain, clientSlug);
   const cartHref = base + "/cart";
   const ensureOrderAllowed = useShopTemplate()?.ensureOrderAllowed;
   const { status: sessionStatus } = useSession();
@@ -254,7 +258,7 @@ function SmartHeader({
     >
       <div className="relative mx-auto flex h-full max-w-[430px] items-center justify-between px-4">
         {/* 좌측: 항상 햄버거 메뉴 (w-16로 우측 영역과 폭 통일, -ml-2로 좌측 밀착) */}
-        <div className="-ml-2 flex h-10 w-16 shrink-0 items-center justify-start">
+        <div className="relative z-0 -ml-2 flex h-10 w-16 shrink-0 items-center justify-start">
           <button
             type="button"
             onClick={onMenuClick}
@@ -266,7 +270,11 @@ function SmartHeader({
         </div>
         <Link
           href={homeHref}
-          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5"
+          aria-label="홈으로 이동"
+          onClick={(e) =>
+            handleShopHomeLogoClick(e, { pathname, subdomain, clientSlug })
+          }
+          className="absolute left-1/2 top-1/2 z-10 flex min-h-11 min-w-11 max-w-[calc(100%-8.5rem)] -translate-x-1/2 -translate-y-1/2 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md px-2 transition-colors hover:bg-gray-50 active:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
         >
           {logoContent}
           {!isMasterPreview && (
@@ -274,7 +282,7 @@ function SmartHeader({
           )}
         </Link>
         {/* 우측: 검색 + 장바구니 (좌측과 동일한 w-16 폭으로 중앙 CI 정렬 유지) */}
-        <div className="flex h-10 w-16 shrink-0 items-center justify-end gap-1">
+        <div className="relative z-0 flex h-10 w-16 shrink-0 items-center justify-end gap-1">
           <button
             type="button"
             onClick={onSearchClick}
@@ -469,6 +477,7 @@ export function ShopLayout({
             clientSlug={clientSlug}
           />
           <main
+            data-shop-main-scroll
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
             style={{
               paddingTop: HEADER_HEIGHT,
@@ -571,6 +580,7 @@ export function ShopGlobalLayout({
             clientSlug={clientSlug}
           />
           <main
+            data-shop-main-scroll
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
             style={{
               paddingTop: HEADER_HEIGHT,

@@ -9,6 +9,10 @@ import type { ShopPartner, ShopClient } from "./ShopLayout";
 import { PREVIEW_SLUG } from "./ShopLayout";
 import { useShopTemplate } from "./ShopTemplateContext";
 import { buildShopRelativeReturnPath } from "@/lib/shop-callback-url";
+import {
+  getShopHomeHref,
+  handleShopHomeLogoClick,
+} from "@/lib/shop-home-nav";
 
 const PRIMARY = "#D6A8E0";
 
@@ -121,7 +125,7 @@ export function SideMenu({
   }, [partner?.id, isOpen]);
 
   const base = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/${PREVIEW_SLUG}`;
-  const homeHref = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;
+  const homeHref = getShopHomeHref(subdomain, clientSlug);
   const cartHref = `${base}/cart`;
   const wishlistHref = `${base}/mypage/wishlist`;
   const mypageHref = `${base}/mypage`;
@@ -176,7 +180,19 @@ export function SideMenu({
         <div className="flex h-full flex-col">
           {/* 1. 상단 헤더: 로고 + 로그아웃/로그인 + X 닫기 */}
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 px-4">
-            <Link href={homeHref} onClick={() => onClose()} className="flex items-center">
+            <Link
+              href={homeHref}
+              aria-label="홈으로 이동"
+              onClick={(e) =>
+                handleShopHomeLogoClick(e, {
+                  pathname,
+                  subdomain,
+                  clientSlug,
+                  onAfterNavigate: onClose,
+                })
+              }
+              className="flex min-h-11 min-w-11 cursor-pointer items-center rounded-md px-2 transition-colors hover:bg-gray-50 active:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+            >
               {logoContent}
             </Link>
             <div className="flex items-center gap-1">

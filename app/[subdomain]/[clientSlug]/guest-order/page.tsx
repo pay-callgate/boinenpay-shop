@@ -23,6 +23,11 @@ import {
   buildFloristShippingDetailText,
   resolveRibbonPhrase,
 } from "@/lib/checkout-florist-fields";
+import {
+  getSeoulTodayYmd,
+  getSeoulTomorrowYmd,
+  isDeliveryDateInPast,
+} from "@/lib/shop-delivery-date";
 
 /**
  * 비회원 전용 주문서 — 화환/꽃배달(우리부고) 입력 구성
@@ -40,12 +45,6 @@ const BORDER = "#E5E7EB";
 //   { value: "quick", label: "퀵배송", fee: 5000 },
 //   { value: "store_pickup", label: "스토어픽업", fee: 1000 },
 // ] as const;
-
-function getTomorrowDateString(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
-}
 
 interface CartItem {
   id: string;
@@ -121,7 +120,8 @@ export default function GuestOrderPage() {
 
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState(() => getTomorrowDateString());
+  const minDeliveryDateYmd = useMemo(() => getSeoulTodayYmd(), []);
+  const [deliveryDate, setDeliveryDate] = useState(() => getSeoulTomorrowYmd());
   const DEFAULT_TIME_SLOT = "14:00~16:00";
   const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(DEFAULT_TIME_SLOT);
   const [openTimeAccordion, setOpenTimeAccordion] = useState(false);
@@ -346,14 +346,18 @@ export default function GuestOrderPage() {
       toast("주문 조회 비밀번호 확인이 일치하지 않습니다.");
       return;
     }
-    if (!em) {
-      toast("결제 안내를 위해 이메일을 입력해 주세요.");
+    if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+      toast("이메일 형식을 확인해 주세요.");
       return;
     }
     const rn = recipientName.trim();
     const rp = digitsOnlyPhone(recipientPhone);
     if (!rn || !rp) {
-      toast("받으시는 분 성명과 배달지 연락처를 입력해 주세요.");
+      toast("수령인 성명과 연락처를 입력해 주세요.");
+      return;
+    }
+    if (isDeliveryDateInPast(deliveryDate)) {
+      toast("배달 일시는 과거 날짜를 선택할 수 없습니다.");
       return;
     }
     if (!shippingAddress.trim()) {
@@ -464,7 +468,7 @@ export default function GuestOrderPage() {
         paymentMethod,
         isGuest: true,
         guestPassword: pw,
-        guestOrdererEmail: em,
+        ...(em ? { guestOrdererEmail: em } : {}),
       };
 
       const res = await shopFetch("/api/orders", {
@@ -702,7 +706,7 @@ export default function GuestOrderPage() {
               </div>
               <div>
                 <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                  이메일 (결제·영수증 안내) <span className="text-rose-500">*</span>
+                  이메일 (선택)
                 </label>
                 <input
                   type="email"
@@ -756,15 +760,15 @@ export default function GuestOrderPage() {
 
           <SectionDivider />
 
-          {/* 3. 받으시는 분 */}
+          {/* 3. 수령인 정보 */}
           <section className={sectionCardClass}>
             <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
-              3. 받으시는 분
+              3. 수령인 정보
             </h2>
             <div className="flex flex-col gap-5">
               <div>
                 <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                  수취인 성명 <span className="text-rose-500">*</span>
+                  수령인 성명 <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -775,12 +779,12 @@ export default function GuestOrderPage() {
                   onFocus={checkoutFieldFocusScroll}
                   onKeyDown={checkoutInputEnterGoNext}
                   className={inputClass}
-                  placeholder="받으시는 분 성함"
+                  placeholder="수령인 성함"
                 />
               </div>
               <div>
                 <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                  배달지 연락처 <span className="text-rose-500">*</span>
+                  수령인 연락처 <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -805,7 +809,16 @@ export default function GuestOrderPage() {
                       type="date"
                       enterKeyHint="next"
                       value={deliveryDate}
-                      onChange={(e) => setDeliveryDate(e.target.value)}
+                      min={minDeliveryDateYmd}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        if (next && isDeliveryDateInPast(next)) {
+                          toast("배달 일시는 과거 날짜를 선택할 수 없습니다.");
+                          setDeliveryDate(minDeliveryDateYmd);
+                          return;
+                        }
+                        setDeliveryDate(next);
+                      }}
                       onFocus={checkoutFieldFocusScroll}
                       onKeyDown={checkoutInputEnterGoNext}
                       className="min-h-[52px] min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-3 text-base"

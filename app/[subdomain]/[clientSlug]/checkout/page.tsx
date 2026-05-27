@@ -27,6 +27,11 @@ import {
   effectiveGuestUnitPrice,
   effectiveMemberUnitPrice,
 } from "@/lib/product-pricing";
+import {
+  getSeoulTodayYmd,
+  getSeoulTomorrowYmd,
+  isDeliveryDateInPast,
+} from "@/lib/shop-delivery-date";
 
 /**
  * 주문서(Checkout) - 네이버 쇼핑 결제 프로세스 99% 일치
@@ -89,12 +94,6 @@ type PendingOrderPrepareSnapshot = {
 //   { value: "store_pickup", label: "스토어픽업", fee: 1000 },
 // ] as const;
 
-function getTomorrowDateString(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
-}
-
 export default function CheckoutPage() {
   const params = useParams();
   const router = useRouter();
@@ -151,7 +150,8 @@ export default function CheckoutPage() {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [saveAsDefaultAddress, setSaveAsDefaultAddress] = useState(false);
 
-  const [deliveryDate, setDeliveryDate] = useState(() => getTomorrowDateString());
+  const minDeliveryDateYmd = useMemo(() => getSeoulTodayYmd(), []);
+  const [deliveryDate, setDeliveryDate] = useState(() => getSeoulTomorrowYmd());
   const DEFAULT_TIME_SLOT = "14:00~16:00";
   const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(DEFAULT_TIME_SLOT);
   const [openTimeAccordion, setOpenTimeAccordion] = useState(false);
@@ -360,8 +360,12 @@ export default function CheckoutPage() {
       return;
     }
     if (!name || !phoneDigits || phoneDigits.length < 8) {
-      toast("받으시는 분 성명과 배달지 연락처를 올바르게 입력해 주세요.");
+      toast("수령인 성명과 연락처를 올바르게 입력해 주세요.");
       addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (isDeliveryDateInPast(deliveryDate)) {
+      toast("배달 일시는 과거 날짜를 선택할 수 없습니다.");
       return;
     }
     if (!address) {
@@ -399,8 +403,9 @@ export default function CheckoutPage() {
         toast("비밀번호 확인이 일치하지 않습니다.");
         return;
       }
-      if (!guestEmail.trim()) {
-        toast("결제 안내를 위해 이메일을 입력해 주세요.");
+      const guestEm = guestEmail.trim();
+      if (guestEm && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEm)) {
+        toast("이메일 형식을 확인해 주세요.");
         return;
       }
     }
@@ -714,7 +719,9 @@ export default function CheckoutPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-amber-900/80">이메일 (결제 안내)</label>
+                <label className="mb-1 block text-xs font-medium text-amber-900/80">
+                  이메일 (선택)
+                </label>
                 <input
                   type="email"
                   enterKeyHint="next"
@@ -832,7 +839,7 @@ export default function CheckoutPage() {
         <div className={sectionCardClass}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-bold" style={{ color: TEXT }}>
-              3. 받으시는 분
+              3. 수령인 정보
             </h2>
             {session?.user?.id && addresses.length > 0 ? (
               <button
@@ -849,7 +856,7 @@ export default function CheckoutPage() {
           <div className="flex flex-col gap-5">
             <div>
               <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                수취인 성명 <span className="text-rose-500">*</span>
+                수령인 성명 <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -860,12 +867,12 @@ export default function CheckoutPage() {
                 onFocus={checkoutFieldFocusScroll}
                 onKeyDown={checkoutInputEnterGoNext}
                 className={inputClass}
-                placeholder="받으시는 분 성함"
+                placeholder="수령인 성함"
               />
             </div>
             <div>
               <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                배달지 연락처 <span className="text-rose-500">*</span>
+                수령인 연락처 <span className="text-rose-500">*</span>
               </label>
               <input
                 type="tel"
@@ -890,10 +897,18 @@ export default function CheckoutPage() {
                     type="date"
                     enterKeyHint="next"
                     value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    min={minDeliveryDateYmd}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      if (next && isDeliveryDateInPast(next)) {
+                        toast("배달 일시는 과거 날짜를 선택할 수 없습니다.");
+                        setDeliveryDate(minDeliveryDateYmd);
+                        return;
+                      }
+                      setDeliveryDate(next);
+                    }}
                     onFocus={checkoutFieldFocusScroll}
                     onKeyDown={checkoutInputEnterGoNext}
-                    min={new Date().toISOString().split("T")[0]}
                     className="min-h-[52px] min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-3 text-base"
                     style={{ color: TEXT }}
                   />
