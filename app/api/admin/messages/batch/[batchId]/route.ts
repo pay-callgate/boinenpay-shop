@@ -3,7 +3,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { LINK_KAKAO_NOTIFICATION_LIST_SELECT } from "@/lib/admin-alimtalk-messages-fetch";
-import type { LinkKakaoNotificationDbRow } from "@/lib/admin-alimtalk-messages";
+import {
+  mapDeliveryStatusToAdminHistoryStatus,
+  type LinkKakaoNotificationDbRow,
+} from "@/lib/admin-alimtalk-messages";
+import {
+  linkKakaoRowCountsAsDeliveredFailed,
+  linkKakaoRowCountsAsDeliveredSuccess,
+} from "@/lib/link-kakao-delivery-status";
+import { formatTransmissionResultForAdminDisplay } from "@/lib/msgagent-transmission-result-codes";
 
 export const dynamic = "force-dynamic";
 
@@ -74,14 +82,51 @@ export async function GET(
         row.error_message != null && String(row.error_message).trim() !== ""
           ? String(row.error_message).trim()
           : null;
+      const kakaoCode =
+        row.kakao_report_code != null
+          ? String(row.kakao_report_code).trim()
+          : "";
+      const kakaoMsg =
+        row.kakao_report_message != null
+          ? String(row.kakao_report_message).trim()
+          : "";
+      const finalErr =
+        row.final_error_message != null
+          ? String(row.final_error_message).trim()
+          : "";
+      const displayErr =
+        finalErr ||
+        (kakaoCode
+          ? formatTransmissionResultForAdminDisplay(kakaoCode, kakaoMsg)
+          : "") ||
+        err;
+      const historyStatus = mapDeliveryStatusToAdminHistoryStatus(
+        row.delivery_status,
+        row.provider_ok
+      );
+
       return {
         id: r.id as string,
         recipientName:
           String(row.recipient_name ?? "").trim() || "-",
         recipientPhone: String(row.phone_masked ?? ""),
-        success: !!row.provider_ok,
-        resultCode: rc,
-        errorMessage: err,
+        success: linkKakaoRowCountsAsDeliveredSuccess(row),
+        failed: linkKakaoRowCountsAsDeliveredFailed(row),
+        pending: historyStatus === "sending",
+        submitResultCode: rc,
+        kakaoReportCode: kakaoCode || null,
+        kakaoReportMessage: kakaoMsg || null,
+        smsReportCode:
+          row.sms_report_code != null
+            ? String(row.sms_report_code).trim()
+            : null,
+        smsReportMessage:
+          row.sms_report_message != null
+            ? String(row.sms_report_message).trim()
+            : null,
+        errorMessage: displayErr || null,
+        /** @deprecated success 필드와 동일 — 하위 호환 */
+        resultCode: kakaoCode || rc,
       };
     });
 

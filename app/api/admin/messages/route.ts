@@ -6,7 +6,10 @@ import {
   fetchAdminAlimtalkGroupedListForPartner,
   parseAdminAlimtalkListStatus,
 } from "@/lib/admin-alimtalk-messages-fetch";
-import { summarizeAlimtalkSettlement } from "@/lib/admin-alimtalk-messages";
+import {
+  summarizeAlimtalkChannelTotals,
+  summarizeAlimtalkSettlement,
+} from "@/lib/admin-alimtalk-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -60,11 +63,14 @@ export async function GET(request: NextRequest) {
 
     if (dbError) {
       console.error("[GET /api/admin/messages] link_kakao_notifications", dbError);
+      const detail = dbError.message?.trim();
+      const isDev = process.env.NODE_ENV !== "production";
       return NextResponse.json(
         {
           ok: false,
-          message:
-            "발송 내역을 불러오지 못했습니다. link_kakao_notifications 테이블 존재 여부를 확인해 주세요.",
+          message: isDev && detail
+            ? `발송 내역 조회 실패: ${detail}`
+            : "발송 내역을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
         },
         { status: 500 }
       );
@@ -72,6 +78,7 @@ export async function GET(request: NextRequest) {
 
     const { totalSuccessCount, totalFailCount, estimatedSettlementWon } =
       summarizeAlimtalkSettlement(filtered);
+    const channelTotals = summarizeAlimtalkChannelTotals(filtered);
 
     const total = filtered.length;
     const start = (page - 1) * pageSize;
@@ -89,6 +96,10 @@ export async function GET(request: NextRequest) {
           totalFailCount,
           unitWon: 4,
           estimatedSettlementWon,
+          kakaoSuccess: channelTotals.kakaoSuccess,
+          kakaoFail: channelTotals.kakaoFail,
+          smsSuccess: channelTotals.smsSuccess,
+          smsFail: channelTotals.smsFail,
         },
       },
     });

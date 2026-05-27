@@ -10,15 +10,22 @@ import {
   type AdminAlimtalkMessageRow,
   type LinkKakaoNotificationDbRow,
 } from "@/lib/admin-alimtalk-messages";
+import {
+  LINK_KAKAO_NOTIFICATION_EXPORT_SELECT,
+} from "@/lib/admin-alimtalk-export";
+import {
+  linkKakaoRowCountsAsDeliveredFailed,
+  linkKakaoRowCountsAsDeliveredSuccess,
+} from "@/lib/link-kakao-delivery-status";
 
-/** 엑셀·정산용 raw 행 상한 (수신자 1행 = 1레코드) */
-export const ADMIN_ALIMTALK_DB_CAP = 2000;
+/** 엑셀·정산용 raw 행 상한 (수신자 1행 = 1레코드) — 목록 raw 상한과 동일 권장 */
+export const ADMIN_ALIMTALK_DB_CAP = 8000;
 
 /** 목록 그룹화 전 DB에서 가져오는 raw 행 상한 (배치 분해 시 행 수 증가) */
 export const ADMIN_ALIMTALK_LIST_RAW_CAP = 8000;
 
 export const LINK_KAKAO_NOTIFICATION_LIST_SELECT =
-  "id, created_at, partner_id, client_id, phone_masked, callback_masked, provider_ok, result_code, error_message, resolved_msg_preview, batch_id, recipient_name";
+  "id, created_at, partner_id, client_id, phone_masked, callback_masked, provider_ok, delivery_status, result_code, error_message, final_error_message, kakao_report_code, kakao_report_message, sms_report_code, sms_report_message, sms_report_success, resolved_msg_preview, batch_id, recipient_name";
 
 export function parseAdminAlimtalkListStatus(
   v: string | null
@@ -121,27 +128,32 @@ export async function fetchAdminAlimtalkGroupedListForPartner(
 /**
  * 엑셀 다운로드: 그룹화 없이 수신자(로우) 단위.
  */
+export type LinkKakaoNotificationExportDbRow = LinkKakaoNotificationDbRow & {
+  cmid?: string | null;
+  tran_id?: string | null;
+};
+
+/**
+ * 엑셀 다운로드: 그룹화 없이 수신자(DB) 1행 = 1행.
+ * 목록(배치 합산)과 건수가 다를 수 있음 — 엑셀은 정산·수신자 단위 raw.
+ */
 export async function fetchAdminAlimtalkRawExportRowsForPartner(
   supabase: SupabaseClient,
   partnerId: string,
   params: FetchAdminAlimtalkParams
 ): Promise<{
-  rows: AdminAlimtalkMessageRow[];
+  rows: LinkKakaoNotificationExportDbRow[];
   dbError: { message: string } | null;
 }> {
   const { from, to, status, q, limit = ADMIN_ALIMTALK_DB_CAP } = params;
 
-  if (
-    status === "scheduled" ||
-    status === "sending" ||
-    status === "partial"
-  ) {
+  if (status === "scheduled") {
     return { rows: [], dbError: null };
   }
 
   let dbQuery = supabase
     .from("link_kakao_notifications")
-    .select(LINK_KAKAO_NOTIFICATION_LIST_SELECT)
+    .select(LINK_KAKAO_NOTIFICATION_EXPORT_SELECT)
     .eq("partner_id", partnerId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -152,12 +164,6 @@ export async function fetchAdminAlimtalkRawExportRowsForPartner(
   if (to?.trim()) {
     dbQuery = dbQuery.lte("created_at", kstDayEndUtcIso(to.trim()));
   }
-  if (status === "completed") {
-    dbQuery = dbQuery.eq("provider_ok", true);
-  } else if (status === "failed") {
-    dbQuery = dbQuery.eq("provider_ok", false);
-  }
-
   const { data: logs, error: logsError } = await dbQuery;
 
   if (logsError) {
@@ -167,15 +173,66 @@ export async function fetchAdminAlimtalkRawExportRowsForPartner(
     };
   }
 
-  const rawRows = (logs ?? []) as LinkKakaoNotificationDbRow[];
+  const rawRows = (logs ?? []) as LinkKakaoNotificationExportDbRow[];
   const nameById = await loadClientNameMap(supabase, rawRows);
-  const rows: AdminAlimtalkMessageRow[] = [];
+  const rows: LinkKakaoNotificationExportDbRow[] = [];
 
   for (const row of rawRows) {
     const cname = nameById.get(row.client_id) ?? "(거래처)";
     if (!rawRowMatchesSearch(row, cname, q)) continue;
-    rows.push(mapLinkKakaoRowToAdminMessage(row, cname));
+    if (!exportRowMatchesStatusFilter(row, status)) continue;
+    rows.push(row);
   }
 
   return { rows, dbError: null };
+}
+
+function exportRowMatchesStatusFilter(
+  row: LinkKakaoNotificationDbRow,
+  status: AdminAlimtalkHistoryStatus | "all"
+): boolean {
+  if (status === "all") return true;
+  if (status === "completed") {
+    return linkKakaoRowCountsAsDeliveredSuccess(row);
+  }
+  if (status === "failed") {
+    return linkKakaoRowCountsAsDeliveredFailed(row);
+  }
+  if (status === "partial") {
+    const ds = row.delivery_status?.trim();
+    if (ds === "partial") return true;
+    const kakao = row.kakao_report_code?.trim();
+    return ds === "failed" && !!kakao && kakao !== "0";
+  }
+  if (status === "sending") {
+    return row.delivery_status?.trim() === "pending";
+  }
+  return false;
+}
+
+/** 엑셀용: DB raw + 거래처명 */
+export async function fetchAdminAlimtalkExcelRowsForPartner(
+  supabase: SupabaseClient,
+  partnerId: string,
+  params: FetchAdminAlimtalkParams
+): Promise<{
+  rows: { db: LinkKakaoNotificationExportDbRow; clientName: string }[];
+  dbError: { message: string } | null;
+}> {
+  const { rows, dbError } = await fetchAdminAlimtalkRawExportRowsForPartner(
+    supabase,
+    partnerId,
+    params
+  );
+  if (dbError) return { rows: [], dbError };
+
+  const nameById = await loadClientNameMap(supabase, rows);
+
+  return {
+    rows: rows.map((db) => ({
+      db,
+      clientName: nameById.get(db.client_id) ?? "(거래처)",
+    })),
+    dbError: null,
+  };
 }

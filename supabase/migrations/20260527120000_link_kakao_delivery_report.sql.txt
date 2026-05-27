@@ -1,0 +1,48 @@
+-- link_kakao_notifications: 벤더 최종 리포트(카카오/문자 대체) 저장 컬럼
+-- 기존 result_code, provider_ok, raw_response = 접수(발송 API) 결과 유지
+
+alter table public.link_kakao_notifications
+  add column if not exists delivery_status text not null default 'pending';
+
+alter table public.link_kakao_notifications
+  add column if not exists report_synced_at timestamptz;
+
+alter table public.link_kakao_notifications
+  add column if not exists kakao_report_code text;
+
+alter table public.link_kakao_notifications
+  add column if not exists kakao_report_message text;
+
+alter table public.link_kakao_notifications
+  add column if not exists kakao_report_success boolean;
+
+alter table public.link_kakao_notifications
+  add column if not exists sms_report_code text;
+
+alter table public.link_kakao_notifications
+  add column if not exists sms_report_message text;
+
+alter table public.link_kakao_notifications
+  add column if not exists sms_report_success boolean;
+
+alter table public.link_kakao_notifications
+  add column if not exists final_error_message text;
+
+alter table public.link_kakao_notifications
+  add column if not exists report_raw_response jsonb;
+
+-- 기존 데이터: 접수 실패는 failed, 접수 성공(레거시)은 당시 기준 최종 성공으로 간주
+update public.link_kakao_notifications
+set delivery_status = case
+  when provider_ok = false then 'failed'
+  when provider_ok = true and cmid is not null then 'success'
+  when provider_ok = true then 'pending'
+  else 'failed'
+end
+where delivery_status = 'pending'
+  and report_synced_at is null
+  and kakao_report_code is null;
+
+create index if not exists idx_link_kakao_notifications_partner_delivery_pending
+  on public.link_kakao_notifications (partner_id, created_at desc)
+  where delivery_status = 'pending' and provider_ok = true and cmid is not null;

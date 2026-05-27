@@ -145,12 +145,17 @@ export default function AdminAlimtalkMessagesPage() {
     totalFailCount: 0,
     estimatedSettlementWon: 0,
     unitWon: 4,
+    kakaoSuccess: 0,
+    kakaoFail: 0,
+    smsSuccess: 0,
+    smsFail: 0,
   });
 
   const [detailRow, setDetailRow] = useState<AdminAlimtalkMessageRow | null>(
     null
   );
   const [exporting, setExporting] = useState(false);
+  const [syncingReports, setSyncingReports] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -179,6 +184,10 @@ export default function AdminAlimtalkMessagesPage() {
           totalFailCount: json.data.summary.totalFailCount ?? 0,
           estimatedSettlementWon: json.data.summary.estimatedSettlementWon ?? 0,
           unitWon: json.data.summary.unitWon ?? 4,
+          kakaoSuccess: json.data.summary.kakaoSuccess ?? 0,
+          kakaoFail: json.data.summary.kakaoFail ?? 0,
+          smsSuccess: json.data.summary.smsSuccess ?? 0,
+          smsFail: json.data.summary.smsFail ?? 0,
         });
       }
     } catch {
@@ -199,8 +208,6 @@ export default function AdminAlimtalkMessagesPage() {
   const failRatePct =
     attempts === 0 ? 0 : Math.round((summary.totalFailCount / attempts) * 100);
 
-  /** 문자(LMS) 전환 건수는 미연동 — 요약·행 모두 0 */
-  const smsSuccessSummary = 0;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,6 +218,44 @@ export default function AdminAlimtalkMessagesPage() {
       q: searchQ.trim(),
     });
     setPage(1);
+  };
+
+  const handleReportSync = async () => {
+    setSyncingReports(true);
+    try {
+      const res = await adminFetch("/api/admin/messages/reports/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: applied.from,
+          to: applied.to,
+          limit: 100,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        alert(json.message || "결과 갱신에 실패했습니다.");
+        return;
+      }
+      await load();
+      const msg = [
+        `조회 ${json.scanned ?? 0}건`,
+        `갱신 ${json.updated ?? 0}건`,
+        json.stillPending ? `대기 ${json.stillPending}건` : null,
+        json.skippedNoData ? `리포트 미생성 ${json.skippedNoData}건` : null,
+        json.smsBackfillScanned
+          ? `LMS 재조회 대상 ${json.smsBackfillScanned}건`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      alert(msg || "갱신을 완료했습니다.");
+    } catch (e) {
+      console.error("Report sync error:", e);
+      alert("결과 갱신 중 오류가 발생했습니다.");
+    } finally {
+      setSyncingReports(false);
+    }
   };
 
   const handleExcelDownload = async () => {
@@ -285,8 +330,8 @@ export default function AdminAlimtalkMessagesPage() {
               {summary.totalSuccessCount.toLocaleString("ko-KR")} 건
             </p>
             <p className="mt-1 text-xs text-gray-500 [@media(min-width:768px)_and_(max-height:860px)]:mt-0.5">
-              (카카오톡 {summary.totalSuccessCount.toLocaleString("ko-KR")} / 문자{" "}
-              {smsSuccessSummary.toLocaleString("ko-KR")})
+              (카카오톡 {summary.kakaoSuccess.toLocaleString("ko-KR")} / 문자{" "}
+              {summary.smsSuccess.toLocaleString("ko-KR")})
             </p>
             <p className="mt-1 text-[11px] text-gray-400 [@media(min-width:768px)_and_(max-height:860px)]:hidden">
               * 조회 기간·상태·검색과 동일 집계
@@ -369,7 +414,15 @@ export default function AdminAlimtalkMessagesPage() {
               조회
             </button>
           </div>
-          <div className="ml-auto flex shrink-0 items-center">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleReportSync()}
+              disabled={syncingReports || loading}
+              className="inline-flex h-9 items-center rounded-lg border border-amber-200 bg-amber-50 px-4 text-sm font-medium text-amber-900 shadow-sm hover:bg-amber-100 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {syncingReports ? "갱신 중…" : "결과 갱신"}
+            </button>
             <button
               type="button"
               onClick={() => void handleExcelDownload()}
@@ -522,11 +575,10 @@ export default function AdminAlimtalkMessagesPage() {
                     const total = row.totalCount;
                     const success = row.successCount;
                     const fail = row.failCount;
-                    /** 접수 집계만 존재: 성공 건은 카카오톡으로 귀속, 문자 전환 건수는 미연동(0) */
-                    const kakaoSuccess = success;
-                    const kakaoFail = fail;
-                    const smsSuccess = 0;
-                    const smsFail = 0;
+                    const kakaoSuccess = row.kakaoSuccessCount;
+                    const kakaoFail = row.kakaoFailCount;
+                    const smsSuccess = row.smsSuccessCount;
+                    const smsFail = row.smsFailCount;
                     const sendKindLabel =
                       row.listKind === "batch" ? "대량발송" : "단건발송";
                     const agentTooltip = buildAlimtalkAgentTooltip(row);

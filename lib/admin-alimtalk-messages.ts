@@ -2,6 +2,17 @@
  * 파트너 어드민 — 카카오 알림톡 발송 관리 (link_kakao_notifications 매핑 + 필터 유틸).
  */
 
+import {
+  channelCountsFromLinkKakaoRow,
+  sumChannelCountsFromRows,
+} from "@/lib/link-kakao-channel-stats";
+import {
+  linkKakaoRowCountsAsDeliveredFailed,
+  linkKakaoRowCountsAsDeliveredSuccess,
+  type LinkKakaoDeliveryStatus,
+} from "@/lib/link-kakao-delivery-status";
+import { formatTransmissionResultForAdminDisplay } from "@/lib/msgagent-transmission-result-codes";
+
 export type AdminAlimtalkHistoryStatus =
   | "completed"
   | "scheduled"
@@ -29,10 +40,20 @@ export interface AdminAlimtalkMessageRow {
   successCount: number;
   failCount: number;
   senderPhone: string;
-  /** Agent2 `result_code` (DB). 배치 그룹 요약 행이면 보통 null */
+  /** 접수 API `result_code` (DB). 배치 그룹 요약 행이면 보통 null */
   providerResultCode?: string | null;
-  /** `error_message` 또는 배치 시 실패 건수 요약 */
+  /** 접수 실패 또는 최종 배송 실패 사유 */
   providerErrorMessage?: string | null;
+  deliveryStatus?: LinkKakaoDeliveryStatus | null;
+  kakaoReportCode?: string | null;
+  kakaoReportMessage?: string | null;
+  smsReportCode?: string | null;
+  smsReportMessage?: string | null;
+  /** 채널별 (리포트 기준) — 목록 「발송 유형별」 칸 */
+  kakaoSuccessCount: number;
+  kakaoFailCount: number;
+  smsSuccessCount: number;
+  smsFailCount: number;
 }
 
 export const ADMIN_ALIMTALK_UNIT_WON = 4;
@@ -46,25 +67,65 @@ export interface LinkKakaoNotificationDbRow {
   phone_masked: string | null;
   callback_masked: string | null;
   provider_ok: boolean;
+  delivery_status?: string | null;
   result_code?: string | null;
   error_message?: string | null;
+  final_error_message?: string | null;
+  kakao_report_code?: string | null;
+  kakao_report_message?: string | null;
+  sms_report_code?: string | null;
+  sms_report_message?: string | null;
+  sms_report_success?: boolean | null;
   resolved_msg_preview: string | null;
   batch_id?: string | null;
   recipient_name?: string | null;
+}
+
+export function mapDeliveryStatusToAdminHistoryStatus(
+  deliveryStatus: string | null | undefined,
+  providerOk: boolean
+): AdminAlimtalkHistoryStatus {
+  const ds = deliveryStatus?.trim();
+  if (ds === "pending") return "sending";
+  if (ds === "success") return "completed";
+  if (ds === "partial") return "partial";
+  if (ds === "failed") return "failed";
+  return providerOk ? "completed" : "failed";
 }
 
 export function mapLinkKakaoRowToAdminMessage(
   row: LinkKakaoNotificationDbRow,
   clientName: string
 ): AdminAlimtalkMessageRow {
-  const status: AdminAlimtalkHistoryStatus = row.provider_ok
-    ? "completed"
-    : "failed";
+  const status = mapDeliveryStatusToAdminHistoryStatus(
+    row.delivery_status,
+    row.provider_ok
+  );
   const body = row.resolved_msg_preview?.trim() || "(내용 없음)";
   const rname = (row.recipient_name ?? "").trim();
   const rc = row.result_code != null ? String(row.result_code).trim() : "";
-  const em =
+  const submitErr =
     row.error_message != null ? String(row.error_message).trim() : "";
+  const finalErr =
+    row.final_error_message != null
+      ? String(row.final_error_message).trim()
+      : "";
+  const kakaoCode =
+    row.kakao_report_code != null ? String(row.kakao_report_code).trim() : "";
+  const kakaoMsg =
+    row.kakao_report_message != null
+      ? String(row.kakao_report_message).trim()
+      : "";
+  const displayErr =
+    finalErr ||
+    (kakaoCode
+      ? formatTransmissionResultForAdminDisplay(kakaoCode, kakaoMsg)
+      : "") ||
+    submitErr;
+
+  const ds = row.delivery_status?.trim() as LinkKakaoDeliveryStatus | undefined;
+  const channels = channelCountsFromLinkKakaoRow(row);
+
   return {
     id: row.id,
     listKind: "single",
@@ -78,11 +139,24 @@ export function mapLinkKakaoRowToAdminMessage(
     body,
     status,
     totalCount: 1,
-    successCount: row.provider_ok ? 1 : 0,
-    failCount: row.provider_ok ? 0 : 1,
+    successCount: linkKakaoRowCountsAsDeliveredSuccess(row) ? 1 : 0,
+    failCount: linkKakaoRowCountsAsDeliveredFailed(row) ? 1 : 0,
     senderPhone: row.callback_masked?.trim() || "-",
     providerResultCode: rc || null,
-    providerErrorMessage: em || null,
+    providerErrorMessage: displayErr || null,
+    deliveryStatus: ds ?? null,
+    kakaoReportCode: kakaoCode || null,
+    kakaoReportMessage: kakaoMsg || null,
+    smsReportCode:
+      row.sms_report_code != null ? String(row.sms_report_code).trim() : null,
+    smsReportMessage:
+      row.sms_report_message != null
+        ? String(row.sms_report_message).trim()
+        : null,
+    kakaoSuccessCount: channels.kakaoSuccess,
+    kakaoFailCount: channels.kakaoFail,
+    smsSuccessCount: channels.smsSuccess,
+    smsFailCount: channels.smsFail,
   };
 }
 
@@ -100,11 +174,20 @@ export function formatBatchRecipientLabel(
 
 function deriveBatchListStatus(
   successCount: number,
-  failCount: number
+  failCount: number,
+  pendingCount: number
 ): AdminAlimtalkHistoryStatus {
-  if (failCount === 0) return "completed";
-  if (successCount === 0) return "failed";
-  return "partial";
+  if (pendingCount > 0 && failCount === 0 && successCount === 0) {
+    return "sending";
+  }
+  if (pendingCount > 0 && successCount + failCount > 0) {
+    return "sending";
+  }
+  if (failCount === 0 && successCount > 0) return "completed";
+  if (successCount === 0 && failCount > 0) return "failed";
+  if (successCount > 0 && failCount > 0) return "partial";
+  if (pendingCount > 0) return "sending";
+  return "failed";
 }
 
 /** DB 행 + 거래처명 기준 검색 (배치 내 일치 여부 판별용) */
@@ -187,17 +270,29 @@ export function buildGroupedAdminListFromRawRows(
     if (!anyMatch) continue;
 
     const totalCount = sorted.length;
-    const successCount = sorted.filter((r) => r.provider_ok).length;
-    const failCount = totalCount - successCount;
-    const status = deriveBatchListStatus(successCount, failCount);
+    const successCount = sorted.filter((r) =>
+      linkKakaoRowCountsAsDeliveredSuccess(r)
+    ).length;
+    const failCount = sorted.filter((r) =>
+      linkKakaoRowCountsAsDeliveredFailed(r)
+    ).length;
+    const pendingCount = totalCount - successCount - failCount;
+    const status = deriveBatchListStatus(
+      successCount,
+      failCount,
+      pendingCount
+    );
     const sentAtRow = sorted.reduce((a, b) =>
       new Date(a.created_at) > new Date(b.created_at) ? a : b
     );
     const batchId = first.batch_id!.trim();
+    const channelTotals = sumChannelCountsFromRows(sorted);
     const batchErrSummary =
       failCount > 0
-        ? `접수 실패 ${failCount}건 · 수신자 탭에서 코드·사유 확인`
-        : null;
+        ? `최종 실패 ${failCount}건 · 수신자 탭에서 코드·사유 확인`
+        : pendingCount > 0
+          ? `리포트 대기 ${pendingCount}건 · 결과 갱신 필요`
+          : null;
 
     items.push({
       id: `batch:${batchId}`,
@@ -217,6 +312,10 @@ export function buildGroupedAdminListFromRawRows(
       senderPhone: first.callback_masked?.trim() || "-",
       providerResultCode: null,
       providerErrorMessage: batchErrSummary,
+      kakaoSuccessCount: channelTotals.kakaoSuccess,
+      kakaoFailCount: channelTotals.kakaoFail,
+      smsSuccessCount: channelTotals.smsSuccess,
+      smsFailCount: channelTotals.smsFail,
     });
   }
 
@@ -273,6 +372,10 @@ https://example.com/wooribugo/flower-gangnam
     successCount: 1,
     failCount: 0,
     senderPhone: "07012345678",
+    kakaoSuccessCount: 1,
+    kakaoFailCount: 0,
+    smsSuccessCount: 0,
+    smsFailCount: 0,
   },
   {
     id: "stub-2",
@@ -297,6 +400,10 @@ https://example.com/wooribugo/jongno
     successCount: 0,
     failCount: 0,
     senderPhone: "07012345678",
+    kakaoSuccessCount: 0,
+    kakaoFailCount: 0,
+    smsSuccessCount: 0,
+    smsFailCount: 0,
   },
   {
     id: "stub-3",
@@ -313,6 +420,10 @@ https://example.com/wooribugo/jongno
     successCount: 80,
     failCount: 0,
     senderPhone: "07012345678",
+    kakaoSuccessCount: 80,
+    kakaoFailCount: 0,
+    smsSuccessCount: 0,
+    smsFailCount: 0,
   },
   {
     id: "stub-4",
@@ -329,6 +440,10 @@ https://example.com/wooribugo/jongno
     successCount: 0,
     failCount: 1,
     senderPhone: "07012345678",
+    kakaoSuccessCount: 0,
+    kakaoFailCount: 1,
+    smsSuccessCount: 0,
+    smsFailCount: 0,
   },
 ];
 
@@ -395,4 +510,23 @@ export function summarizeAlimtalkSettlement(rows: AdminAlimtalkMessageRow[]): {
     totalFailCount,
     estimatedSettlementWon: totalSuccessCount * ADMIN_ALIMTALK_UNIT_WON,
   };
+}
+
+export function summarizeAlimtalkChannelTotals(
+  rows: AdminAlimtalkMessageRow[]
+): {
+  kakaoSuccess: number;
+  kakaoFail: number;
+  smsSuccess: number;
+  smsFail: number;
+} {
+  return rows.reduce(
+    (acc, r) => ({
+      kakaoSuccess: acc.kakaoSuccess + r.kakaoSuccessCount,
+      kakaoFail: acc.kakaoFail + r.kakaoFailCount,
+      smsSuccess: acc.smsSuccess + r.smsSuccessCount,
+      smsFail: acc.smsFail + r.smsFailCount,
+    }),
+    { kakaoSuccess: 0, kakaoFail: 0, smsSuccess: 0, smsFail: 0 }
+  );
 }

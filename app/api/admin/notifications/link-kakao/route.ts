@@ -12,6 +12,7 @@ import {
   resolveLinkKakaoAlimtalkCase,
 } from "@/lib/alimtalk-link-template";
 import { prepareAlimtalkLinkMessage } from "@/lib/alimtalk-public-url";
+import { deliveryStatusFromSubmit } from "@/lib/link-kakao-delivery-status";
 import {
   formatMsgagentWebshotFailureSummary,
   sendKakaoAlimtalkAt,
@@ -165,18 +166,21 @@ export async function POST(request: NextRequest) {
           ? (result.response as Record<string, unknown>)
           : null;
 
+      const cmid =
+        r?.cmid !== undefined && r?.cmid !== null ? String(r.cmid) : null;
+
       const { error: insErr } = await supabase
         .from("link_kakao_notifications")
         .insert({
           ...baseRow,
           http_status: result.httpStatus,
           provider_ok: result.ok,
+          delivery_status: deliveryStatusFromSubmit(result.ok, cmid),
           result_code:
             r?.result_code !== undefined && r?.result_code !== null
               ? String(r.result_code)
               : null,
-          cmid:
-            r?.cmid !== undefined && r?.cmid !== null ? String(r.cmid) : null,
+          cmid,
           error_message: result.ok
             ? null
             : formatMsgagentWebshotFailureSummary(result).slice(0, 2000),
@@ -230,6 +234,7 @@ export async function POST(request: NextRequest) {
           ...baseRow,
           http_status: null,
           provider_ok: false,
+          delivery_status: "failed",
           result_code: null,
           cmid: null,
           error_message: message.slice(0, 2000),

@@ -3,18 +3,18 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import * as XLSX from "xlsx";
+import { buildAlimtalkExcelRowWithIds } from "@/lib/admin-alimtalk-export";
 import {
-  fetchAdminAlimtalkRawExportRowsForPartner,
+  fetchAdminAlimtalkExcelRowsForPartner,
   parseAdminAlimtalkListStatus,
 } from "@/lib/admin-alimtalk-messages-fetch";
-import { ADMIN_ALIMTALK_STATUS_LABEL } from "@/lib/admin-alimtalk-messages";
-import { getMsgagentWebshotResultCodeLabel } from "@/lib/msgagent-webshot-result-codes";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/messages/export
- * 필터(from, to, status, q)는 목록과 동일하나, 행은 그룹화하지 않고 수신자(DB 로우) 1건당 1행(정산용 raw).
+ * 필터(from, to, status, q)는 목록과 동일.
+ * 행은 수신자(DB) 1건당 1행 — 목록의 배치 합산 행과 건수가 다를 수 있음.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const status = parseAdminAlimtalkListStatus(searchParams.get("status"));
     const q = searchParams.get("q") ?? "";
 
-    const { rows, dbError } = await fetchAdminAlimtalkRawExportRowsForPartner(
+    const { rows, dbError } = await fetchAdminAlimtalkExcelRowsForPartner(
       supabase,
       partnerId,
       { from, to, status, q }
@@ -52,23 +52,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "발송 내역 조회에 실패했습니다." }, { status: 500 });
     }
 
-    const excelData = rows.map((r) => ({
-      발송일시: new Date(r.sentAt).toLocaleString("ko-KR"),
-      거래처명: r.clientName,
-      수신자표시: r.recipientName,
-      수신번호: r.recipientPhone,
-      제목: r.title,
-      내용요약: r.body.replace(/\r?\n/g, " ").slice(0, 500),
-      상태: ADMIN_ALIMTALK_STATUS_LABEL[r.status],
-      Agent결과코드: r.providerResultCode ?? "",
-      코드설명:
-        getMsgagentWebshotResultCodeLabel(r.providerResultCode) ?? "",
-      오류메시지: (r.providerErrorMessage ?? "").replace(/\r?\n/g, " ").slice(0, 500),
-      총건수: r.totalCount,
-      성공: r.successCount,
-      실패: r.failCount,
-      발신번호: r.senderPhone,
-    }));
+    const excelData = rows.map(({ db, clientName }) =>
+      buildAlimtalkExcelRowWithIds(db, clientName)
+    );
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
@@ -78,17 +64,25 @@ export async function GET(request: NextRequest) {
       { wch: 20 },
       { wch: 18 },
       { wch: 10 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 50 },
+      { wch: 38 },
       { wch: 10 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 10 },
+      { wch: 16 },
+      { wch: 10 },
+      { wch: 28 },
       { wch: 10 },
       { wch: 28 },
       { wch: 40 },
       { wch: 8 },
       { wch: 8 },
-      { wch: 8 },
+      { wch: 14 },
+      { wch: 28 },
       { wch: 16 },
+      { wch: 50 },
     ];
 
     const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });

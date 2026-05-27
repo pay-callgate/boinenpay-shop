@@ -22,7 +22,17 @@ create table if not exists public.link_kakao_notifications (
   raw_response jsonb,
   resolved_msg_preview text,
   batch_id uuid null,
-  recipient_name varchar(200) null
+  recipient_name varchar(200) null,
+  delivery_status text not null default 'pending',
+  report_synced_at timestamptz,
+  kakao_report_code text,
+  kakao_report_message text,
+  kakao_report_success boolean,
+  sms_report_code text,
+  sms_report_message text,
+  sms_report_success boolean,
+  final_error_message text,
+  report_raw_response jsonb
 );
 create index if not exists idx_link_kakao_notifications_partner_batch
   on public.link_kakao_notifications (partner_id, batch_id)

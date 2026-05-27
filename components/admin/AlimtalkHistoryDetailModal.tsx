@@ -11,6 +11,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { Badge } from "@/components/ui/badge";
 import { ADMIN_MODAL_HEADER_BAR_CLASS } from "@/lib/admin-dialog-policy";
 import { formatMsgagentResultCodeForAdminDisplay } from "@/lib/msgagent-webshot-result-codes";
+import { formatTransmissionResultForAdminDisplay } from "@/lib/msgagent-transmission-result-codes";
 
 /** `public/images` — LinkNotificationModal과 동일한 카카오톡 채널 CI PNG */
 const CALLLINK_KAKAO_CHANNEL_PROFILE_SRC = "/images/calllink-kakao-channel-ci.png";
@@ -74,7 +75,13 @@ export type AlimtalkBatchRecipient = {
   recipientName: string;
   recipientPhone: string;
   success: boolean;
+  failed?: boolean;
+  pending?: boolean;
   resultCode: string | null;
+  kakaoReportCode?: string | null;
+  kakaoReportMessage?: string | null;
+  smsReportCode?: string | null;
+  smsReportMessage?: string | null;
   errorMessage: string | null;
 };
 
@@ -202,9 +209,9 @@ export function AlimtalkHistoryDetailModal({
           {tab === "recipients" && showRecipientsTab ? (
             <div className="flex min-h-0 flex-col">
               <p className="mb-3 text-sm text-slate-600">
-                대량 발송 수신자별 접수 결과입니다. (발송 순서) Agent2 매뉴얼 기준{" "}
-                <span className="font-semibold">result_code 0만 접수 성공</span>
-                입니다.
+                대량 발송 수신자별 최종 배송 결과입니다. 리포트 대기 건은
+                발송 관리 화면에서 <span className="font-semibold">결과 갱신</span>
+                을 실행해 주세요.
               </p>
               {recipientsLoading && (
                 <p className="py-8 text-center text-sm text-slate-500">
@@ -261,9 +268,14 @@ export function AlimtalkHistoryDetailModal({
                               {r.recipientPhone || "—"}
                             </td>
                             <td className="max-w-[14rem] px-3 py-2.5 text-left text-xs leading-snug text-slate-800 [overflow-wrap:anywhere]">
-                              {formatMsgagentResultCodeForAdminDisplay(
-                                r.resultCode
-                              )}
+                              {r.kakaoReportCode
+                                ? formatTransmissionResultForAdminDisplay(
+                                    r.kakaoReportCode,
+                                    r.kakaoReportMessage
+                                  )
+                                : formatMsgagentResultCodeForAdminDisplay(
+                                    r.resultCode
+                                  )}
                             </td>
                             <td className="max-w-[200px] px-3 py-2.5 text-xs text-slate-700">
                               <span className="line-clamp-3 break-words">
@@ -271,7 +283,9 @@ export function AlimtalkHistoryDetailModal({
                               </span>
                             </td>
                             <td className="px-3 py-2.5 text-center">
-                              {r.success ? (
+                              {r.pending ? (
+                                <Badge variant="alim_sending">리포트 대기</Badge>
+                              ) : r.success ? (
                                 <Badge variant="alim_completed">성공</Badge>
                               ) : (
                                 <Badge variant="alim_failed">실패</Badge>
