@@ -311,7 +311,7 @@ export default function AdminAlimtalkMessagesPage() {
         <AdminPageHeader
           className="shrink-0"
           eyebrow="Clients · Alimtalk"
-          title="알림톡 발송 관리"
+          title="알림톡 발송 내역 관리"
           titleIcon={MessageSquare}
           description={
             <span className="break-keep [word-break:keep-all]">
