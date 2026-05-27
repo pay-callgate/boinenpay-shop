@@ -491,7 +491,7 @@ export default function OrderDetailPage() {
 
   if (sessionStatus === "loading" || loading) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         <div className="flex items-center justify-center py-12">
           <p className="text-sm text-gray-500">불러오는 중…</p>
         </div>
@@ -501,7 +501,7 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
         <div className="flex flex-col items-center justify-center py-12">
           <h1 className="mb-2 text-xl font-bold text-gray-900">주문을 찾을 수 없습니다</h1>
           <button
@@ -524,7 +524,7 @@ export default function OrderDetailPage() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-gray-50 p-6 text-gray-900 [@media(min-width:768px)_and_(max-height:860px)]:p-3">
       <OrderDetailHeader status={order.status} />
 
       <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-10 [@media(min-width:768px)_and_(max-height:860px)]:gap-3">
