@@ -20,7 +20,10 @@ import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
-import type { ShopFulfillmentStageKey } from "@/lib/shop/customer-order-fulfillment";
+import {
+  countOrdersByShopFulfillmentStage,
+  type ShopFulfillmentStageKey,
+} from "@/lib/shop/customer-order-fulfillment";
 
 /**
  * T6-1: 마이페이지 홈
@@ -31,6 +34,13 @@ import type { ShopFulfillmentStageKey } from "@/lib/shop/customer-order-fulfillm
 const PRIMARY = "#D6A8E0";
 
 type MypageOrderStats = Record<ShopFulfillmentStageKey, number>;
+type OrderCountableRow = {
+  status: string;
+  payment_status?: string | null;
+  paid_at?: string | null;
+  created_at?: string | null;
+  desired_delivery_date?: string | null;
+};
 
 const EMPTY_STATS: MypageOrderStats = {
   payment_done: 0,
@@ -118,6 +128,23 @@ export default function MyPage() {
 
   const [stats, setStats] = useState<MypageOrderStats | null>(null);
 
+  const loadStatsFromOrdersFallback = async (
+    currentClientId: string
+  ): Promise<MypageOrderStats | null> => {
+    try {
+      const res = await shopFetch(
+        `/api/mypage/orders?clientId=${encodeURIComponent(currentClientId)}&limit=200`,
+        { handleSessionExpiry: false }
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      const rows = (Array.isArray(data?.orders) ? data.orders : []) as OrderCountableRow[];
+      return countOrdersByShopFulfillmentStage(rows);
+    } catch {
+      return null;
+    }
+  };
+
   // 주문 현황 통계 — 세션 확정 후에만 요청, 401 시 전역 signOut 금지(Silent Fail)
   useEffect(() => {
     if (sessionStatus !== "authenticated" || !client?.id) return;
@@ -125,12 +152,13 @@ export default function MyPage() {
     shopFetch(`/api/mypage/stats?clientId=${client.id}`, {
       handleSessionExpiry: false,
     })
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) {
           if (typeof window !== "undefined") {
             console.warn("[MyPage] stats non-OK (silent)", res.status, client.id);
           }
-          return { stats: null };
+          const fallbackStats = await loadStatsFromOrdersFallback(client.id);
+          return { stats: fallbackStats };
         }
         return res.json();
       })
