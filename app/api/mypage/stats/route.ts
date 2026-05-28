@@ -47,12 +47,9 @@ export async function GET(request: NextRequest) {
       .eq("payment_status", "paid");
 
     if (primary.error) {
-      const msg = String(primary.error.message || "");
-      const columnCompatIssue = /column .* does not exist/i.test(msg);
-      if (!columnCompatIssue) {
-        console.error("My stats fetch error:", primary.error);
-        return NextResponse.json({ error: "통계 조회 실패" }, { status: 500 });
-      }
+      // 운영 환경별 PostgREST 에러 문구 차이로 정규식 매칭이 누락될 수 있다.
+      // primary가 실패하면 원인과 무관하게 하위 호환 쿼리를 1회 시도한다.
+      console.warn("My stats primary fetch failed; trying fallback:", primary.error);
       const fallback = await supabase
         .from("orders")
         .select("status, payment_status, created_at")
