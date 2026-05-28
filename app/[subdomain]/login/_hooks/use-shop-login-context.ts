@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  getClientSlugFromShopPath,
+  resolveShopClientSlug,
+} from "@/lib/resolve-shop-client-slug";
 
 export interface ShopLoginClientInfo {
   id: string;
@@ -9,30 +13,32 @@ export interface ShopLoginClientInfo {
   logo_url: string | null;
 }
 
-export function getClientSlugFromCallbackUrl(url: string): string | null {
-  try {
-    const pathname = url.startsWith("http") ? new URL(url).pathname : url;
-    const parts = pathname.split("/").filter(Boolean);
-    if (parts.length >= 2) return parts[1];
-    return null;
-  } catch {
-    return null;
-  }
-}
+export { getClientSlugFromShopPath as getClientSlugFromCallbackUrl };
 
 /**
  * /api/shop/context 로 파트너·거래처 표시용 데이터 로드.
- * callbackUrl 에 /{subdomain}/{clientSlug}/... 가 있으면 해당 거래처 로고 등 매칭.
+ * slug: callbackUrl → 쿼리 → 쿠키 (`resolveShopClientSlug`).
  */
-export function useShopLoginContext(subdomain: string, callbackUrl: string) {
+export function useShopLoginContext(
+  subdomain: string,
+  callbackUrl: string,
+  queryClientSlug?: string | null
+) {
   const [partnerCompanyName, setPartnerCompanyName] = useState<string | null>(null);
   const [clientInfo, setClientInfo] = useState<ShopLoginClientInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const clientSlugForGuest = useMemo(
-    () => getClientSlugFromCallbackUrl(callbackUrl),
-    [callbackUrl]
+  const resolvedClientSlug = useMemo(
+    () =>
+      resolveShopClientSlug({
+        subdomain,
+        callbackUrl,
+        queryClientSlug,
+      }),
+    [subdomain, callbackUrl, queryClientSlug]
   );
+
+  const clientSlugForGuest = resolvedClientSlug;
 
   useEffect(() => {
     if (!subdomain) {
@@ -48,7 +54,7 @@ export function useShopLoginContext(subdomain: string, callbackUrl: string) {
         const name = (data?.partner?.company_name as string | undefined)?.trim() || null;
         if (!cancelled) setPartnerCompanyName(name);
 
-        const slug = getClientSlugFromCallbackUrl(callbackUrl);
+        const slug = resolvedClientSlug;
         if (!slug) {
           if (!cancelled) setClientInfo(null);
           return;
@@ -68,12 +74,13 @@ export function useShopLoginContext(subdomain: string, callbackUrl: string) {
     return () => {
       cancelled = true;
     };
-  }, [subdomain, callbackUrl]);
+  }, [subdomain, resolvedClientSlug]);
 
   return {
     partnerCompanyName,
     clientInfo,
     loading,
     clientSlugForGuest,
+    resolvedClientSlug,
   };
 }

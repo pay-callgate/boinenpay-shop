@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useMemo, useState, useRef, type FormEvent } from "react";
 import { getStorefrontUrl } from "@/lib/app-url";
+import { resolveShopClientSlug } from "@/lib/resolve-shop-client-slug";
 import { sanitizeCallbackUrlAgainstLoginLoop } from "@/lib/shop-callback-url";
 import { useShopLoginContext } from "./_hooks/use-shop-login-context";
 import { GuestOrderLookupForm } from "./_components/guest-order-lookup-form";
@@ -29,17 +30,32 @@ export default function CustomerLoginPage() {
   const subdomain = (params?.subdomain as string) ?? "";
   const tab = useMemo(() => tabFromSearch(searchParams), [searchParams]);
 
+  const queryClientSlug =
+    searchParams?.get("clientSlug")?.trim() ||
+    searchParams?.get("client")?.trim() ||
+    null;
+
   const callbackUrl = useMemo(() => {
     const raw = searchParams?.get("callbackUrl");
-    const fallback = getStorefrontUrl(subdomain);
+    const slugHint = resolveShopClientSlug({
+      subdomain,
+      callbackUrl: raw,
+      queryClientSlug,
+    });
+    const fallback = getStorefrontUrl(subdomain, slugHint);
     if (raw == null || raw === "") return fallback;
     const safe = sanitizeCallbackUrlAgainstLoginLoop(raw);
     if (safe === "") return fallback;
     return safe;
-  }, [searchParams, subdomain]);
+  }, [searchParams, subdomain, queryClientSlug]);
 
-  const { partnerCompanyName, clientInfo, loading: contextLoading, clientSlugForGuest } =
-    useShopLoginContext(subdomain, callbackUrl);
+  const {
+    partnerCompanyName,
+    clientInfo,
+    loading: contextLoading,
+    clientSlugForGuest,
+    resolvedClientSlug,
+  } = useShopLoginContext(subdomain, callbackUrl, queryClientSlug);
 
   const memberIdInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,7 +146,7 @@ export default function CustomerLoginPage() {
     <ShopLoginChrome
       subdomain={subdomain}
       callbackUrl={callbackUrl}
-      shopClientSlug={clientInfo?.slug ?? clientSlugForGuest}
+      shopClientSlug={resolvedClientSlug ?? clientInfo?.slug ?? clientSlugForGuest}
     >
       <div className="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-xl shadow-slate-300/30">
         <ShopLoginHeader

@@ -2,6 +2,7 @@ import React from "react";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { ShopGlobalLayout } from "@/components/shop/ShopLayout";
 import { ClientShopProvider } from "@/components/providers/ClientShopProvider";
+import { MasterTemplateCustomerGate } from "@/components/shop/MasterTemplateCustomerGate";
 
 /**
  * 쇼핑몰 글로벌 레이아웃: SmartHeader + 메인(safe area) + GlobalBottomNav.
@@ -61,14 +62,16 @@ export default async function ClientShopLayout({
 
   return (
     <ClientShopProvider>
-      <ShopGlobalLayout
-        subdomain={subdomain}
-        clientSlug={clientSlug}
-        partner={partner}
-        client={client}
-      >
-        {children}
-      </ShopGlobalLayout>
+      <MasterTemplateCustomerGate>
+        <ShopGlobalLayout
+          subdomain={subdomain}
+          clientSlug={clientSlug}
+          partner={partner}
+          client={client}
+        >
+          {children}
+        </ShopGlobalLayout>
+      </MasterTemplateCustomerGate>
     </ClientShopProvider>
   );
 }

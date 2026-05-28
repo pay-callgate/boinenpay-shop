@@ -13,7 +13,7 @@ describe("shop-home-nav", () => {
 
   it("getShopHomeHref", () => {
     expect(getShopHomeHref("jsb", "acme")).toBe("/jsb/acme");
-    expect(getShopHomeHref("jsb", null)).toBe("/jsb");
+    expect(getShopHomeHref("jsb", null)).toBe("/jsb/login");
   });
 
   it("isShopHomePath for client shop", () => {

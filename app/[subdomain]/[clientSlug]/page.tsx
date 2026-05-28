@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useUserClient } from "@/hooks/useUserClient";
 import { setClientSourceCookie } from "@/lib/user-client";
+import { getShopHomeHref } from "@/lib/shop-home-nav";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { ShopMainHome } from "@/components/shop/ShopMainHome";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
@@ -128,7 +129,7 @@ export default function ClientShopPage() {
         <p className="mt-1 text-center text-sm text-slate-600">{error}</p>
         <button
           type="button"
-          onClick={() => router.push(`/${subdomain}`)}
+          onClick={() => router.push(getShopHomeHref(subdomain, client?.slug ?? clientSlug))}
           className="mt-6 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
           style={{ backgroundColor: "#D6A8E0" }}
         >
@@ -161,14 +162,14 @@ export default function ClientShopPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-6">
         <p className="text-center font-medium text-slate-800">해당 거래처 링크를 찾을 수 없습니다.</p>
-        <p className="mt-1 text-center text-sm text-slate-500">주소를 확인하시거나 파트너 홈으로 이동해 주세요.</p>
+        <p className="mt-1 text-center text-sm text-slate-500">주소를 확인하시거나 로그인 페이지로 이동해 주세요.</p>
         <button
           type="button"
-          onClick={() => router.push(`/${subdomain}`)}
+          onClick={() => router.push(`/${subdomain}/login`)}
           className="mt-6 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
           style={{ backgroundColor: "#D6A8E0" }}
         >
-          파트너 홈으로 이동
+          로그인으로 이동
         </button>
       </div>
     );

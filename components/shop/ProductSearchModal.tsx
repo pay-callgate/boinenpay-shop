@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
+import { getShopHomeHref } from "@/lib/shop-home-nav";
 
 const PRIMARY = "#D6A8E0";
 
@@ -29,7 +30,7 @@ export function ProductSearchModal({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const base = clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;
+  const base = getShopHomeHref(subdomain, clientSlug);
 
   useEffect(() => {
     if (isOpen) {

@@ -54,7 +54,7 @@ export function ShopPurchaseBlockModal({
     if (registeredClientSlug && subdomain) {
       router.replace(`/${subdomain}/${registeredClientSlug}`);
     } else if (subdomain) {
-      router.replace(`/${subdomain}`);
+      router.replace(`/${subdomain}/login`);
     }
     onClose();
   };

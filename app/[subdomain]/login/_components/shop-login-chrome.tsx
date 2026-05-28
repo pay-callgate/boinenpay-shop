@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { ChevronLeft, Home } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { getShopHomeHref } from "@/lib/shop-home-nav";
+import { resolveShopClientSlug } from "@/lib/resolve-shop-client-slug";
 
 type Props = {
   subdomain: string;
   /** 히스토리가 없을 때 등 예비 이동 경로(로그인 후 돌아갈 URL 등) */
   callbackUrl: string;
-  /** 거래처 쇼핑몰 메인 `/` — 있으면 `/{subdomain}/{slug}`, 없으면 `/{subdomain}` */
+  /** 거래처 쇼핑몰 메인 — `/{subdomain}/{slug}` (마스터 템플릿 URL 미사용) */
   shopClientSlug?: string | null;
   children: React.ReactNode;
 };
@@ -21,8 +24,15 @@ export function ShopLoginChrome({
   children,
 }: Props) {
   const router = useRouter();
-  const slug = shopClientSlug?.trim() || null;
-  const shopHomePath = slug ? `/${subdomain}/${slug}` : `/${subdomain}`;
+  const slug = useMemo(() => {
+    const fromProp = shopClientSlug?.trim();
+    if (fromProp) return fromProp;
+    return resolveShopClientSlug({
+      subdomain,
+      callbackUrl: _loginCallbackUrl,
+    });
+  }, [shopClientSlug, subdomain, _loginCallbackUrl]);
+  const shopHomePath = slug ? getShopHomeHref(subdomain, slug) : null;
 
   const handleBack = () => {
     router.back();
@@ -40,14 +50,18 @@ export function ShopLoginChrome({
           >
             <ChevronLeft className="h-5 w-5" strokeWidth={2} aria-hidden />
           </button>
-          <Link
-            href={shopHomePath}
-            aria-label="쇼핑몰 홈으로 이동"
-            title="쇼핑몰 홈"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-100/90 bg-white/55 text-fuchsia-400/95 shadow-sm backdrop-blur-sm transition hover:border-fuchsia-200/85 hover:bg-violet-50/85 hover:text-fuchsia-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300/45"
-          >
-            <Home className="h-[1.125rem] w-[1.125rem]" strokeWidth={2} aria-hidden />
-          </Link>
+          {shopHomePath ? (
+            <Link
+              href={shopHomePath}
+              aria-label="쇼핑몰 홈으로 이동"
+              title="쇼핑몰 홈"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-violet-100/90 bg-white/55 text-fuchsia-400/95 shadow-sm backdrop-blur-sm transition hover:border-fuchsia-200/85 hover:bg-violet-50/85 hover:text-fuchsia-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300/45"
+            >
+              <Home className="h-[1.125rem] w-[1.125rem]" strokeWidth={2} aria-hidden />
+            </Link>
+          ) : (
+            <span className="h-9 w-9 shrink-0" aria-hidden />
+          )}
         </div>
         {children}
       </div>

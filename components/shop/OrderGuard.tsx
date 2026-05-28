@@ -372,7 +372,7 @@ export function OrderGuard({
       regSlug && subdomain
         ? `/${subdomain}/${regSlug}`
         : subdomain
-          ? `/${subdomain}`
+          ? `/${subdomain}/login`
           : "/";
 
     const handleLoginAsAnotherAccount = async () => {

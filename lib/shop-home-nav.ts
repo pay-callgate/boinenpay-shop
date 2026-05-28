@@ -11,9 +11,9 @@ export function normalizeShopPathname(pathname: string): string {
     : pathname;
 }
 
-/** 거래처 쇼핑몰 홈 URL (헤더 로고·하단 홈 탭과 동일) */
+/** 거래처 쇼핑몰 홈 URL (헤더 로고·하단 홈 탭과 동일). slug 없으면 로그인(마스터 템플릿 미사용). */
 export function getShopHomeHref(subdomain: string, clientSlug: string | null): string {
-  return clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}`;
+  return clientSlug ? `/${subdomain}/${clientSlug}` : `/${subdomain}/login`;
 }
 
 /** 현재 경로가 홈(메인)인지 — 동일 URL 재클릭 시 스크롤 최상단용 */
