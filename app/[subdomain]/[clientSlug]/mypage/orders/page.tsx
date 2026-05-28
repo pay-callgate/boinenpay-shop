@@ -7,6 +7,7 @@ import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import {
   SHOP_ORDER_FULFILLMENT_TABS,
+  resolveShopCustomerDisplayStage,
   shopOrderCustomerBadge,
   type ShopOrderTabKey,
 } from "@/lib/shop/customer-order-fulfillment";
@@ -48,6 +49,7 @@ interface Order {
   total_amount: number;
   shipping_name: string;
   created_at: string;
+  paid_at?: string | null;
   delivery_photo_url?: string | null;
   client?: Client | null;
   order_items: OrderItem[];
@@ -94,10 +96,7 @@ export default function MyOrdersPage() {
     setLoading(true);
     (async () => {
       try {
-        let url = `/api/mypage/orders?clientId=${encodeURIComponent(client.id)}&limit=50`;
-        if (statusFilter && statusFilter !== "all") {
-          url += `&shopStage=${encodeURIComponent(statusFilter)}`;
-        }
+        const url = `/api/mypage/orders?clientId=${encodeURIComponent(client.id)}&limit=50`;
         const res = await shopFetch(url);
         if (cancelled) return;
         if (res.ok) {
@@ -113,7 +112,7 @@ export default function MyOrdersPage() {
     return () => {
       cancelled = true;
     };
-  }, [client?.id, statusFilter]);
+  }, [client?.id]);
 
   // 가격 포맷팅
   const formatPrice = (price: number) => {
@@ -129,6 +128,14 @@ export default function MyOrdersPage() {
       day: "2-digit",
     });
   };
+
+  const filteredOrders =
+    activeTabKey === "all"
+      ? orders
+      : orders.filter((order) => {
+          const r = resolveShopCustomerDisplayStage(order);
+          return r.kind === "stage" && r.stage === activeTabKey;
+        });
 
   if (template == null || !partner || !client) {
     return (
@@ -217,7 +224,7 @@ export default function MyOrdersPage() {
           >
             <p style={{ color: "#999" }}></p>
           </div>
-        ) : orders.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <div
             style={{
               padding: "60px 16px",
@@ -257,7 +264,7 @@ export default function MyOrdersPage() {
           </div>
         ) : (
           <div style={{ padding: "16px" }}>
-            {orders.map((order) => {
+            {filteredOrders.map((order) => {
               const badge = shopOrderCustomerBadge(order);
               return (
               <div

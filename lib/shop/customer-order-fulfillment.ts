@@ -32,6 +32,11 @@ export const ORDER_PROGRESS_STEP_LABELS: readonly string[] = [
 ];
 
 const PAYMENT_DONE_DB_STATUSES = new Set(["received", "confirmed", "paid"]);
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const COMPLETE_MIN_ELAPSED_MS = 15 * 60 * 60 * 1000;
+const HOUR_1_MS = 1 * 60 * 60 * 1000;
+const HOUR_5_MS = 5 * 60 * 60 * 1000;
+const HOUR_15_MS = 15 * 60 * 60 * 1000;
 
 /**
  * 주문 목록 API `shopStage` 필터와 동일한 DB `status` 집합 (Single Source of Truth).
@@ -49,7 +54,14 @@ export const SHOP_FULFILLMENT_STAGE_DB_STATUSES: Record<
 
 /** `resolveShopFulfillmentStage`와 동일 규칙으로 단계별 건수 집계 (미결제·취소 등은 제외) */
 export function countOrdersByShopFulfillmentStage(
-  orders: { status: string; payment_status?: string | null }[]
+  orders: {
+    status: string;
+    payment_status?: string | null;
+    paid_at?: string | null;
+    created_at?: string | null;
+    desired_delivery_date?: string | null;
+  }[],
+  now = new Date()
 ): Record<ShopFulfillmentStageKey, number> {
   const out: Record<ShopFulfillmentStageKey, number> = {
     payment_done: 0,
@@ -58,7 +70,7 @@ export function countOrdersByShopFulfillmentStage(
     complete: 0,
   };
   for (const o of orders) {
-    const r = resolveShopFulfillmentStage(o);
+    const r = resolveShopCustomerDisplayStage(o, now);
     if (r.kind === "stage") out[r.stage] += 1;
   }
   return out;
@@ -87,6 +99,67 @@ export const SHOP_PENDING_PAYMENT_BADGE = {
 
 function isPaid(order: { payment_status?: string | null }): boolean {
   return String(order.payment_status ?? "").trim() === "paid";
+}
+
+function parseDateLike(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function parseKstDateTime(ymd: string, hour: number, minute = 0): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((ymd || "").trim());
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const utcMs = Date.UTC(y, mo - 1, d, hour - 9, minute, 0, 0);
+  const out = new Date(utcMs);
+  if (Number.isNaN(out.getTime())) return null;
+  return out;
+}
+
+function nextKstMidnight(from: Date): Date {
+  const kst = new Date(from.getTime() + KST_OFFSET_MS);
+  const y = kst.getUTCFullYear();
+  const m = kst.getUTCMonth();
+  const d = kst.getUTCDate();
+  const nextMidnightUtcMs = Date.UTC(y, m, d + 1, -9, 0, 0, 0);
+  return new Date(nextMidnightUtcMs);
+}
+
+function stageRank(stage: ShopFulfillmentStageKey): number {
+  switch (stage) {
+    case "payment_done":
+      return 0;
+    case "crafting":
+      return 1;
+    case "departure":
+      return 2;
+    case "complete":
+      return 3;
+    default:
+      return -1;
+  }
+}
+
+function laterStage(a: ShopFulfillmentStageKey, b: ShopFulfillmentStageKey): ShopFulfillmentStageKey {
+  return stageRank(a) >= stageRank(b) ? a : b;
+}
+
+function resolveSimulationStageByElapsed(elapsedMs: number): ShopFulfillmentStageKey {
+  if (elapsedMs < HOUR_1_MS) return "payment_done";
+  if (elapsedMs < HOUR_5_MS) return "crafting";
+  if (elapsedMs < HOUR_15_MS) return "departure";
+  return "departure";
+}
+
+function resolveDisplayCompleteAt(paidAt: Date, desiredDeliveryDate?: string | null): Date {
+  const paidNextMidnight = nextKstMidnight(paidAt);
+  const desiredDeadline = parseKstDateTime(desiredDeliveryDate ?? "", 21, 0);
+  if (!desiredDeadline) return paidNextMidnight;
+  return desiredDeadline.getTime() > paidNextMidnight.getTime() ? desiredDeadline : paidNextMidnight;
 }
 
 /**
@@ -125,12 +198,52 @@ export function resolveShopFulfillmentStage(order: {
   return { kind: "unknown" };
 }
 
+/**
+ * 고객 노출용 단계(시뮬레이션 포함).
+ * - 비정상 상태/미결제/취소는 DB 기준 그대로 반환
+ * - 결제 완료건은 paid_at + 희망배송일 기반으로 시뮬레이션
+ * - DB 실제 단계가 더 앞서면 DB를 우선 (max DB, Simulation)
+ */
+export function resolveShopCustomerDisplayStage(
+  order: {
+    status: string;
+    payment_status?: string | null;
+    paid_at?: string | null;
+    created_at?: string | null;
+    desired_delivery_date?: string | null;
+  },
+  now = new Date()
+):
+  | { kind: "stage"; stage: ShopFulfillmentStageKey }
+  | { kind: "pending" }
+  | { kind: "cancelled" }
+  | { kind: "unknown" } {
+  const db = resolveShopFulfillmentStage(order);
+  if (db.kind !== "stage") return db;
+  if (!isPaid(order)) return db;
+
+  const paidAt = parseDateLike(order.paid_at) ?? parseDateLike(order.created_at);
+  if (!paidAt) return db;
+
+  const elapsedMs = Math.max(0, now.getTime() - paidAt.getTime());
+  const simulationStage = resolveSimulationStageByElapsed(elapsedMs);
+  const completeAt = resolveDisplayCompleteAt(paidAt, order.desired_delivery_date);
+  const canShowComplete =
+    elapsedMs >= COMPLETE_MIN_ELAPSED_MS && now.getTime() >= completeAt.getTime();
+  const simulationFinal = canShowComplete ? "complete" : simulationStage;
+  const merged = laterStage(db.stage, simulationFinal);
+  return { kind: "stage", stage: merged };
+}
+
 /** 목록·탭용 뱃지 (취소/미결제/알 수 없음 포함) */
 export function shopOrderCustomerBadge(order: {
   status: string;
   payment_status?: string | null;
+  paid_at?: string | null;
+  created_at?: string | null;
+  desired_delivery_date?: string | null;
 }): { label: string; background: string; color: string } {
-  const r = resolveShopFulfillmentStage(order);
+  const r = resolveShopCustomerDisplayStage(order);
   if (r.kind === "cancelled") {
     return { label: "취소됨", ...SHOP_CANCELLED_BADGE };
   }
@@ -149,8 +262,11 @@ export function shopOrderCustomerBadge(order: {
 export function shopOrderProgressStepIndex(order: {
   status: string;
   payment_status?: string | null;
+  paid_at?: string | null;
+  created_at?: string | null;
+  desired_delivery_date?: string | null;
 }): number {
-  const r = resolveShopFulfillmentStage(order);
+  const r = resolveShopCustomerDisplayStage(order);
   if (r.kind !== "stage") return -1;
   switch (r.stage) {
     case "payment_done":

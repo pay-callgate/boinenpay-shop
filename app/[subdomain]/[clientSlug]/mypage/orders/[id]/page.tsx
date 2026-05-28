@@ -114,6 +114,7 @@ interface Order {
   tracking_number: string | null;
   courier_company: string | null;
   created_at: string;
+  paid_at?: string | null;
   /** 고객 API 전용: `newrun_delivery_info.dica`만 추출 */
   delivery_photo_url?: string | null;
   desired_delivery_date?: string | null;
@@ -337,10 +338,16 @@ export default function MyOrderDetailPage() {
   const customerBadge = shopOrderCustomerBadge({
     status: order.status,
     payment_status: order.payment_status,
+    paid_at: order.paid_at,
+    created_at: order.created_at,
+    desired_delivery_date: order.desired_delivery_date,
   });
   const progressStepIndex = shopOrderProgressStepIndex({
     status: order.status,
     payment_status: order.payment_status,
+    paid_at: order.paid_at,
+    created_at: order.created_at,
+    desired_delivery_date: order.desired_delivery_date,
   });
 
   const showCancelGuideButton =
@@ -406,6 +413,9 @@ export default function MyOrderDetailPage() {
         <div className="px-4 pt-4">
           <OrderDetailSectionCard title="주문 진행" className="text-center">
             <OrderProgressStepper activeIndex={progressStepIndex} />
+            <p className="mt-2 text-center text-xs text-gray-400">
+              * 본 진행 상태는 예상 스케줄 안내용이며, 실제 제작 및 배송 현황과 다소 차이가 있을 수 있습니다.
+            </p>
             <span className="mt-4 inline-block rounded-full border border-pink-200 bg-pink-100 px-5 py-2 text-sm font-bold text-pink-600">
               {customerBadge.label}
             </span>

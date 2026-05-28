@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   countOrdersByShopFulfillmentStage,
+  resolveShopCustomerDisplayStage,
   resolveShopFulfillmentStage,
   shopOrderCustomerBadge,
   shopOrderProgressStepIndex,
@@ -58,5 +59,84 @@ describe("customer-order-fulfillment", () => {
       departure: 1,
       complete: 2,
     });
+  });
+
+  it("시뮬레이션: paid_at 기준 1h/5h 경계에서 단계 전환", () => {
+    const paidAt = "2026-05-28T03:00:00.000Z"; // KST 12:00
+    expect(
+      resolveShopCustomerDisplayStage(
+        {
+          status: "received",
+          payment_status: "paid",
+          paid_at: paidAt,
+        },
+        new Date("2026-05-28T03:30:00.000Z")
+      )
+    ).toEqual({ kind: "stage", stage: "payment_done" });
+
+    expect(
+      resolveShopCustomerDisplayStage(
+        {
+          status: "received",
+          payment_status: "paid",
+          paid_at: paidAt,
+        },
+        new Date("2026-05-28T04:00:00.000Z")
+      )
+    ).toEqual({ kind: "stage", stage: "crafting" });
+
+    expect(
+      resolveShopCustomerDisplayStage(
+        {
+          status: "received",
+          payment_status: "paid",
+          paid_at: paidAt,
+        },
+        new Date("2026-05-28T08:00:00.000Z")
+      )
+    ).toEqual({ kind: "stage", stage: "departure" });
+  });
+
+  it("시뮬레이션: 예약 주문은 희망일 21:00 이전 완료로 올리지 않음", () => {
+    const paidAt = "2026-05-28T14:00:00.000Z"; // KST 23:00
+    expect(
+      resolveShopCustomerDisplayStage(
+        {
+          status: "received",
+          payment_status: "paid",
+          paid_at: paidAt,
+          desired_delivery_date: "2026-05-30",
+        },
+        new Date("2026-05-29T16:00:00.000Z") // KST 2026-05-30 01:00
+      )
+    ).toEqual({ kind: "stage", stage: "departure" });
+  });
+
+  it("시뮬레이션: 15시간 이상 + max(익일00시, 희망일21시) 경과 시 완료", () => {
+    const paidAt = "2026-05-28T03:00:00.000Z"; // KST 12:00
+    expect(
+      resolveShopCustomerDisplayStage(
+        {
+          status: "received",
+          payment_status: "paid",
+          paid_at: paidAt,
+          desired_delivery_date: "2026-05-28",
+        },
+        new Date("2026-05-29T12:00:00.000Z") // KST 21:00
+      )
+    ).toEqual({ kind: "stage", stage: "complete" });
+  });
+
+  it("DB 실제 상태 우선: DB가 shipping이면 시뮬보다 앞선 단계 유지", () => {
+    expect(
+      resolveShopCustomerDisplayStage(
+        {
+          status: "shipping",
+          payment_status: "paid",
+          paid_at: "2026-05-28T03:00:00.000Z",
+        },
+        new Date("2026-05-28T03:20:00.000Z")
+      )
+    ).toEqual({ kind: "stage", stage: "departure" });
   });
 });

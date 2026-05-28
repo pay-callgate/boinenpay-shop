@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     const { data: orders, error } = await supabase
       .from("orders")
-      .select("status, payment_status")
+      .select("status, payment_status, paid_at, created_at, desired_delivery_date")
       .eq("user_id", session.user.id)
       .eq("client_id", clientId)
       .eq("payment_status", "paid");
