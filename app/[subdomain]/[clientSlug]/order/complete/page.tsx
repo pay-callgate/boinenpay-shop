@@ -626,7 +626,7 @@ export default function OrderCompletePage() {
           </div>
 
           {/* ④ 하단 버튼 — 주문서(checkout) 결제 버튼 톤, 1행 2열 */}
-          <div className="mx-4 mt-6 flex gap-3 pb-10 pt-1">
+          <div className="mx-4 mt-6 flex gap-3 pb-3 pt-1">
             <button
               type="button"
               onClick={handleContinueShopping}
@@ -646,7 +646,7 @@ export default function OrderCompletePage() {
               주문 내역
             </button>
           </div>
-          <footer className="mt-8 flex flex-col items-center justify-center border-t border-gray-100 pb-32 pt-8 text-center">
+          <footer className="mt-4 flex flex-col items-center justify-center border-t border-gray-100 pb-6 pt-5 text-center">
             <p className="mb-1 text-lg font-bold text-gray-800">고객센터 1661-1897</p>
             <p className="mb-4 text-xs text-gray-500">운영시간 : 평일 08:30 ~ 19:00</p>
             <p className="text-[10px] uppercase tracking-wider text-gray-400">
