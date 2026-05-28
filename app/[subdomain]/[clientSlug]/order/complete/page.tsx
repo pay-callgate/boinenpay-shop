@@ -443,6 +443,11 @@ export default function OrderCompletePage() {
         order?.order_no?.trim() || orderNo || "—";
       const displayStoreName =
         order?.client?.name ?? client?.name ?? "쇼핑몰";
+      const footerCopyrightOwner =
+        order?.client?.name?.trim() ||
+        client?.name?.trim() ||
+        partner?.company_name?.trim() ||
+        "쇼핑몰";
       const lookupOrdererName =
         order?.orderer_name?.trim() || order?.shipping_name?.trim() || "";
 
@@ -491,17 +496,19 @@ export default function OrderCompletePage() {
             {guestToken && guestSig ? (
               <div className="mt-6 w-full max-w-[22rem] rounded-xl border border-purple-100 bg-purple-50 p-5">
                 <p className="mb-3 text-center text-sm leading-relaxed text-purple-800" role="note">
-                  비회원은 주문조회를 위해 <span className="font-bold">주문번호를 꼭 기억해주세요.</span>
+                  비회원 주문 조회를 위해
+                  <br />
+                  <span className="font-bold">주문번호를 꼭 기억해주세요.</span>
                 </p>
                 <button
                   type="button"
                   onClick={() =>
                     handleGuestOrderLookupShortcut(orderNoDisplay, lookupOrdererName)
                   }
-                  className="flex w-full items-center justify-center gap-1 rounded-lg border border-purple-200 bg-white py-3 text-sm font-semibold text-purple-700 transition-colors hover:bg-purple-100"
+                  className="flex w-full items-center justify-center gap-1 rounded-lg border border-purple-200 bg-white py-2.5 text-xs font-semibold text-purple-700 transition-colors hover:bg-purple-100"
                 >
-                  비회원 주문조회로 이동 (주문번호 자동입력)
-                  <ChevronRight className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                  주문 조회 화면으로 이동
+                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
                 </button>
               </div>
             ) : null}
@@ -639,6 +646,13 @@ export default function OrderCompletePage() {
               주문 내역
             </button>
           </div>
+          <footer className="mt-8 flex flex-col items-center justify-center border-t border-gray-100 pb-32 pt-8 text-center">
+            <p className="mb-1 text-lg font-bold text-gray-800">고객센터 1661-1897</p>
+            <p className="mb-4 text-xs text-gray-500">운영시간 : 평일 08:30 ~ 19:00</p>
+            <p className="text-[10px] uppercase tracking-wider text-gray-400">
+              Copyright © {footerCopyrightOwner}. All rights reserved.
+            </p>
+          </footer>
         </div>
       );
     }
