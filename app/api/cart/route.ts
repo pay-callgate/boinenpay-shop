@@ -24,6 +24,27 @@ function appendCartCookie(res: NextResponse, sessionId: string) {
   });
 }
 
+/** 장바구니 상품 + 카테고리(리본 경조사어 기본값용) */
+const CART_PRODUCT_SELECT = `
+        id,
+        name,
+        slug,
+        thumbnail_url,
+        base_price,
+        sale_price,
+        member_price,
+        status,
+        stock_qty,
+        product_category_mappings (
+          category:product_categories (
+            id,
+            name,
+            slug,
+            parent_id
+          )
+        )
+      `;
+
 /** 주문서 `?items=cartItemId,...` 와 헤더 뱃지 일치용 — 지정 시 해당 행만 카운트 */
 function parseOnlyItemIds(searchParams: URLSearchParams): string[] | null {
   const raw = searchParams.get("onlyIds")?.trim();
@@ -119,15 +140,7 @@ export async function GET(request: NextRequest) {
           `
         *,
         product:products (
-          id,
-          name,
-          slug,
-          thumbnail_url,
-          base_price,
-          sale_price,
-          member_price,
-          status,
-          stock_qty
+          ${CART_PRODUCT_SELECT}
         )
       `
         )
@@ -210,15 +223,7 @@ export async function GET(request: NextRequest) {
         `
         *,
         product:products (
-          id,
-          name,
-          slug,
-          thumbnail_url,
-          base_price,
-          sale_price,
-          member_price,
-          status,
-          stock_qty
+          ${CART_PRODUCT_SELECT}
         )
       `
       )

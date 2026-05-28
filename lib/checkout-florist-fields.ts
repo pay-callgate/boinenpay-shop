@@ -11,6 +11,19 @@ export const TIME_SLOTS = [
   "17:00~19:00",
 ] as const;
 
+/** 리본·보내는 분 미입력(비화환·비꽃바구니 등) */
+export const RIBBON_PRESET_NONE = "__none__";
+
+export const RIBBON_LABEL_SENDER_MAIN = "보내는 분";
+export const RIBBON_LABEL_MESSAGE_MAIN = "리본 경조사어";
+/** 꽃다발·꽃바구니 등 — 리본·카드 문구 단일 입력 */
+export const RIBBON_LABEL_MESSAGE_COMBINED_MAIN = "리본 경조사어·카드 추가 문구";
+export const RIBBON_PLACEHOLDER_MESSAGE_COMBINED =
+  "리본·카드에 넣을 문구를 입력해 주세요.";
+/** 라벨 괄호 안내 — UI에서는 font-normal 적용 */
+export const RIBBON_HINT_FLORIST_REQUIRED = "(화환·꽃바구니 주문 시 필수)";
+export const RIBBON_HINT_OPTIONAL = "(선택)";
+
 export const RIBBON_MESSAGE_PRESETS: { value: string; label: string }[] = [
   { value: "__custom__", label: "직접 입력" },
   { value: "삼가 고인의 명복을 빕니다", label: "삼가 고인의 명복을 빕니다" },
@@ -26,9 +39,16 @@ export const RIBBON_MESSAGE_PRESETS: { value: string; label: string }[] = [
   { value: "축고희", label: "祝古稀 · 축고희" },
   { value: "축하합니다", label: "축하합니다" },
   { value: "정성을 담아 보냅니다", label: "정성을 담아 보냅니다" },
+  { value: RIBBON_PRESET_NONE, label: "필요없음" },
 ];
 
+/** 화환·꽃바구니 등 리본 입력이 필요한 주문인지 */
+export function isRibbonFloristRequired(preset: string): boolean {
+  return preset !== RIBBON_PRESET_NONE;
+}
+
 export function resolveRibbonPhrase(preset: string, custom: string): string {
+  if (preset === RIBBON_PRESET_NONE) return "";
   if (preset === "__custom__") return custom.trim();
   return preset.trim();
 }
@@ -56,10 +76,11 @@ export function buildFloristShippingDetailText(parts: {
   lines.push("");
   lines.push(`[배달 희망] ${parts.deliveryDate} ${parts.deliveryTimeSlot}`);
   lines.push(`[주문자] ${parts.ordererName.trim()} / ${parts.ordererPhone.trim()}`);
-  lines.push(`[보내는 분(리본)] ${parts.ribbonSender.trim()}`);
+  const rs = parts.ribbonSender.trim();
   const rm = parts.ribbonMessage.trim();
   const cm = (parts.ribbonCardMessage ?? "").trim();
-  lines.push(`[리본 문구] ${rm}`);
+  if (rs) lines.push(`[보내는 분(리본)] ${rs}`);
+  if (rm) lines.push(`[리본 문구] ${rm}`);
   if (cm) lines.push(`[카드 문구] ${cm}`);
   return lines.join("\n");
 }

@@ -18,11 +18,20 @@ import { RibbonMessageSection } from "@/components/shop/RibbonMessageSection";
 import { CheckoutPaymentMethodSegment } from "@/components/shop/CheckoutPaymentMethodSegment";
 import {
   TIME_SLOTS,
-  RIBBON_MESSAGE_PRESETS,
   digitsOnlyPhone,
   buildFloristShippingDetailText,
   resolveRibbonPhrase,
 } from "@/lib/checkout-florist-fields";
+import {
+  alertRibbonSectionPayValidation,
+  validateRibbonSectionBeforePayment,
+} from "@/lib/ribbon-checkout-validation";
+import {
+  deriveRibbonRuleKindFromCartItems,
+  isRibbonCombinedMessageUiFromCartItems,
+} from "@/lib/ribbon-default-by-category";
+import { useRibbonPresetFromCart } from "@/lib/use-ribbon-preset-from-cart";
+import type { ShopProductCategoryRef } from "@/lib/shop-product-categories";
 import {
   getSeoulTodayYmd,
   getSeoulTomorrowYmd,
@@ -60,6 +69,7 @@ interface CartItem {
     sale_price: number | null;
     member_price?: number | null;
     status: string;
+    product_category_mappings?: { category: ShopProductCategoryRef | null }[];
   };
 }
 
@@ -130,10 +140,20 @@ export default function GuestOrderPage() {
   const [venueDetail, setVenueDetail] = useState("");
 
   const [ribbonSender, setRibbonSender] = useState("");
-  const [ribbonPreset, setRibbonPreset] = useState(
-    RIBBON_MESSAGE_PRESETS[1]?.value ?? "__custom__"
+  const {
+    ribbonPreset,
+    setRibbonPreset,
+    ribbonMessageCustom,
+    setRibbonMessageCustom,
+  } = useRibbonPresetFromCart(items);
+  const ribbonFieldsRequired = useMemo(() => {
+    const kind = deriveRibbonRuleKindFromCartItems(items);
+    return kind === "condolence" || kind === "celebration";
+  }, [items]);
+  const combinedRibbonAndCard = useMemo(
+    () => isRibbonCombinedMessageUiFromCartItems(items),
+    [items]
   );
-  const [ribbonMessageCustom, setRibbonMessageCustom] = useState("");
   const [ribbonCardExtra, setRibbonCardExtra] = useState("");
 
   /** 배송 방식 선택 UI 제거 — API/주문 레코드 호환용 기본값 */
@@ -364,12 +384,15 @@ export default function GuestOrderPage() {
       toast("배달지 주소를 입력해 주세요. 우편번호 찾기를 이용해 주세요.");
       return;
     }
-    if (!ribbonSender.trim()) {
-      toast("보내는 분(리본)을 입력해 주세요.");
-      return;
-    }
-    if (!resolvedRibbonMessage) {
-      toast("리본 경조사어를 선택하거나 입력해 주세요.");
+    if (
+      !validateRibbonSectionBeforePayment({
+        items,
+        ribbonPreset,
+        ribbonSender,
+        ribbonMessageCustom,
+      })
+    ) {
+      alertRibbonSectionPayValidation();
       return;
     }
 
@@ -381,7 +404,9 @@ export default function GuestOrderPage() {
       ordererPhone: op,
       ribbonSender,
       ribbonMessage: resolvedRibbonMessage,
-      ribbonCardMessage: ribbonCardExtra.trim() || undefined,
+      ribbonCardMessage: combinedRibbonAndCard
+        ? undefined
+        : ribbonCardExtra.trim() || undefined,
     });
 
     setSubmitting(true);
@@ -464,7 +489,9 @@ export default function GuestOrderPage() {
         ordererName: on,
         ribbonSender: ribbonSender.trim(),
         ribbonMessage: resolvedRibbonMessage,
-        ribbonCardMessage: ribbonCardExtra.trim() || undefined,
+        ribbonCardMessage: combinedRibbonAndCard
+          ? undefined
+          : ribbonCardExtra.trim() || undefined,
         paymentMethod,
         isGuest: true,
         guestPassword: pw,
@@ -937,14 +964,20 @@ export default function GuestOrderPage() {
               labelClass={labelClass}
               textColor={TEXT}
               textMutedColor={TEXT_MUTED}
+              ribbonFieldsRequired={ribbonFieldsRequired}
+              combinedRibbonAndCard={combinedRibbonAndCard}
               ribbonSender={ribbonSender}
               onRibbonSenderChange={setRibbonSender}
               ribbonPreset={ribbonPreset}
               onRibbonPresetChange={setRibbonPreset}
               ribbonMessageCustom={ribbonMessageCustom}
               onRibbonMessageCustomChange={setRibbonMessageCustom}
-              ribbonCardExtra={ribbonCardExtra}
-              onRibbonCardExtraChange={setRibbonCardExtra}
+              {...(!combinedRibbonAndCard
+                ? {
+                    ribbonCardExtra,
+                    onRibbonCardExtraChange: setRibbonCardExtra,
+                  }
+                : {})}
             />
           </section>
 
