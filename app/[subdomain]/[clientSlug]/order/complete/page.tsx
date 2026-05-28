@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Calendar,
+  ChevronRight,
   CircleCheck,
   Copy,
   List,
@@ -488,23 +489,19 @@ export default function OrderCompletePage() {
               </div>
             </div>
             {guestToken && guestSig ? (
-              <div className="mt-4 flex max-w-[22rem] flex-col items-center gap-2">
-                <p
-                  className="w-full rounded-2xl border border-violet-200/90 bg-gradient-to-br from-violet-50 via-fuchsia-50/85 to-violet-100/75 px-4 py-3 text-center text-xs font-semibold leading-relaxed tracking-wide text-violet-700 shadow-sm sm:text-[0.8125rem]"
-                  role="note"
-                >
-                  <span className="text-fuchsia-600">비회원</span>은 주문조회를 위해{" "}
-                  <span className="font-bold text-violet-900">주문번호</span>를 꼭
-                  기억해주세요.
+              <div className="mt-6 w-full max-w-[22rem] rounded-xl border border-purple-100 bg-purple-50 p-5">
+                <p className="mb-3 text-center text-sm leading-relaxed text-purple-800" role="note">
+                  비회원은 주문조회를 위해 <span className="font-bold">주문번호를 꼭 기억해주세요.</span>
                 </p>
                 <button
                   type="button"
                   onClick={() =>
                     handleGuestOrderLookupShortcut(orderNoDisplay, lookupOrdererName)
                   }
-                  className="rounded-full border border-violet-200 bg-white px-3.5 py-1.5 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-50"
+                  className="flex w-full items-center justify-center gap-1 rounded-lg border border-purple-200 bg-white py-3 text-sm font-semibold text-purple-700 transition-colors hover:bg-purple-100"
                 >
                   비회원 주문조회로 이동 (주문번호 자동입력)
+                  <ChevronRight className="h-4 w-4" strokeWidth={2.2} aria-hidden />
                 </button>
               </div>
             ) : null}
