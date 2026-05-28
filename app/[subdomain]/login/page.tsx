@@ -2,7 +2,7 @@
 
 import { signIn } from "next-auth/react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useMemo, useState, useRef, type FormEvent } from "react";
+import { useEffect, useMemo, useState, useRef, type FormEvent } from "react";
 import { getStorefrontUrl } from "@/lib/app-url";
 import { resolveShopClientSlug } from "@/lib/resolve-shop-client-slug";
 import { sanitizeCallbackUrlAgainstLoginLoop } from "@/lib/shop-callback-url";
@@ -99,11 +99,22 @@ export default function CustomerLoginPage() {
     }
   };
 
-  const [guestName, setGuestName] = useState("");
-  const [guestOrderNo, setGuestOrderNo] = useState("");
+  const guestNameSeed = searchParams?.get("ordererName")?.trim() ?? "";
+  const guestOrderNoSeed = searchParams?.get("orderNo")?.trim() ?? "";
+  const [guestName, setGuestName] = useState(guestNameSeed);
+  const [guestOrderNo, setGuestOrderNo] = useState(guestOrderNoSeed);
   const [guestPw, setGuestPw] = useState("");
   const [guestSubmitting, setGuestSubmitting] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (guestNameSeed && !guestName.trim()) {
+      setGuestName(guestNameSeed);
+    }
+    if (guestOrderNoSeed && !guestOrderNo.trim()) {
+      setGuestOrderNo(guestOrderNoSeed);
+    }
+  }, [guestNameSeed, guestOrderNoSeed, guestName, guestOrderNo]);
 
   const handleGuestLookup = async (e: FormEvent) => {
     e.preventDefault();

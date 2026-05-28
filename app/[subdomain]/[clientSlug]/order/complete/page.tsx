@@ -57,6 +57,7 @@ interface OrderDetailOrder {
   delivery_time_slot?: string | null;
   ribbon_sender?: string | null;
   ribbon_message?: string | null;
+  orderer_name?: string | null;
   client: { id: string; name: string; slug: string; logo_url: string | null };
 }
 
@@ -356,6 +357,20 @@ export default function OrderCompletePage() {
   const handleOrderList = () => {
     router.push(`/${subdomain}/${clientSlug}/mypage/orders`);
   };
+  const handleGuestOrderLookupShortcut = (orderNoValue: string, ordererNameValue: string) => {
+    const orderNoSafe = orderNoValue.trim();
+    if (!orderNoSafe || orderNoSafe === "—") return;
+    const qs = new URLSearchParams({
+      tab: "guest",
+      clientSlug,
+      orderNo: orderNoSafe,
+    });
+    const ordererSafe = ordererNameValue.trim();
+    if (ordererSafe) {
+      qs.set("ordererName", ordererSafe);
+    }
+    router.push(`/${subdomain}/login?${qs.toString()}`);
+  };
 
   const formatOption = (optionJson: Record<string, string> | null): string => {
     if (!optionJson || typeof optionJson !== "object") return "";
@@ -427,6 +442,8 @@ export default function OrderCompletePage() {
         order?.order_no?.trim() || orderNo || "—";
       const displayStoreName =
         order?.client?.name ?? client?.name ?? "쇼핑몰";
+      const lookupOrdererName =
+        order?.orderer_name?.trim() || order?.shipping_name?.trim() || "";
 
       return (
         <div className="break-keep [word-break:keep-all]">
@@ -471,9 +488,25 @@ export default function OrderCompletePage() {
               </div>
             </div>
             {guestToken && guestSig ? (
-              <p className="mt-4 max-w-[22rem] px-4 text-center text-[0.7rem] leading-relaxed tracking-wide text-gray-500">
-                비회원은 주문조회를 위해 주문번호를 꼭 기억해주세요.
-              </p>
+              <div className="mt-4 flex max-w-[22rem] flex-col items-center gap-2">
+                <p
+                  className="w-full rounded-2xl border border-violet-200/90 bg-gradient-to-br from-violet-50 via-fuchsia-50/85 to-violet-100/75 px-4 py-3 text-center text-xs font-semibold leading-relaxed tracking-wide text-violet-700 shadow-sm sm:text-[0.8125rem]"
+                  role="note"
+                >
+                  <span className="text-fuchsia-600">비회원</span>은 주문조회를 위해{" "}
+                  <span className="font-bold text-violet-900">주문번호</span>를 꼭
+                  기억해주세요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleGuestOrderLookupShortcut(orderNoDisplay, lookupOrdererName)
+                  }
+                  className="rounded-full border border-violet-200 bg-white px-3.5 py-1.5 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-50"
+                >
+                  비회원 주문조회로 이동 (주문번호 자동입력)
+                </button>
+              </div>
             ) : null}
           </div>
 

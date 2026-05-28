@@ -58,6 +58,9 @@ export function GuestOrderLookupForm({
           className="mt-1 w-full bg-transparent py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400"
           required
         />
+        <p className="pb-1 text-[11px] leading-snug text-slate-500">
+          주문완료 화면의 주문번호를 그대로 입력해 주세요. (공백/하이픈은 자동 보정됩니다)
+        </p>
       </div>
       <div className="rounded-lg bg-sky-50/60 px-3 pt-2 pb-1 border-b border-slate-200/80">
         <label htmlFor="guest-pw" className="text-xs font-medium text-slate-500">
