@@ -2,14 +2,12 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { verifyGuestPassword } from "@/lib/guest-password";
 import { signGuestCheckout } from "@/lib/guest-checkout-signature";
+import {
+  guestOrdererNameMatches,
+  normalizeGuestOrderNo,
+} from "@/lib/guest-order-lookup";
 
 export const dynamic = "force-dynamic";
-
-function normalizeOrderNo(raw: string): string {
-  return String(raw ?? "")
-    .replace(/[\s-]/g, "")
-    .toUpperCase();
-}
 
 /**
  * 비회원 주문 조회 (주문자명 + 주문번호 + 비회원 비밀번호).
@@ -57,35 +55,59 @@ export async function POST(request: Request) {
       );
     }
 
-    const wantNo = normalizeOrderNo(orderNoRaw);
+    const wantNo = normalizeGuestOrderNo(orderNoRaw);
 
-    const { data: orders, error: oErr } = await supabase
-      .from("orders")
-      .select(
-        "id, order_no, shipping_name, orderer_name, guest_password_hash, guest_checkout_token, is_guest, client_id"
-      )
-      .eq("partner_id", partner.id)
-      .eq("client_id", client.id)
-      .eq("is_guest", true);
+    const baseQuery = () =>
+      supabase
+        .from("orders")
+        .select(
+          "id, order_no, shipping_name, orderer_name, guest_password_hash, guest_checkout_token, is_guest, client_id"
+        )
+        .eq("partner_id", partner.id)
+        .eq("client_id", client.id)
+        .eq("is_guest", true);
 
-    if (oErr) {
-      console.error("[guest-order-lookup]", oErr);
+    let row =
+      (
+        await baseQuery().eq("order_no", wantNo).maybeSingle()
+      ).data ?? null;
+
+    if (!row && orderNoRaw !== wantNo) {
+      row =
+        (
+          await baseQuery().eq("order_no", orderNoRaw).maybeSingle()
+        ).data ?? null;
+    }
+
+    if (!row) {
+      console.warn("[guest-order-lookup] order_not_found", {
+        subdomain,
+        clientSlug,
+        wantNo,
+      });
       return NextResponse.json(
-        { success: false, error: { message: "조회에 실패했습니다." } },
-        { status: 500 }
+        { success: false, error: { message: "일치하는 주문이 없거나 비밀번호가 올바르지 않습니다." } },
+        { status: 401 }
       );
     }
 
-    const row = (orders ?? []).find((o) => {
-      const no = normalizeOrderNo(o.order_no ?? "");
-      /** 폼 라벨은「주문자명」— DB의 orderer_name(주문자) 우선, 과거 호환용 shipping_name(받는 분)도 허용 */
-      const on = String(o.orderer_name ?? "").trim();
-      const ship = String(o.shipping_name ?? "").trim();
-      const nameMatch = on === ordererName || ship === ordererName;
-      return no === wantNo && nameMatch;
-    });
+    if (!guestOrdererNameMatches(row.orderer_name, row.shipping_name, ordererName)) {
+      console.warn("[guest-order-lookup] name_mismatch", {
+        orderId: row.id,
+        wantNo,
+      });
+      return NextResponse.json(
+        { success: false, error: { message: "일치하는 주문이 없거나 비밀번호가 올바르지 않습니다." } },
+        { status: 401 }
+      );
+    }
 
-    if (!row?.guest_password_hash || !verifyGuestPassword(guestPassword, row.guest_password_hash)) {
+    if (!row.guest_password_hash || !verifyGuestPassword(guestPassword, row.guest_password_hash)) {
+      console.warn("[guest-order-lookup] password_mismatch", {
+        orderId: row.id,
+        wantNo,
+        hasHash: Boolean(row.guest_password_hash),
+      });
       return NextResponse.json(
         { success: false, error: { message: "일치하는 주문이 없거나 비밀번호가 올바르지 않습니다." } },
         { status: 401 }

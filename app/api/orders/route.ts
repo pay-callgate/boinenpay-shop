@@ -393,12 +393,45 @@ export async function POST(request: NextRequest) {
       if (reuse) {
         const guestTok = (reuse as { guest_checkout_token?: string | null }).guest_checkout_token;
         if (guestTok) {
+          const reuseId = String((reuse as { id: string }).id);
+          const pw =
+            typeof guestPassword === "string" ? guestPassword.trim() : "";
+          const on =
+            typeof rawOrdererName === "string" ? rawOrdererName.trim() : "";
+          const reuseUpdates: {
+            guest_password_hash?: string;
+            orderer_name?: string;
+          } = {};
+          if (pw.length >= 4) {
+            reuseUpdates.guest_password_hash = hashGuestPassword(pw);
+          }
+          if (on) {
+            reuseUpdates.orderer_name = on;
+          }
+          if (Object.keys(reuseUpdates).length > 0) {
+            const { data: patched, error: patchErr } = await supabase
+              .from("orders")
+              .update(reuseUpdates)
+              .eq("id", reuseId)
+              .select()
+              .single();
+            if (!patchErr && patched) {
+              return NextResponse.json({
+                order: patched,
+                message: "진행 중인 주문이 있어 동일 주문으로 결제를 이어갑니다.",
+                idempotentReorder: true,
+                guestCheckoutToken: guestTok,
+                paymentSignature: signGuestCheckout(reuseId, guestTok),
+              });
+            }
+            console.warn("[Order:Create] guest idempotent patch failed", patchErr);
+          }
           return NextResponse.json({
             order: reuse,
             message: "진행 중인 주문이 있어 동일 주문으로 결제를 이어갑니다.",
             idempotentReorder: true,
             guestCheckoutToken: guestTok,
-            paymentSignature: signGuestCheckout(String((reuse as { id: string }).id), guestTok),
+            paymentSignature: signGuestCheckout(reuseId, guestTok),
           });
         }
       }

@@ -8,11 +8,18 @@ type Props = {
   subdomain: string;
   callbackUrl: string;
   active: ShopLoginTab;
+  /** 탭 전환 시 orderNo·clientSlug 등 비회원 조회 자동입력 유지 */
+  preserveSearchParams?: URLSearchParams | null;
 };
 
-export function LoginTabBar({ subdomain, callbackUrl, active }: Props) {
-  const memberQ = buildShopLoginQuery(callbackUrl, "member");
-  const guestQ = buildShopLoginQuery(callbackUrl, "guest");
+export function LoginTabBar({
+  subdomain,
+  callbackUrl,
+  active,
+  preserveSearchParams,
+}: Props) {
+  const memberQ = buildShopLoginQuery(callbackUrl, "member", preserveSearchParams);
+  const guestQ = buildShopLoginQuery(callbackUrl, "guest", preserveSearchParams);
   const memberHref = `/${subdomain}/login?${memberQ}`;
   const guestHref = `/${subdomain}/login?${guestQ}`;
 

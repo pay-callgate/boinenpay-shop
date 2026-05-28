@@ -49,6 +49,8 @@ export default function CustomerLoginPage() {
     return safe;
   }, [searchParams, subdomain, queryClientSlug]);
 
+  const guestOrderNoFromQuery = searchParams?.get("orderNo")?.trim() ?? "";
+
   const {
     partnerCompanyName,
     clientInfo,
@@ -56,6 +58,14 @@ export default function CustomerLoginPage() {
     clientSlugForGuest,
     resolvedClientSlug,
   } = useShopLoginContext(subdomain, callbackUrl, queryClientSlug);
+
+  /** 주문완료 → 조회 바로가기: URL의 clientSlug·orderNo를 callbackUrl보다 우선 */
+  const guestLookupClientSlug = useMemo(() => {
+    if (guestOrderNoFromQuery && queryClientSlug) {
+      return queryClientSlug;
+    }
+    return clientSlugForGuest;
+  }, [guestOrderNoFromQuery, queryClientSlug, clientSlugForGuest]);
 
   const memberIdInputRef = useRef<HTMLInputElement>(null);
 
@@ -119,7 +129,7 @@ export default function CustomerLoginPage() {
   const handleGuestLookup = async (e: FormEvent) => {
     e.preventDefault();
     setGuestError(null);
-    if (!clientSlugForGuest) {
+    if (!guestLookupClientSlug) {
       setGuestError(
         "거래처 쇼핑몰 URL로 접속한 뒤 다시 시도해 주세요. (주소에 거래처 코드가 포함되어야 합니다)"
       );
@@ -132,7 +142,7 @@ export default function CustomerLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subdomain,
-          clientSlug: clientSlugForGuest,
+          clientSlug: guestLookupClientSlug,
           ordererName: guestName.trim(),
           orderNo: guestOrderNo.trim(),
           guestPassword: guestPw,
@@ -183,7 +193,12 @@ export default function CustomerLoginPage() {
               <LoginOrDivider />
 
               <div className="mt-6">
-                <LoginTabBar subdomain={subdomain} callbackUrl={callbackUrl} active={tab} />
+                <LoginTabBar
+                  subdomain={subdomain}
+                  callbackUrl={callbackUrl}
+                  active={tab}
+                  preserveSearchParams={searchParams}
+                />
               </div>
 
               {tab === "member" ? (
@@ -201,7 +216,7 @@ export default function CustomerLoginPage() {
                 />
               ) : (
                 <GuestOrderLookupForm
-                  clientSlugForGuest={clientSlugForGuest}
+                  clientSlugForGuest={guestLookupClientSlug}
                   guestName={guestName}
                   guestOrderNo={guestOrderNo}
                   guestPw={guestPw}
