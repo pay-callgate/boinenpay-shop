@@ -23,6 +23,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { adminFetch } from "@/lib/admin-fetch";
+import { postAdminImageUpload } from "@/lib/admin-upload-image";
 import {
   ADMIN_MODAL_PRIMARY_BTN_CLASS,
   ADMIN_MODAL_CANCEL_BTN_CLASS,
@@ -148,23 +149,19 @@ export function PartnerSettingsModal({ open, onClose }: Props) {
 
   const handleLogoFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file?.type.startsWith("image/") || !partnerId) return;
+    if (!file || !partnerId) return;
     setLogoUploading(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("bucket", "Partners");
       fd.append("partnerId", partnerId);
-      const res = await adminFetch("/api/upload/image", {
-        method: "POST",
-        body: fd,
-      });
-      const data = await res.json();
-      if (data?.url) {
-        setLogoUrl(data.url);
-        setLogoPreview(data.url);
+      const result = await postAdminImageUpload(fd);
+      if (result.ok) {
+        setLogoUrl(result.url);
+        setLogoPreview(result.url);
       } else {
-        alert(data?.error ?? "로고 업로드에 실패했습니다.");
+        alert(result.error);
       }
     } catch {
       alert("로고 업로드 중 오류가 발생했습니다.");

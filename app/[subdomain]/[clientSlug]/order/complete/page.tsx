@@ -470,6 +470,11 @@ export default function OrderCompletePage() {
                 </button>
               </div>
             </div>
+            {guestToken && guestSig ? (
+              <p className="mt-4 max-w-[22rem] px-4 text-center text-[0.7rem] leading-relaxed tracking-wide text-gray-500">
+                비회원은 주문조회를 위해 주문번호를 꼭 기억해주세요.
+              </p>
+            ) : null}
           </div>
 
           {/* ② 주문 상품 카드 (이전 스타일) */}

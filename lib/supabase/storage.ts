@@ -39,7 +39,7 @@ export async function uploadImage(
     });
 
   if (error) {
-    console.error("Storage upload error:", error);
+    console.error("Storage upload error:", { bucket, path, message: error.message });
     return { url: null, error: error.message };
   }
 

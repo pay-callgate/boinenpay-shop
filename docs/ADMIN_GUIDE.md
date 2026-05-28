@@ -19,7 +19,7 @@ ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);
 COMMENT ON COLUMN public.partners.logo_url IS '파트너사 브랜드 로고(CI) 이미지 URL';
 ```
 
-**Storage 버킷 생성:** Supabase Dashboard > Storage에서 `partners` 버킷을 생성하고, Public 접근을 허용하세요. (기존 `clients`, `products` 버킷과 동일한 설정)
+**Storage 버킷:** `supabase/migrations/20260528100000_storage_buckets_image_upload.sql.txt` 로 `products`, `clients`, `banners`, `Partners` 버킷을 생성·공개 읽기 정책을 적용합니다. 수동 생성 시 버킷 id는 코드(`lib/supabase/storage.ts` BUCKETS)와 **대소문자까지** 일치해야 합니다.
 
 ---
 

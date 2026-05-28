@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requirePartnerAccess } from "@/lib/partner-admin-guard";
+import { createServerSupabase } from "@/lib/supabase/server";
 import {
   uploadImage,
   generateFileName,
@@ -12,6 +14,7 @@ import {
   BUCKETS,
   BucketName,
 } from "@/lib/supabase/storage";
+import { resolveUploadImageContentType } from "@/lib/upload-image-mime";
 
 /**
  * T2-5: 이미지 업로드 API
@@ -20,7 +23,6 @@ import {
  */
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,8 +55,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 파일 타입 검증
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const supabase = createServerSupabase();
+    const userId = (session.user as { id?: string }).id;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const access = await requirePartnerAccess(supabase, userId, partnerId);
+    if (!access.ok) return access.response;
+
+    const contentType = resolveUploadImageContentType(file);
+    if (!contentType) {
       return NextResponse.json(
         { error: "지원하지 않는 파일 형식입니다. (jpg, png, gif, webp만 허용)" },
         { status: 400 }
@@ -105,13 +115,16 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const { url, error } = await uploadImage(bucket, path, buffer, file.type);
+    const { url, error } = await uploadImage(bucket, path, buffer, contentType);
 
     if (error) {
-      return NextResponse.json(
-        { error: `업로드 실패: ${error}` },
-        { status: 500 }
-      );
+      const msg = error.toLowerCase();
+      const friendly = msg.includes("bucket not found")
+        ? `Storage 버킷 '${bucket}'이 없습니다. Supabase에서 버킷을 생성하거나 마이그레이션(20260528100000_storage_buckets_image_upload)을 적용해 주세요.`
+        : msg.includes("row-level security") || msg.includes("policy")
+          ? `Storage 권한 오류: ${error}`
+          : `업로드 실패: ${error}`;
+      return NextResponse.json({ error: friendly }, { status: 500 });
     }
 
     return NextResponse.json({

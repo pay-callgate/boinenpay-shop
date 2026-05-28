@@ -25,6 +25,7 @@ import {
   ADMIN_MODAL_PRIMARY_BTN_CLASS,
 } from "@/lib/admin-dialog-policy";
 import { adminFetch } from "@/lib/admin-fetch";
+import { postAdminImageUpload } from "@/lib/admin-upload-image";
 
 /**
  * 거래처 등록/수정 모달
@@ -188,10 +189,12 @@ export function ClientRegistrationModal({
       fd.append("bucket", "clients");
       fd.append("partnerId", partnerId);
       if (initialData?.id) fd.append("entityId", initialData.id);
-      const res = await adminFetch("/api/upload/image", { method: "POST", body: fd });
-      const data = await res.json();
-      if (data?.url) setFormData((prev) => ({ ...prev, logoUrl: data.url }));
-      else alert(data?.error || "로고 업로드에 실패했습니다.");
+      const result = await postAdminImageUpload(fd);
+      if (result.ok) {
+        setFormData((prev) => ({ ...prev, logoUrl: result.url }));
+      } else {
+        alert(result.error);
+      }
     } catch {
       alert("로고 업로드 중 오류가 발생했습니다.");
     } finally {
