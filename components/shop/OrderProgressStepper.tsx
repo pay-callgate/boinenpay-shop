@@ -9,7 +9,8 @@ type Props = {
 };
 
 /**
- * 주문 상세 상단 가로 진행 바 (결제 완료 → 화환 제작중 → 배송 출발 → 배송 완료)
+ * 주문 상세 상단 가로 진행 바 (결제 완료 → 상품 준비중 → 배송 출발 → 배송 완료)
+ * 파스텔 핑크/퍼플 톤
  */
 export function OrderProgressStepper({ activeIndex }: Props) {
   if (activeIndex < 0) return null;
@@ -26,16 +27,16 @@ export function OrderProgressStepper({ activeIndex }: Props) {
           const segmentDone = i < n - 1 && activeIndex > i;
 
           const circleClass = current
-            ? "border-[#4338CA] bg-[#4338CA] text-white shadow-md ring-2 ring-[#C7D2FE] ring-offset-2"
+            ? "border border-pink-200 bg-pink-100 font-bold text-pink-600"
             : done
-              ? "border-[#0284C7] bg-[#0284C7] text-white"
-              : "border-[#E5E7EB] bg-white text-[#9CA3AF]";
+              ? "border border-pink-500 bg-pink-500 text-white"
+              : "border border-transparent bg-gray-100 text-gray-400";
 
           return (
             <React.Fragment key={label}>
               <div className="flex flex-col items-center">
                 <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-[12px] font-bold ${circleClass}`}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] ${circleClass}`}
                   aria-current={current ? "step" : undefined}
                 >
                   {done ? "✓" : i + 1}
@@ -43,7 +44,9 @@ export function OrderProgressStepper({ activeIndex }: Props) {
               </div>
               {i < n - 1 ? (
                 <div
-                  className={`mx-1 mb-5 h-[3px] min-w-[8px] flex-1 rounded-full ${segmentDone ? "bg-[#0284C7]" : "bg-[#E5E7EB]"}`}
+                  className={`mx-1 mb-5 h-[2px] min-w-[8px] flex-1 rounded-full ${
+                    segmentDone ? "bg-pink-300" : "bg-gray-200"
+                  }`}
                   aria-hidden
                 />
               ) : null}
@@ -61,10 +64,9 @@ export function OrderProgressStepper({ activeIndex }: Props) {
           return (
             <div
               key={`${label}-caption`}
-              className="min-w-0 text-center text-[10px] font-semibold leading-snug sm:text-[11px]"
-              style={{
-                color: current ? "#312E81" : done ? "#0369A1" : "#9CA3AF",
-              }}
+              className={`min-w-0 text-center text-[10px] font-semibold leading-snug sm:text-[11px] ${
+                current ? "text-pink-600" : done ? "text-pink-500" : "text-gray-400"
+              }`}
             >
               {label}
             </div>

@@ -2,12 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import {
+  Calendar,
+  ChevronLeft,
+  Coins,
+  CreditCard,
+  MapPin,
+  MessageSquare,
+  User,
+} from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
+import { OrderDetailInfoRow } from "@/components/shop/OrderDetailInfoRow";
+import { OrderDetailSectionCard } from "@/components/shop/OrderDetailSectionCard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
 import { toast } from "@/components/shop/ToastContext";
-import { formatTrackingDisplay } from "@/lib/courier";
 import { OrderProgressStepper } from "@/components/shop/OrderProgressStepper";
 import {
   shopOrderCustomerBadge,
@@ -15,11 +25,43 @@ import {
 } from "@/lib/shop/customer-order-fulfillment";
 import { shopOrderDetailBadgeStatus, shopPaymentStatusLabel } from "@/lib/shop/order-status-labels";
 import {
-  formatAdminDeliveryMethod,
   formatDesiredDeliveryDateTimeLine,
   getAdminLocalTodayYmd,
   isDesiredDeliveryToday,
 } from "@/lib/admin-florist-order-display";
+import {
+  formatFloristShippingAddressForCustomerUI,
+  parseFloristMetaFromShippingDetail,
+} from "@/lib/checkout-florist-fields";
+
+const PRIMARY = "#D6A8E0";
+
+function formatPaymentMethodLabel(method: string | null | undefined): string {
+  const m = (method ?? "").trim().toLowerCase();
+  if (m === "card") return "신용·체크카드";
+  if (m === "bank" || m === "transfer") return "무통장입금";
+  if (!m) return "—";
+  return method ?? "—";
+}
+
+function paymentStatusBadgeClass(paymentStatus: string): string {
+  switch (paymentStatus) {
+    case "paid":
+      return "text-emerald-600 bg-emerald-50";
+    case "pending":
+      return "text-amber-700 bg-amber-50";
+    case "failed":
+      return "text-red-600 bg-red-50";
+    case "refunded":
+      return "text-gray-600 bg-gray-100";
+    default:
+      return "text-gray-600 bg-gray-100";
+  }
+}
+
+function formatWon(amount: number): string {
+  return `${new Intl.NumberFormat("ko-KR").format(amount)} 원`;
+}
 
 /**
  * T6-2: 마이페이지 주문 상세
@@ -305,6 +347,41 @@ export default function MyOrderDetailPage() {
     order.status !== "delivered" &&
     order.status !== "cancelled" &&
     order.payment_status !== "refunded";
+
+  const parsedDetail = parseFloristMetaFromShippingDetail(order.shipping_detail);
+  const deliveryLine =
+    formatDesiredDeliveryDateTimeLine(
+      order.desired_delivery_date,
+      order.delivery_time_slot
+    ) ||
+    parsedDetail.deliveryHopeLine ||
+    "—";
+  const shopToday = getAdminLocalTodayYmd();
+  const deliveryIsToday = isDesiredDeliveryToday(order.desired_delivery_date, shopToday);
+  const streetAddress = formatFloristShippingAddressForCustomerUI(
+    order.shipping_address,
+    order.shipping_detail
+  );
+  const addressDisplay = [
+    order.shipping_postcode?.trim() ? `[${order.shipping_postcode.trim()}]` : null,
+    streetAddress || order.shipping_address,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const receiverLine = `${order.shipping_name || "—"} (${order.shipping_phone || "—"})`;
+  const ribbonMsg =
+    order.ribbon_message?.trim() ||
+    parsedDetail.ribbonMessage ||
+    parsedDetail.ribbonCard ||
+    "";
+  const ribbonFrom = order.ribbon_sender?.trim() || parsedDetail.ribbonSender || "";
+  const itemsTotal = items.reduce((sum, i) => sum + Number(i.total_price), 0);
+  const orderTotal = Number(order.total_amount);
+  const shippingFee = orderTotal >= itemsTotal ? orderTotal - itemsTotal : 0;
+  const discountAmount = orderTotal < itemsTotal ? itemsTotal - orderTotal : 0;
+  const paymentMethodLabel = formatPaymentMethodLabel(order.payment_method);
+  const paymentStatusLabel = shopPaymentStatusLabel(order.payment_status);
+
   return (
     <OrderGuard
       partnerId={partner.id}
@@ -313,520 +390,183 @@ export default function MyOrderDetailPage() {
       requireAuth={!guestMode}
       blockAffiliationMismatch={!guestMode}
     >
-      <div
-        style={{
-          maxWidth: "430px",
-          margin: "0 auto",
-          minHeight: "100vh",
-          backgroundColor: "#F5F5F5",
-          paddingBottom: "24px",
-        }}
-      >
-        {/* 헤더 */}
-        <header
-          style={{
-            padding: "16px",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            backgroundColor: "#fff",
-            borderBottom: "1px solid #E5E7EB",
-          }}
-        >
+      <div className="mx-auto min-h-[100vh] max-w-[430px] bg-gray-50 pb-8 break-keep [word-break:keep-all]">
+        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3.5">
           <button
+            type="button"
             onClick={() => router.back()}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100"
+            aria-label="뒤로 가기"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="#333"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <ChevronLeft className="h-5 w-5" strokeWidth={2} aria-hidden />
           </button>
-          <h1 style={{ fontSize: "1.125rem", fontWeight: 700, flex: 1 }}>
-            주문 상세
-          </h1>
+          <h1 className="flex-1 text-lg font-bold text-gray-900">주문 상세</h1>
         </header>
 
-        {/* 주문 진행 Stepper + 상태 뱃지 (탭·목록과 동일 라벨) */}
-        <div
-          style={{
-            backgroundColor: "#fff",
-            padding: "20px 14px",
-            marginBottom: "12px",
-            textAlign: "center",
-          }}
-        >
-          <OrderProgressStepper activeIndex={progressStepIndex} />
-          <span
-            style={{
-              display: "inline-block",
-              marginTop: progressStepIndex >= 0 ? "16px" : 0,
-              padding: "8px 20px",
-              borderRadius: "20px",
-              fontSize: "0.9375rem",
-              fontWeight: 700,
-              backgroundColor: customerBadge.background,
-              color: customerBadge.color,
-            }}
-          >
-            {customerBadge.label}
-          </span>
-          {detailBadge.showPaymentBeforeFulfillmentNote ? (
-            <p
-              style={{
-                fontSize: "0.75rem",
-                color: "#B45309",
-                backgroundColor: "#FFFBEB",
-                border: "1px solid #FDE68A",
-                borderRadius: "8px",
-                padding: "10px 12px",
-                marginTop: "12px",
-                marginBottom: "12px",
-                lineHeight: 1.5,
-                textAlign: "left",
-                maxWidth: "320px",
-                marginLeft: "auto",
-                marginRight: "auto",
-              }}
-            >
-              아직 <strong>결제가 완료되지 않은</strong> 주문입니다. 결제를 마치면 배송 준비 단계로
-              진행됩니다. (시스템에 등록된 주문 단계와 결제 상태가 잠시 어긋난 경우에도 안내와 같이
-              결제를 우선해 주세요.)
-            </p>
-          ) : null}
-          <p style={{ fontSize: "0.875rem", color: "#666" }}>
-            주문번호: {order.order_no}
-          </p>
-          <p style={{ fontSize: "0.75rem", color: "#999", marginTop: "4px" }}>
-            {formatDate(order.created_at)}
-          </p>
-          <p
-            style={{
-              fontSize: "0.75rem",
-              color: "#6B7280",
-              marginTop: "12px",
-              lineHeight: 1.5,
-              textAlign: "left",
-              maxWidth: "320px",
-              marginLeft: "auto",
-              marginRight: "auto",
-            }}
-          >
-            화환·꽃 배달 등은 택배가 아닌 경우 송장 번호 없이 진행될 수 있습니다. 상태는 주문 처리
-            단계에 맞게 갱신됩니다.
-          </p>
-        </div>
-
-        {/* 배송 추적 */}
-        <div
-          style={{
-            backgroundColor: "#fff",
-            padding: "16px",
-            marginBottom: "12px",
-          }}
-        >
-          <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "12px" }}>
-            배송 추적
-          </h2>
-          {order.tracking_number ? (
-            <>
-              <div
-                style={{
-                  padding: "12px",
-                  backgroundColor: "#fff",
-                  borderRadius: "8px",
-                }}
-              >
-                <p style={{ fontSize: "0.875rem", color: "#666", marginBottom: "4px" }}>
-                  송장번호
-                </p>
-                <p style={{ fontSize: "1rem", fontWeight: 600 }}>
-                  {formatTrackingDisplay(order.courier_company, order.tracking_number)}
-                </p>
-              </div>
-              <p style={{ fontSize: "0.75rem", color: "#999", marginTop: "8px", textAlign: "center" }}>
-                택배사 배송 추적 API 연동은 향후 구현 예정입니다.
+        <div className="px-4 pt-4">
+          <OrderDetailSectionCard title="주문 진행" className="text-center">
+            <OrderProgressStepper activeIndex={progressStepIndex} />
+            <span className="mt-4 inline-block rounded-full border border-pink-200 bg-pink-100 px-5 py-2 text-sm font-bold text-pink-600">
+              {customerBadge.label}
+            </span>
+            {detailBadge.showPaymentBeforeFulfillmentNote ? (
+              <p className="mx-auto mt-3 max-w-sm rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-left text-xs leading-relaxed text-amber-900">
+                아직 <strong>결제가 완료되지 않은</strong> 주문입니다. 결제를 마치면 배송 준비 단계로
+                진행됩니다.
               </p>
-            </>
-          ) : (
-            <p style={{ fontSize: "0.875rem", color: "#666", lineHeight: 1.6 }}>
-              등록된 택배 송장이 없습니다. 배달 상품은 업체 직배송으로 진행되거나, 준비 후 송장이
-              올라올 수 있습니다.
-            </p>
-          )}
-          {order.delivery_photo_url ? (
-            <div style={{ marginTop: "16px", textAlign: "center" }}>
-              <a
-                href={order.delivery_photo_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  padding: "12px 20px",
-                  backgroundColor: "#D6A8E0",
-                  color: "#fff",
-                  borderRadius: "12px",
-                  fontSize: "0.9375rem",
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                배송 완료 사진 보기
-              </a>
-              <p style={{ fontSize: "0.7rem", color: "#9CA3AF", marginTop: "8px" }}>
-                새 창에서 배송 확인 이미지가 열립니다.
-              </p>
-            </div>
-          ) : null}
-        </div>
+            ) : null}
+            <p className="mt-4 text-sm text-gray-600">주문번호: {order.order_no}</p>
+            <p className="mt-1 text-xs text-gray-400">{formatDate(order.created_at)}</p>
+          </OrderDetailSectionCard>
 
-        {/* 주문 항목 */}
-        <div
-          style={{
-            backgroundColor: "#fff",
-            padding: "16px",
-            marginBottom: "12px",
-          }}
-        >
-          <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "12px" }}>
-            주문 상품
-          </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {items.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  display: "flex",
-                  gap: "12px",
-                }}
-              >
-                <div
-                  style={{
-                    width: "80px",
-                    height: "80px",
-                    flexShrink: 0,
-                    backgroundColor: "#F3F4F6",
-                    borderRadius: "8px",
-                    overflow: "hidden",
-                  }}
-                >
-                  {item.product.thumbnail_url && (
-                    <img
-                      src={item.product.thumbnail_url}
-                      alt={item.product_name}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "4px" }}>
-                    {item.product_name}
-                  </p>
-                  {item.option_json && (
-                    <p style={{ fontSize: "0.8125rem", color: "#666", marginBottom: "4px" }}>
-                      {Object.entries(item.option_json)
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join(", ")}
-                    </p>
-                  )}
-                  <p style={{ fontSize: "0.875rem", color: "#666" }}>
-                    {formatPrice(item.unit_price)}원 × {item.quantity}개
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 배송지 정보 */}
-        <div
-          style={{
-            backgroundColor: "#fff",
-            padding: "16px",
-            marginBottom: "12px",
-          }}
-        >
-          <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "12px" }}>
-            배송지 정보
-          </h2>
-          <div style={{ fontSize: "0.875rem", lineHeight: "1.6" }}>
-            <p style={{ marginBottom: "4px" }}>
-              <span style={{ color: "#666" }}>받는 분: </span>
-              <span style={{ fontWeight: 600 }}>{order.shipping_name}</span>
-            </p>
-            <p style={{ marginBottom: "4px" }}>
-              <span style={{ color: "#666" }}>연락처: </span>
-              {order.shipping_phone}
-            </p>
-            <p>
-              <span style={{ color: "#666" }}>주소: </span>
-              {order.shipping_postcode && `[${order.shipping_postcode}] `}
-              {order.shipping_address}
-              {order.shipping_detail && `, ${order.shipping_detail}`}
-            </p>
-          </div>
-        </div>
-
-        {/* 화훼: 희망 배달·리본 — 항상 이 위치(배송지 아래)에서 확인 */}
-        {(() => {
-          const o = order;
-          const hasFlorist =
-            (o.desired_delivery_date != null && String(o.desired_delivery_date).trim() !== "") ||
-            (o.delivery_time_slot != null && String(o.delivery_time_slot).trim() !== "") ||
-            (o.delivery_method != null && String(o.delivery_method).trim() !== "") ||
-            (o.delivery_request_memo != null && String(o.delivery_request_memo).trim() !== "") ||
-            (o.ribbon_sender != null && String(o.ribbon_sender).trim() !== "") ||
-            (o.ribbon_message != null && String(o.ribbon_message).trim() !== "");
-          const deliveryLine = formatDesiredDeliveryDateTimeLine(
-            o.desired_delivery_date,
-            o.delivery_time_slot
-          );
-          const shopToday = getAdminLocalTodayYmd();
-          const deliveryIsToday = isDesiredDeliveryToday(o.desired_delivery_date, shopToday);
-          return (
-            <div
-              style={{
-                backgroundColor: "#FFF5F7",
-                padding: "16px",
-                marginBottom: "12px",
-                borderRadius: "8px",
-                border: "1px solid #FBCFE8",
-              }}
-            >
-              <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "4px", color: "#831843" }}>
-                배달·리본 정보
-              </h2>
-              <p style={{ fontSize: "0.75rem", color: "#9D174D", marginBottom: "12px", lineHeight: 1.45 }}>
-                마이페이지에서는 <strong>배송지 정보 바로 아래</strong>에서 희망 배송일·시간과 리본 문구를
-                확인할 수 있습니다.
-              </p>
-              {!hasFlorist ? (
-                <p
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: "#6B7280",
-                    lineHeight: 1.6,
-                    margin: 0,
-                    padding: "12px",
-                    backgroundColor: "#F9FAFB",
-                    borderRadius: "8px",
-                    border: "1px dashed #E5E7EB",
-                  }}
-                >
-                  저장된 희망 배송일·리본 정보가 없습니다. 이 주문이 저장 기능 도입 이전에 접수되었거나,
-                  주문 시 해당 항목을 남기지 않은 경우입니다. (상세 주소·요청은 위 <strong>배송지 정보</strong>
-                  란에 합쳐져 있을 수 있습니다.)
-                </p>
-              ) : (
-                <>
-                  <div style={{ fontSize: "0.875rem", lineHeight: 1.65, color: "#374151" }}>
-                    <p style={{ marginBottom: "8px" }}>
-                      <span style={{ color: "#6B7280" }}>희망 배송 일시</span>
-                      <br />
-                      <span
-                        style={{
-                          fontWeight: deliveryIsToday ? 700 : 600,
-                          color: deliveryIsToday ? "#B91C1C" : "#111827",
-                        }}
-                      >
-                        {deliveryIsToday ? (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              marginRight: "6px",
-                              fontSize: "0.65rem",
-                              fontWeight: 700,
-                              color: "#fff",
-                              backgroundColor: "#DC2626",
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                              verticalAlign: "middle",
-                            }}
-                          >
-                            오늘
-                          </span>
-                        ) : null}
-                        {deliveryLine}
-                      </span>
-                    </p>
-                    <p style={{ marginBottom: "8px" }}>
-                      <span style={{ color: "#6B7280" }}>배송 방식</span>
-                      <br />
-                      <span style={{ fontWeight: 600 }}>{formatAdminDeliveryMethod(o.delivery_method)}</span>
-                    </p>
-                    {o.delivery_request_memo?.trim() ? (
-                      <p style={{ marginBottom: "12px" }}>
-                        <span style={{ color: "#6B7280" }}>배송 요청</span>
-                        <br />
-                        <span style={{ whiteSpace: "pre-wrap" }}>{o.delivery_request_memo.trim()}</span>
-                      </p>
+          <OrderDetailSectionCard title="주문 상품">
+            <div className="flex flex-col gap-4">
+              {items.map((item) => (
+                <div key={item.id} className="flex gap-3">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                    {item.product.thumbnail_url ? (
+                      <img
+                        src={item.product.thumbnail_url}
+                        alt={item.product_name}
+                        className="h-full w-full object-cover"
+                      />
                     ) : null}
                   </div>
-                  <p style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#831843", marginBottom: "8px" }}>
-                    리본 문구
-                  </p>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 0,
-                      borderRadius: "8px",
-                      overflow: "hidden",
-                      border: "1px solid #F9A8D4",
-                      backgroundColor: "#fff",
-                    }}
-                  >
-                    <div style={{ padding: "12px", borderBottom: "1px solid #FCE7F3" }}>
-                      <p
-                        style={{ fontSize: "0.65rem", fontWeight: 700, color: "#BE185D", marginBottom: "4px" }}
-                      >
-                        경조사어
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-snug text-gray-900">
+                      {item.product_name}
+                    </p>
+                    {item.option_json ? (
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {Object.entries(item.option_json)
+                          .map(([key, value]) => `${key}: ${value}`)
+                          .join(", ")}
                       </p>
-                      <p style={{ fontSize: "0.875rem", fontWeight: 600, whiteSpace: "pre-wrap", margin: 0 }}>
-                        {o.ribbon_message?.trim() || "—"}
-                      </p>
-                    </div>
-                    <div style={{ padding: "12px", backgroundColor: "#FDF2F8" }}>
-                      <p
-                        style={{ fontSize: "0.65rem", fontWeight: 700, color: "#BE185D", marginBottom: "4px" }}
-                      >
-                        보내는 분
-                      </p>
-                      <p style={{ fontSize: "0.875rem", fontWeight: 600, whiteSpace: "pre-wrap", margin: 0 }}>
-                        {o.ribbon_sender?.trim() || "—"}
-                      </p>
-                    </div>
+                    ) : null}
+                    <p className="mt-1.5 text-sm text-gray-600">
+                      {formatPrice(item.unit_price)}원 × {item.quantity}개
+                    </p>
                   </div>
-                </>
-              )}
+                </div>
+              ))}
             </div>
-          );
-        })()}
+          </OrderDetailSectionCard>
 
-        {/* 결제 정보 */}
-        <div
-          style={{
-            backgroundColor: "#fff",
-            padding: "16px",
-          }}
-        >
-          <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "12px" }}>
-            결제 정보
-          </h2>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: "0.875rem",
-              marginBottom: "8px",
-            }}
-          >
-            <span style={{ color: "#666" }}>결제 상태</span>
-            <span>{shopPaymentStatusLabel(order.payment_status)}</span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: "0.875rem",
-              marginBottom: "8px",
-            }}
-          >
-            <span style={{ color: "#666" }}>결제 수단</span>
-            <span>{order.payment_method}</span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: "0.875rem",
-              marginBottom: "8px",
-            }}
-          >
-            <span style={{ color: "#666" }}>상품 금액</span>
-            <span>{formatPrice(order.total_amount)}원</span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: "0.875rem",
-              marginBottom: "12px",
-            }}
-          >
-            <span style={{ color: "#666" }}>배송비</span>
-            <span>0원</span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              paddingTop: "12px",
-              borderTop: "1px solid #E5E7EB",
-            }}
-          >
-            <span style={{ fontSize: "1rem", fontWeight: 700 }}>총 결제금액</span>
-            <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#D6A8E0" }}>
-              {formatPrice(order.total_amount)}원
-            </span>
-          </div>
-          {/* Phase F1: 미결제 주문 재결제 버튼 */}
-          {order.payment_status === "pending" && (
-            <button
-              type="button"
-              onClick={handlePayNow}
-              disabled={paymentSubmitting}
-              style={{
-                marginTop: "16px",
-                width: "100%",
-                padding: "14px",
-                backgroundColor: "#D6A8E0",
-                color: "#fff",
-                border: "none",
-                borderRadius: "12px",
-                fontSize: "1rem",
-                fontWeight: 700,
-                cursor: paymentSubmitting ? "not-allowed" : "pointer",
-                opacity: paymentSubmitting ? 0.7 : 1,
-              }}
-            >
-              {/* paymentSubmitting ? "결제창으로 이동 중..." : */}결제하기
-            </button>
-          )}
-          {showCancelGuideButton && (
+          <section className="mb-4 rounded-2xl bg-white p-5 shadow-sm">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <h3 className="flex items-center text-lg font-bold text-gray-900 before:mr-2 before:block before:h-4 before:w-1 before:rounded-full before:bg-pink-400 before:content-['']">
+                결제 정보 Summary
+              </h3>
+              <span
+                className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${paymentStatusBadgeClass(order.payment_status)}`}
+              >
+                {paymentStatusLabel}
+              </span>
+            </div>
+
+            <div className="mb-6 flex items-center">
+              <div className="mr-4 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-pink-50 text-pink-500">
+                <Coins className="h-6 w-6" strokeWidth={2} aria-hidden />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">최종 결제 금액</p>
+                <p className="mt-1 text-base font-bold text-gray-900">
+                  {formatWon(Number(order.total_amount))}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6 flex items-center">
+              <div className="mr-4 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-pink-50 text-pink-500">
+                <CreditCard className="h-6 w-6" strokeWidth={2} aria-hidden />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">결제 수단</p>
+                <p className="mt-1 text-base font-bold text-gray-900">{paymentMethodLabel}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3.5 rounded-2xl bg-gray-50 p-5">
+              <div className="flex items-center justify-between text-[15px]">
+                <span className="text-gray-600">주문 상품 금액</span>
+                <span className="font-medium text-gray-900">{formatWon(itemsTotal)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[15px]">
+                <span className="flex items-center gap-2 text-gray-600">
+                  배송비
+                  {deliveryIsToday ? (
+                    <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-600">
+                      당일배송
+                    </span>
+                  ) : null}
+                </span>
+                <span className="font-medium text-gray-900">
+                  {shippingFee <= 0 ? "무료" : formatWon(shippingFee)}
+                </span>
+              </div>
+              {discountAmount > 0 ? (
+                <div className="flex items-center justify-between text-[15px]">
+                  <span className="font-bold text-pink-600">특별 할인 혜택</span>
+                  <span className="font-bold text-pink-600">
+                    -{new Intl.NumberFormat("ko-KR").format(discountAmount)} 원
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            {order.payment_status === "pending" && (
+              <button
+                type="button"
+                onClick={handlePayNow}
+                disabled={paymentSubmitting}
+                className="mt-6 w-full rounded-xl py-3.5 text-base font-bold text-white transition-opacity hover:opacity-95 disabled:opacity-60"
+                style={{ backgroundColor: PRIMARY }}
+              >
+                결제하기
+              </button>
+            )}
+          </section>
+
+          <OrderDetailSectionCard title="배송 및 제작 정보">
+            <div className="flex flex-col gap-5">
+              <OrderDetailInfoRow icon={Calendar} label="배송 희망일" valueBold>
+                {deliveryIsToday ? (
+                  <span className="mr-1.5 inline-block rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    오늘
+                  </span>
+                ) : null}
+                {deliveryLine}
+              </OrderDetailInfoRow>
+              <OrderDetailInfoRow icon={User} label="수령인">
+                {receiverLine}
+              </OrderDetailInfoRow>
+              <OrderDetailInfoRow icon={MapPin} label="배송 주소">
+                {addressDisplay || "—"}
+              </OrderDetailInfoRow>
+              <OrderDetailInfoRow icon={MessageSquare} label="리본 문구(경조사어)" valueBold>
+                {ribbonMsg ? <span>&ldquo;{ribbonMsg}&rdquo;</span> : "—"}
+              </OrderDetailInfoRow>
+              <OrderDetailInfoRow icon={User} label="리본 문구(보내는 분)">
+                {ribbonFrom || "—"}
+              </OrderDetailInfoRow>
+            </div>
+            {order.delivery_request_memo?.trim() ? (
+              <p className="mt-4 rounded-lg bg-gray-50 px-3 py-2.5 text-xs leading-relaxed text-gray-600">
+                <span className="font-medium text-gray-500">배송 요청: </span>
+                {order.delivery_request_memo.trim()}
+              </p>
+            ) : null}
+          </OrderDetailSectionCard>
+
+          {showCancelGuideButton ? (
             <button
               type="button"
               onClick={handleCancelGuideOpen}
-              style={{
-                marginTop: "12px",
-                width: "100%",
-                padding: "14px",
-                backgroundColor: "#fff",
-                color: "#B45309",
-                border: "1px solid #FCD34D",
-                borderRadius: "12px",
-                fontSize: "0.95rem",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
+              className="mt-6 w-full rounded-2xl border border-pink-200 bg-white py-4 text-[15px] font-medium text-gray-600 transition-colors hover:bg-pink-50"
             >
               주문 취소 안내
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -886,10 +626,10 @@ export default function MyOrderDetailPage() {
               <p style={{ margin: "0 0 12px", fontWeight: 600 }}>
                 📞 고객센터:{" "}
                 <a
-                  href="tel:02-1661-1897"
+                  href="tel:1661-1897"
                   style={{ color: "#7C3AED", textDecoration: "underline", fontWeight: 700 }}
                 >
-                  02-1661-1897
+                  1661-1897
                 </a>
               </p>
               <ul

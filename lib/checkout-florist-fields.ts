@@ -148,3 +148,36 @@ export function formatFloristShippingAddressForCustomerUI(
   const detOneLine = det.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
   return [addr, detOneLine].filter(Boolean).join(" ").trim();
 }
+
+/** `shipping_detail` 내부 `[배달 희망]` 등 메타 — 컬럼 미저장(레거시) 주문 UI 복원용 */
+export function parseFloristMetaFromShippingDetail(detail: string | null | undefined): {
+  deliveryHopeLine: string;
+  ordererLine: string;
+  ribbonMessage: string;
+  ribbonSender: string;
+  ribbonCard: string;
+} {
+  const out = {
+    deliveryHopeLine: "",
+    ordererLine: "",
+    ribbonMessage: "",
+    ribbonSender: "",
+    ribbonCard: "",
+  };
+  if (!detail?.trim()) return out;
+  for (const line of detail.replace(/\r\n/g, "\n").split("\n")) {
+    const t = line.trim();
+    if (t.startsWith("[배달 희망]")) {
+      out.deliveryHopeLine = t.replace(/^\[배달 희망\]\s*/, "").trim();
+    } else if (t.startsWith("[주문자]")) {
+      out.ordererLine = t.replace(/^\[주문자\]\s*/, "").trim();
+    } else if (t.startsWith("[보내는 분")) {
+      out.ribbonSender = t.replace(/^\[보내는 분[^\]]*\]\s*/, "").trim();
+    } else if (t.startsWith("[리본 문구]")) {
+      out.ribbonMessage = t.replace(/^\[리본 문구\]\s*/, "").trim();
+    } else if (t.startsWith("[카드 문구]")) {
+      out.ribbonCard = t.replace(/^\[카드 문구\]\s*/, "").trim();
+    }
+  }
+  return out;
+}

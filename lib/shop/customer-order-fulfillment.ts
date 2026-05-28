@@ -1,5 +1,5 @@
 /**
- * 쇼핑몰 고객용 주문 진행 4단계 (결제 완료 → 화환 제작중 → 배송 출발 → 배송 완료).
+ * 쇼핑몰 고객용 주문 진행 4단계 (결제 완료 → 상품 준비중 → 배송 출발 → 배송 완료).
  * 입금대기 등 미결제 주문은 목록에서 제외하고, 상세에서는 Stepper 대신 결제 안내 유지.
  */
 
@@ -18,7 +18,7 @@ export const SHOP_ORDER_FULFILLMENT_TABS: readonly {
 }[] = [
   { key: "all", label: "전체" },
   { key: "payment_done", label: "결제 완료" },
-  { key: "crafting", label: "화환 제작중" },
+  { key: "crafting", label: "상품 준비중" },
   { key: "departure", label: "배송 출발" },
   { key: "complete", label: "배송 완료" },
 ] as const;
@@ -26,7 +26,7 @@ export const SHOP_ORDER_FULFILLMENT_TABS: readonly {
 /** Stepper 가로 라벨 (탭과 동일 4단계) */
 export const ORDER_PROGRESS_STEP_LABELS: readonly string[] = [
   "결제 완료",
-  "화환 제작중",
+  "상품 준비중",
   "배송 출발",
   "배송 완료",
 ];

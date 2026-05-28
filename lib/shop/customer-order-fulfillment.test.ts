@@ -22,7 +22,7 @@ describe("customer-order-fulfillment", () => {
       stage: "crafting",
     });
     expect(shopOrderProgressStepIndex({ status: "preparing", payment_status: "paid" })).toBe(1);
-    expect(shopOrderCustomerBadge({ status: "preparing", payment_status: "paid" }).label).toBe("화환 제작중");
+    expect(shopOrderCustomerBadge({ status: "preparing", payment_status: "paid" }).label).toBe("상품 준비중");
   });
 
   it("배송중 → departure", () => {

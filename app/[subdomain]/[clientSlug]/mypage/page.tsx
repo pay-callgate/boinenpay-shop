@@ -55,7 +55,7 @@ const ORDER_DASHBOARD_STEPS: readonly {
   },
   {
     stage: "crafting",
-    label: "화환 제작중",
+    label: "상품 준비중",
     shortHint: "제작 진행",
     icon: Flower2,
     highlightWhenPositive: true,
