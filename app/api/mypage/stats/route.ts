@@ -29,16 +29,43 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabase();
 
-    const { data: orders, error } = await supabase
+    // 운영 DB 스키마 편차(예: paid_at/desired_delivery_date 미존재)에도 통계가 0으로 고정되지 않도록
+    // 확장 필드 조회 실패 시 기본 필드로 한 번 더 조회한다.
+    let orders: Array<{
+      status: string;
+      payment_status?: string | null;
+      paid_at?: string | null;
+      created_at?: string | null;
+      desired_delivery_date?: string | null;
+    }> | null = null;
+
+    const primary = await supabase
       .from("orders")
       .select("status, payment_status, paid_at, created_at, desired_delivery_date")
       .eq("user_id", session.user.id)
       .eq("client_id", clientId)
       .eq("payment_status", "paid");
 
-    if (error) {
-      console.error("My stats fetch error:", error);
-      return NextResponse.json({ error: "통계 조회 실패" }, { status: 500 });
+    if (primary.error) {
+      const msg = String(primary.error.message || "");
+      const columnCompatIssue = /column .* does not exist/i.test(msg);
+      if (!columnCompatIssue) {
+        console.error("My stats fetch error:", primary.error);
+        return NextResponse.json({ error: "통계 조회 실패" }, { status: 500 });
+      }
+      const fallback = await supabase
+        .from("orders")
+        .select("status, payment_status, created_at")
+        .eq("user_id", session.user.id)
+        .eq("client_id", clientId)
+        .eq("payment_status", "paid");
+      if (fallback.error) {
+        console.error("My stats fallback fetch error:", fallback.error);
+        return NextResponse.json({ error: "통계 조회 실패" }, { status: 500 });
+      }
+      orders = (fallback.data || []) as typeof orders;
+    } else {
+      orders = (primary.data || []) as typeof orders;
     }
 
     /** 주문 목록(`/api/mypage/orders`)과 동일: 결제 완료 건만, 4단계는 `resolveShopFulfillmentStage` 기준 */

@@ -59,7 +59,7 @@ export function GuestOrderLookupForm({
           required
         />
         <p className="pb-1 text-[11px] leading-snug text-slate-500">
-          주문완료 화면의 주문번호를 그대로 입력해 주세요. (공백/하이픈은 자동 보정됩니다)
+          주문완료 화면의 주문번호를 그대로 입력해 주세요.
         </p>
       </div>
       <div className="rounded-lg bg-sky-50/60 px-3 pt-2 pb-1 border-b border-slate-200/80">
