@@ -31,13 +31,14 @@ export async function GET(request: NextRequest) {
 
     // 운영 DB 스키마 편차(예: paid_at/desired_delivery_date 미존재)에도 통계가 0으로 고정되지 않도록
     // 확장 필드 조회 실패 시 기본 필드로 한 번 더 조회한다.
-    let orders: Array<{
+    type StatsOrderRow = {
       status: string;
       payment_status?: string | null;
       paid_at?: string | null;
       created_at?: string | null;
       desired_delivery_date?: string | null;
-    }> | null = null;
+    };
+    let orders: StatsOrderRow[] = [];
 
     const primary = await supabase
       .from("orders")
@@ -60,13 +61,13 @@ export async function GET(request: NextRequest) {
         console.error("My stats fallback fetch error:", fallback.error);
         return NextResponse.json({ error: "통계 조회 실패" }, { status: 500 });
       }
-      orders = (fallback.data || []) as typeof orders;
+      orders = (fallback.data || []) as StatsOrderRow[];
     } else {
-      orders = (primary.data || []) as typeof orders;
+      orders = (primary.data || []) as StatsOrderRow[];
     }
 
     /** 주문 목록(`/api/mypage/orders`)과 동일: 결제 완료 건만, 4단계는 `resolveShopFulfillmentStage` 기준 */
-    const stats = countOrdersByShopFulfillmentStage(orders || []);
+    const stats = countOrdersByShopFulfillmentStage(orders);
 
     return NextResponse.json({ stats });
   } catch (err) {
