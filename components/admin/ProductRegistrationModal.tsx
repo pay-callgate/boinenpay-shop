@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -94,6 +94,9 @@ export function ProductRegistrationModal({
   const [categories, setCategories] = useState<Category[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [deliveryMethods, setDeliveryMethods] = useState<string[]>(() => [
     ...DEFAULT_PRODUCT_DELIVERY_METHODS,
   ]);
@@ -173,6 +176,7 @@ export function ProductRegistrationModal({
       }
       setThumbnailUrl(initialData.thumbnail_url ?? "");
       setImagePreview(null);
+      setImageUploadError(null);
       setCategoryIds(categoryIdsFromMappings);
       setDeliveryMethods(normalizeDeliveryMethodsForDb(initialData.delivery_methods));
     } else {
@@ -189,6 +193,7 @@ export function ProductRegistrationModal({
       setMemberPctDraft("");
       setThumbnailUrl("");
       setImagePreview(null);
+      setImageUploadError(null);
       setCategoryIds([]);
       setDeliveryMethods([...DEFAULT_PRODUCT_DELIVERY_METHODS]);
     }
@@ -200,6 +205,7 @@ export function ProductRegistrationModal({
     setMemberPctDraft("");
     setImagePreview(null);
     setThumbnailUrl("");
+    setImageUploadError(null);
     setDeliveryMethods([...DEFAULT_PRODUCT_DELIVERY_METHODS]);
     setCategoryIds([]);
     onOpenChange(false);
@@ -221,28 +227,56 @@ export function ProductRegistrationModal({
     setValue("stockQty", next, { shouldValidate: true, shouldDirty: true });
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    const input = e.target;
     if (!file || !partnerId) return;
+
+    setImageUploadError(null);
+    const previousThumbnail = thumbnailUrl;
     const reader = new FileReader();
     reader.onload = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
 
+    const entityId = initialData?.id ?? `temp-${Date.now()}`;
     const fd = new FormData();
     fd.append("file", file);
     fd.append("bucket", "products");
     fd.append("partnerId", partnerId);
-    fd.append("entityId", "temp-" + Date.now());
-    adminFetch("/api/upload/image", { method: "POST", body: fd })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.url) setThumbnailUrl(data.url);
-      })
-      .catch(() => {});
+    fd.append("entityId", entityId);
+
+    setImageUploading(true);
+    try {
+      const res = await adminFetch("/api/upload/image", { method: "POST", body: fd });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        const msg = data.error || "이미지 업로드에 실패했습니다.";
+        setImageUploadError(msg);
+        setImagePreview(null);
+        setThumbnailUrl(previousThumbnail);
+        alert(msg);
+        return;
+      }
+      setThumbnailUrl(data.url);
+      setImagePreview(null);
+    } catch {
+      const msg = "이미지 업로드 중 네트워크 오류가 발생했습니다.";
+      setImageUploadError(msg);
+      setImagePreview(null);
+      setThumbnailUrl(previousThumbnail);
+      alert(msg);
+    } finally {
+      setImageUploading(false);
+      input.value = "";
+    }
   };
 
   const onSubmit = async (data: FormValues) => {
     if (!partnerId) return;
+    if (imageUploading) {
+      alert("이미지 업로드가 끝난 뒤 저장해 주세요.");
+      return;
+    }
     setSaving(true);
     try {
       const saleNum =
@@ -304,9 +338,14 @@ export function ProductRegistrationModal({
               <div className="col-span-5 flex flex-col gap-4">
                 <p className="text-sm font-semibold text-slate-700">미디어</p>
                 {/* 메인 이미지: 쇼핑몰 상세와 동일 3:4 + cover 미리보기 */}
-                <label className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/50 transition-colors hover:bg-slate-100/50">
+                <label
+                  className={`relative flex aspect-[3/4] w-full flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/50 transition-colors ${
+                    imageUploading ? "cursor-wait opacity-80" : "cursor-pointer hover:bg-slate-100/50"
+                  }`}
+                >
                   {imagePreview || thumbnailUrl ? (
                     <img
+                      key={thumbnailUrl || "preview-local"}
                       src={imagePreview || thumbnailUrl}
                       alt="대표 이미지 미리보기"
                       className="h-full w-full object-cover object-center"
@@ -320,8 +359,25 @@ export function ProductRegistrationModal({
                       <span className="mt-0.5 text-xs text-slate-400">클릭하여 업로드</span>
                     </>
                   )}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                  {imageUploading && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-white/70 text-sm font-medium text-slate-700">
+                      업로드 중…
+                    </span>
+                  )}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+                    className="hidden"
+                    disabled={imageUploading}
+                    onChange={handleImageChange}
+                  />
                 </label>
+                {imageUploadError && (
+                  <p className="text-xs text-red-600" role="alert">
+                    {imageUploadError}
+                  </p>
+                )}
                 <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 px-3 py-3">
                   <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-blue-600 text-xs font-bold text-white">
@@ -690,10 +746,10 @@ export function ProductRegistrationModal({
           <button
             type="submit"
             form="product-reg-form"
-            disabled={saving}
+            disabled={saving || imageUploading}
             className={ADMIN_MODAL_FOOTER_PRIMARY_BTN_CLASS}
           >
-            {initialData ? "수정 저장" : "상품 등록"}
+            {imageUploading ? "이미지 업로드 중…" : initialData ? "수정 저장" : "상품 등록"}
           </button>
         </DialogFooter>
       </DialogContent>
