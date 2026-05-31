@@ -12,6 +12,7 @@ import { toast } from "@/components/shop/ToastContext";
 import { effectiveGuestUnitPrice } from "@/lib/product-pricing";
 import { openDaumPostcode } from "@/lib/daum-postcode";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
+import { useViewpayCheckoutGuard } from "@/lib/use-viewpay-checkout-guard";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { RibbonMessageSection } from "@/components/shop/RibbonMessageSection";
@@ -118,6 +119,13 @@ export default function GuestOrderPage() {
   const template = useShopTemplate();
   const partnerId = template?.partner?.id ?? null;
   const clientId = template?.client?.id ?? null;
+
+  useViewpayCheckoutGuard({
+    clientId,
+    subdomain,
+    clientSlug,
+    skip: searchParams?.get("cancel") === "1",
+  });
 
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);

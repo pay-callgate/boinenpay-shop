@@ -171,6 +171,10 @@ type CompleteState = "idle" | "loading" | "success" | "error" | "no_payment_id";
 
 const whiteCardClass = "mx-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-sm";
 
+/** webhook·PG 복귀 지연 대비 sync-status 폴링 */
+const SYNC_STATUS_POLL_MS = 2500;
+const SYNC_STATUS_MAX_POLLS = 24;
+
 export default function OrderCompletePage() {
   const params = useParams();
   const router = useRouter();
@@ -202,7 +206,22 @@ export default function OrderCompletePage() {
   } | null>(null);
   const [orderDetailLoading, setOrderDetailLoading] = useState(false);
 
-  const guestSyncStarted = useRef(false);
+  const syncPollStarted = useRef(false);
+
+  const fetchSyncStatus = async (opts?: { cgTidForSync?: string }) => {
+    const qs = new URLSearchParams({ orderId, sync: "1" });
+    if (guestToken && guestSig) {
+      qs.set("guestToken", guestToken);
+      qs.set("sig", guestSig);
+    }
+    if (opts?.cgTidForSync?.trim()) {
+      qs.set("cgTid", opts.cgTidForSync.trim());
+    }
+    const res = await shopFetch(`/api/payment/viewpay/sync-status?${qs.toString()}`, {
+      handleSessionExpiry: guestOrderQs.length === 0,
+    });
+    return res.json().catch(() => ({})) as Promise<Record<string, unknown>>;
+  };
 
   useEffect(() => {
     if (state !== "success" || !orderNo || !orderId) return;
@@ -286,12 +305,32 @@ export default function OrderCompletePage() {
     const url = `/api/payment/viewpay/complete?orderId=${encodeURIComponent(orderId)}&cgTid=${encodeURIComponent(cgTid)}${guestOrderQs}`;
     shopFetch(url, { handleSessionExpiry: guestOrderQs.length === 0 })
       .then((res) => res.json().catch(() => ({})))
-      .then((data) => {
+      .then(async (data) => {
         if (cancelled) return;
-        applyCompletePayload(data as Record<string, unknown>);
+        const payload = data as Record<string, unknown>;
+        if (payload?.success && payload?.orderNo) {
+          applyCompletePayload(payload);
+          return;
+        }
+        const syncData = await fetchSyncStatus({ cgTidForSync: cgTid });
+        if (cancelled) return;
+        if (syncData?.success && syncData?.status === "paid" && syncData?.orderNo) {
+          applyCompletePayload(syncData);
+          return;
+        }
+        applyCompletePayload(payload);
       })
-      .catch((err) => {
+      .catch(async (err) => {
         if (cancelled) return;
+        try {
+          const syncData = await fetchSyncStatus({ cgTidForSync: cgTid });
+          if (syncData?.success && syncData?.status === "paid" && syncData?.orderNo) {
+            applyCompletePayload(syncData);
+            return;
+          }
+        } catch {
+          // fall through
+        }
         const msg = err?.message ?? "결제 완료 확인 중 오류가 발생했습니다.";
         setState("error");
         setErrorMessage(msg);
@@ -302,55 +341,53 @@ export default function OrderCompletePage() {
     };
   }, [orderId, cgTid, partner?.id, client?.id, guestOrderQs]);
 
-  /** ViewPay가 returnUrl에 cgTid를 안 붙인 비회원 건: 서버에서 가맹점 주문번호로 조회·반영 */
+  /** cgTid 없음: sync-status 폴링 (webhook 반영 대기) */
   useEffect(() => {
     if (!hashChecked || !orderId || !partner?.id || !client?.id) return;
     if (cgTid) return;
-    if (guestToken && guestSig) {
-      if (guestSyncStarted.current) return;
-      guestSyncStarted.current = true;
-      let cancelled = false;
-      setState("loading");
-      shopFetch("/api/payment/viewpay/guest-sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId,
-          guestToken,
-          paymentSignature: guestSig,
-        }),
-        handleSessionExpiry: false,
-      })
-        .then((res) => res.json().catch(() => ({})))
-        .then((data) => {
-          if (cancelled) return;
-          if (data?.success && data?.orderNo) {
-            applyCompletePayload(data as Record<string, unknown>);
-          } else {
-            setState("no_payment_id");
-            setErrorMessage(
-              (data?.message as string) ||
-                "결제가 완료되었을 수 있습니다. 주문 내역에서 결제 상태를 확인해 주세요."
-            );
-          }
-        })
-        .catch((err) => {
-          if (cancelled) return;
-          setState("no_payment_id");
+    if (syncPollStarted.current) return;
+    syncPollStarted.current = true;
+
+    let cancelled = false;
+    let attempts = 0;
+    setState("loading");
+
+    const poll = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      try {
+        const data = await fetchSyncStatus();
+        if (cancelled) return;
+        if (data?.success && data?.status === "paid" && data?.orderNo) {
+          applyCompletePayload(data);
+          return;
+        }
+        if (data?.status === "failed") {
+          setState("error");
           setErrorMessage(
-            err?.message ||
-              "결제가 완료되었을 수 있습니다. 주문 내역에서 결제 상태를 확인해 주세요."
+            (data?.message as string) || "결제가 완료되지 않았습니다."
           );
-        });
-      return () => {
-        cancelled = true;
-      };
-    }
-    setState("no_payment_id");
-    setErrorMessage(
-      "결제가 완료되었을 수 있습니다. 주문 내역에서 결제 상태를 확인해 주세요."
-    );
-  }, [hashChecked, orderId, cgTid, guestToken, guestSig, partner?.id, client?.id]);
+          return;
+        }
+      } catch {
+        // 다음 폴링
+      }
+      if (cancelled) return;
+      if (attempts < SYNC_STATUS_MAX_POLLS) {
+        window.setTimeout(poll, SYNC_STATUS_POLL_MS);
+        return;
+      }
+      setState("no_payment_id");
+      setErrorMessage(
+        "결제 확인에 시간이 걸리고 있습니다. 잠시 후 주문 조회에서 상태를 확인해 주세요."
+      );
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+    };
+  }, [hashChecked, orderId, cgTid, partner?.id, client?.id, guestToken, guestSig]);
 
   const handleContinueShopping = () => {
     router.push(`/${subdomain}/${clientSlug}`);

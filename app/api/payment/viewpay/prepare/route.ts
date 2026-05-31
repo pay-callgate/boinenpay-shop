@@ -10,6 +10,7 @@ import {
   isStartpaySuccess,
   getRedirectUrlFromStartpayResponse,
   clearViewpayTokenCache,
+  resolveViewpayWebhookUrl,
 } from "@/lib/viewpay";
 import { verifyGuestCheckout } from "@/lib/guest-checkout-signature";
 
@@ -137,6 +138,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const webhookUrl = resolveViewpayWebhookUrl();
+    if (!webhookUrl) {
+      logger.warn(`${LOG} webhookUrl 미설정`, {
+        action: "payment_viewpay_prepare_webhook_missing",
+        data: { orderId },
+      });
+    }
+
     const startpayBody = buildStartpayBody({
       orderId,
       orderNo: String(orderNoVal),
@@ -155,7 +164,14 @@ export async function POST(request: NextRequest) {
 
     logger.info(`${LOG} startpay 호출`, {
       action: "payment_viewpay_prepare_startpay",
-      data: { orderId, orderNo: orderNoVal, amount: Number(amount), returnUrlPreview: returnUrl ? `${String(returnUrl).slice(0, 60)}...` : undefined },
+      data: {
+        orderId,
+        orderNo: orderNoVal,
+        amount: Number(amount),
+        returnUrlPreview: returnUrl ? `${String(returnUrl).slice(0, 60)}...` : undefined,
+        webhookUrlPreview: webhookUrl ? `${webhookUrl.slice(0, 80)}...` : "(empty)",
+        hasWebhookUrl: Boolean(webhookUrl),
+      },
     });
 
     let data: Record<string, unknown>;

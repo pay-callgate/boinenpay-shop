@@ -189,6 +189,17 @@ export function clearViewpayTokenCache(): void {
   cachedToken = null;
 }
 
+/** startpay webhookUrl — VIEWPAY_WEBHOOK_URL 우선, 없으면 NEXTAUTH_URL 기준 자동 조합 */
+export function resolveViewpayWebhookUrl(): string {
+  const explicit = (process.env.VIEWPAY_WEBHOOK_URL ?? "").trim();
+  if (explicit) return explicit;
+  const base = (process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "")
+    .trim()
+    .replace(/\/$/, "");
+  if (!base) return "";
+  return `${base}/api/payment/viewpay/webhook`;
+}
+
 /** startpay Body 빌더용 파라미터 (로그인 유저 기준: buyrName, buyrTel, buyrMail 은 호출부에서 세션/주문자 정보로 채움) */
 export interface ViewpayStartpayParams {
   orderId: string;
@@ -292,7 +303,7 @@ export function buildStartpayBody(params: ViewpayStartpayParams): Record<string,
     language: "",
     metaData: metaSafe,
     redirectUrl: returnUrl,
-    webhookUrl: (process.env.VIEWPAY_WEBHOOK_URL ?? "").trim() || "",
+    webhookUrl: resolveViewpayWebhookUrl(),
     items: null,
   };
 }

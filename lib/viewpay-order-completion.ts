@@ -14,6 +14,9 @@ export const PAYMENT_SUCCESS_STATUSES = [
   "PG_MODULE_VIRACC_ISSUE_SUCCESS",
 ];
 
+/** ViewPay 가맹점(STORE) 이벤트 성공 — webhook 교차 검증용 */
+export const VIEWPAY_STORE_SUCCESS_STATUSES = ["STORE_EVENT_SUCCESS", "STORE_SUCCESS"];
+
 export function normalizePaymentStatus(raw: unknown): string | undefined {
   if (raw == null) return undefined;
   if (typeof raw === "string") return raw.trim() || undefined;
@@ -60,13 +63,168 @@ function deepFindStringByKey(obj: unknown, keyLower: string): string | undefined
   return undefined;
 }
 
-/** 응답 JSON 어디에든 있는 cgTid (cgTid / cg_tid 등) */
+/** ViewPay 거래 ID 형식 (BOINENS… 등) */
+export function looksLikeViewpayTransactionId(value: string): boolean {
+  const v = value.trim();
+  if (!v) return false;
+  if (/^BOINENS/i.test(v)) return true;
+  if (/^BO[A-Z0-9]/i.test(v) && v.length >= 16) return true;
+  return false;
+}
+
+/** 응답 JSON 어디에든 있는 cgTid / tid */
 export function extractCgTidFromViewpayPayload(data: Record<string, unknown>): string | undefined {
-  for (const keyLower of ["cgtid", "cg_tid"] as const) {
+  for (const keyLower of ["cgtid", "cg_tid", "tid"] as const) {
     const v = deepFindStringByKey(data, keyLower);
-    if (v) return v;
+    if (v && looksLikeViewpayTransactionId(v)) return v.trim();
+  }
+  try {
+    const json = JSON.stringify(data);
+    const match = json.match(/BOINENS[a-zA-Z0-9]{16,}/);
+    if (match?.[0] && looksLikeViewpayTransactionId(match[0])) return match[0];
+  } catch {
+    // ignore
   }
   return undefined;
+}
+
+function deepFindNumberByKey(obj: unknown, keyLower: string): number | undefined {
+  if (obj == null || typeof obj !== "object") return undefined;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const f = deepFindNumberByKey(item, keyLower);
+      if (f != null) return f;
+    }
+    return undefined;
+  }
+  const o = obj as Record<string, unknown>;
+  for (const [k, v] of Object.entries(o)) {
+    if (k.toLowerCase() === keyLower) {
+      const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.trim()) : NaN;
+      if (Number.isFinite(n)) return n;
+    }
+    const inner = deepFindNumberByKey(v, keyLower);
+    if (inner != null) return inner;
+  }
+  return undefined;
+}
+
+/** get-payment-info 응답에서 결제 금액 */
+export function readAmountFromViewpayInfo(paymentInfo: Record<string, unknown>): number | undefined {
+  for (const key of ["amount", "payamount", "totalamount", "approvalamount"] as const) {
+    const n = deepFindNumberByKey(paymentInfo, key);
+    if (n != null && n >= 0) return n;
+  }
+  return undefined;
+}
+
+/** get-payment-info 응답에서 가맹점 주문번호 (products.orderNo) */
+export function extractMerchantOrderNoFromViewpayPayload(
+  data: Record<string, unknown>
+): string | undefined {
+  const products = data?.products as Record<string, unknown> | undefined;
+  const response = data?.response as Record<string, unknown> | undefined;
+  const responseProducts = response?.products as Record<string, unknown> | undefined;
+  const responseData = response?.data as Record<string, unknown> | undefined;
+  const dataProducts = responseData?.products as Record<string, unknown> | undefined;
+  for (const candidate of [
+    products?.orderNo,
+    responseProducts?.orderNo,
+    dataProducts?.orderNo,
+    deepFindStringByKey(data, "orderno"),
+  ]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return undefined;
+}
+
+/** prepare metaData `{ o: orderId }` 등에서 CallLink orders.id */
+export function extractOrderIdFromViewpayPayload(data: Record<string, unknown>): string | undefined {
+  for (const raw of [
+    data?.metaData,
+    data?.metadata,
+    (data?.response as Record<string, unknown> | undefined)?.metaData,
+    deepFindStringByKey(data, "metadata"),
+  ]) {
+    if (typeof raw !== "string" || !raw.trim()) continue;
+    try {
+      const parsed = JSON.parse(raw) as { o?: string; orderId?: string };
+      const id = parsed?.o ?? parsed?.orderId;
+      if (typeof id === "string" && id.trim()) return id.trim();
+    } catch {
+      // ignore
+    }
+  }
+  const direct = deepFindStringByKey(data, "orderid");
+  if (direct && /^[0-9a-f-]{36}$/i.test(direct)) return direct;
+  return undefined;
+}
+
+/** STORE_EVENT_SUCCESS 등 가맹점 이벤트 상태 */
+export function readStoreOrderStatusFromViewpayInfo(
+  paymentInfo: Record<string, unknown>
+): string | undefined {
+  const response = paymentInfo?.response as Record<string, unknown> | undefined;
+  const raw = response ?? paymentInfo;
+  const data = raw?.data as Record<string, unknown> | undefined;
+  const candidates = [
+    data?.orderStatus,
+    data?.storeStatus,
+    data?.storeEventStatus,
+    raw?.orderStatus,
+    raw?.storeStatus,
+    deepFindStringByKey(paymentInfo, "orderstatus"),
+  ];
+  for (const c of candidates) {
+    const s = normalizePaymentStatus(c);
+    if (s) return s;
+  }
+  return undefined;
+}
+
+export function amountsMatchViewpayOrder(expected: number, pgAmount: number): boolean {
+  const a = Number(expected);
+  const b = Number(pgAmount);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  return Math.abs(a - b) < 0.01;
+}
+
+/**
+ * webhook·sync 교차 검증: PG/STORE 승인 상태 + 주문 금액 일치
+ */
+export function verifyViewpayPaymentAgainstOrder(
+  paymentInfo: Record<string, unknown>,
+  expectedAmount: number
+): { ok: true } | { ok: false; message: string } {
+  const payOk = isViewpayPaymentSucceeded(paymentInfo);
+  const storeStatus = readStoreOrderStatusFromViewpayInfo(paymentInfo);
+  const storeOk =
+    typeof storeStatus === "string" && VIEWPAY_STORE_SUCCESS_STATUSES.includes(storeStatus);
+
+  if (!payOk.ok && !storeOk) {
+    const { paymentStatus, rawStatus } = readPaymentStatusFromViewpayInfo(paymentInfo);
+    const statusLabel =
+      storeStatus ??
+      paymentStatus ??
+      (typeof rawStatus === "string" ? rawStatus : JSON.stringify(rawStatus ?? "unknown"));
+    return {
+      ok: false,
+      message: `결제 승인 상태가 확인되지 않습니다. (상태: ${statusLabel})`,
+    };
+  }
+
+  const pgAmount = readAmountFromViewpayInfo(paymentInfo);
+  if (pgAmount == null) {
+    return { ok: false, message: "결제 조회 응답에서 금액을 확인할 수 없습니다." };
+  }
+  if (!amountsMatchViewpayOrder(expectedAmount, pgAmount)) {
+    return {
+      ok: false,
+      message: `결제 금액이 주문과 일치하지 않습니다. (주문: ${expectedAmount}, PG: ${pgAmount})`,
+    };
+  }
+
+  return { ok: true };
 }
 
 export function isViewpayPaymentSucceeded(

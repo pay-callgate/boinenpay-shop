@@ -9,6 +9,7 @@ import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT, HEADER_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
+import { useViewpayCheckoutGuard } from "@/lib/use-viewpay-checkout-guard";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { toast } from "@/components/shop/ToastContext";
@@ -126,6 +127,13 @@ export default function CheckoutPage() {
   const template = useShopTemplate();
   const partnerId = template?.partner?.id ?? null;
   const clientId = template?.client?.id ?? null;
+
+  useViewpayCheckoutGuard({
+    clientId,
+    subdomain,
+    clientSlug,
+    skip: searchParams?.get("cancel") === "1",
+  });
 
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
