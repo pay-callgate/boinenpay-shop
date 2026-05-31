@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useRef, useState } from 
 
 const PRIMARY = "#D6A8E0";
 
-type ToastType = "success" | "error" | "default";
+type ToastType = "success" | "error" | "default" | "info";
 
 interface ToastItem {
   id: number;
@@ -32,7 +32,7 @@ export function setGlobalToast(fn: ((message: string, type?: ToastType) => void)
 
 /**
  * 쇼핑몰 전역 토스트: alert 대체용.
- * - success: 연보라 톤, error/default: 짙은 회색 배경
+ * - success / info: 연보라 톤, error/default: 짙은 회색 배경
  * - 하단 중앙, 2.5초 후 자동 사라짐, Fade in/out
  */
 export function toast(message: string, type: ToastType = "default") {
@@ -85,12 +85,13 @@ function ToastContainer({ items }: { items: ToastItem[] }) {
 }
 
 function ToastItem({ message, type }: ToastItem) {
-  const isSuccess = type === "success";
+  const isPastel = type === "success" || type === "info";
   return (
     <div
-      className="animate-toast-in max-w-[calc(100%-2rem)] rounded-xl px-5 py-3 text-sm font-medium text-white shadow-lg"
+      className="animate-toast-in max-w-[calc(100%-2rem)] rounded-xl px-5 py-3 text-sm font-medium shadow-lg"
       style={{
-        backgroundColor: isSuccess ? PRIMARY : "rgba(31, 41, 55, 0.95)",
+        backgroundColor: isPastel ? PRIMARY : "rgba(31, 41, 55, 0.95)",
+        color: isPastel ? "#FFFFFF" : "#FFFFFF",
       }}
     >
       {message}

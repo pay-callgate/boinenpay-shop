@@ -6,10 +6,13 @@ import {
 } from "@/lib/viewpay-payment-sync";
 
 const ORDER_SELECT =
-  "id, order_no, total_amount, payment_status, is_guest, guest_checkout_token, viewpay_merchant_order_no, user_id, client_id, updated_at, created_at";
+  "id, order_no, total_amount, payment_status, is_guest, guest_checkout_token, viewpay_merchant_order_no, user_id, client_id, updated_at, created_at, orderer_name, shipping_phone, shipping_name, guest_orderer_email";
 
 /** PG 복귀 직후 paid 리다이렉트 판단 (checkout/guest-order 방어) */
 export const VIEWPAY_RECENT_PAID_WINDOW_MS = 30 * 60 * 1000;
+
+/** PG 복귀·결제 이어가기 pending 판단 (동일 30분) */
+export const VIEWPAY_RECENT_PENDING_WINDOW_MS = VIEWPAY_RECENT_PAID_WINDOW_MS;
 
 export type ViewpayOrderAccess = {
   ok: true;
@@ -92,6 +95,30 @@ export function isRecentlyPaidOrder(
   const updated = order.updated_at ? new Date(order.updated_at).getTime() : NaN;
   if (!Number.isFinite(updated)) return false;
   return nowMs - updated >= 0 && nowMs - updated < VIEWPAY_RECENT_PAID_WINDOW_MS;
+}
+
+function recentOrderTimestamp(order: {
+  updated_at?: string | null;
+  created_at?: string | null;
+}): number {
+  const updated = order.updated_at ? new Date(order.updated_at).getTime() : NaN;
+  if (Number.isFinite(updated)) return updated;
+  const created = order.created_at ? new Date(order.created_at).getTime() : NaN;
+  return Number.isFinite(created) ? created : NaN;
+}
+
+export function isRecentlyPendingOrder(
+  order: {
+    payment_status: string;
+    updated_at?: string | null;
+    created_at?: string | null;
+  },
+  nowMs = Date.now()
+): boolean {
+  if (order.payment_status !== "pending") return false;
+  const ts = recentOrderTimestamp(order);
+  if (!Number.isFinite(ts)) return false;
+  return nowMs - ts >= 0 && nowMs - ts < VIEWPAY_RECENT_PENDING_WINDOW_MS;
 }
 
 /** 세션(회원) 또는 장바구니 쿠키(비회원) 기준 최근 주문 1건 */

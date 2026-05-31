@@ -10,6 +10,12 @@ import { BOTTOM_NAV_HEIGHT, HEADER_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
 import { useViewpayCheckoutGuard } from "@/lib/use-viewpay-checkout-guard";
+import {
+  CheckoutOrderGuideEmpty,
+  CheckoutOrderGuideLoading,
+  CheckoutOrderGuidePending,
+} from "@/components/shop/CheckoutOrderGuidePanel";
+import { runViewpayPreparePayment } from "@/lib/run-viewpay-prepare";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { toast } from "@/components/shop/ToastContext";
@@ -128,13 +134,6 @@ export default function CheckoutPage() {
   const partnerId = template?.partner?.id ?? null;
   const clientId = template?.client?.id ?? null;
 
-  useViewpayCheckoutGuard({
-    clientId,
-    subdomain,
-    clientSlug,
-    skip: searchParams?.get("cancel") === "1",
-  });
-
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -195,6 +194,16 @@ export default function CheckoutPage() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [pendingPrepareSnapshot, setPendingPrepareSnapshot] =
     useState<PendingOrderPrepareSnapshot | null>(null);
+  const [guardResumeLoading, setGuardResumeLoading] = useState(false);
+
+  const checkoutGuard = useViewpayCheckoutGuard({
+    clientId,
+    subdomain,
+    clientSlug,
+    cartLoading: loading,
+    cartItemCount: items.length,
+    pendingOrderId,
+  });
 
   const addressSectionRef = useRef<HTMLDivElement>(null);
   const addressesLoadedRef = useRef(false);
@@ -620,28 +629,77 @@ export default function CheckoutPage() {
     }
   };
 
-  if (template == null || !partnerId || !clientId || loading) {
+  const handleGuardResumePayment = async () => {
+    const order = checkoutGuard.pendingOrder;
+    if (!order || guardResumeLoading) return;
+    setGuardResumeLoading(true);
+    toast("안전한 결제창으로 이동합니다.", "info");
+    try {
+      await runViewpayPreparePayment({
+        subdomain,
+        clientSlug,
+        orderId: order.id,
+        orderNo: order.orderNo,
+        amount: order.totalAmount,
+        buyerName: order.buyerName,
+        buyerPhone: order.buyerPhone,
+        buyerEmail: order.buyerEmail,
+        cancelPath: "checkout",
+        isGuestCheckout: order.isGuest,
+        guestCheckoutToken: order.guestCheckoutToken,
+        paymentSignature: order.paymentSignature,
+      });
+    } finally {
+      setGuardResumeLoading(false);
+    }
+  };
+
+  if (template == null || !partnerId || !clientId) {
     return <div className="min-h-screen" style={{ backgroundColor: "#FAFAFA" }} />;
   }
 
-  if (!pendingOrderId && items.length === 0) {
-    return (
-      <div
-        className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
-        style={{ backgroundColor: "#FAFAFA" }}
+  const showCheckoutForm = items.length > 0 || Boolean(pendingOrderId);
+
+  if (!showCheckoutForm) {
+    const guideShell = (content: React.ReactNode) => (
+      <OrderGuard
+        partnerId={partnerId}
+        shopClientId={clientId ?? undefined}
+        shopClientName={template?.client?.name ?? undefined}
+        requireAuth={!isGuestCheckout}
+        blockAffiliationMismatch={!isGuestCheckout}
       >
-        <h1 className="mb-2 text-lg font-bold" style={{ color: TEXT }}>
-          주문할 상품이 없습니다
-        </h1>
-        <button
-          type="button"
-          onClick={() => router.push(`/${subdomain}/${clientSlug}/cart`)}
-          className="mt-4 rounded-xl px-6 py-3 text-white font-medium"
-          style={{ backgroundColor: PRIMARY }}
-        >
-          장바구니로 이동
-        </button>
-      </div>
+        {content}
+      </OrderGuard>
+    );
+
+    if (
+      loading ||
+      checkoutGuard.phase === "loading" ||
+      checkoutGuard.phase === "paid_redirect"
+    ) {
+      return guideShell(<CheckoutOrderGuideLoading />);
+    }
+
+    if (checkoutGuard.phase === "pending" && checkoutGuard.pendingOrder) {
+      return guideShell(
+        <CheckoutOrderGuidePending
+          order={checkoutGuard.pendingOrder}
+          subdomain={subdomain}
+          clientSlug={clientSlug}
+          resumeLoading={guardResumeLoading}
+          onResumePayment={handleGuardResumePayment}
+          showCartButton
+        />
+      );
+    }
+
+    return guideShell(
+      <CheckoutOrderGuideEmpty
+        subdomain={subdomain}
+        clientSlug={clientSlug}
+        showCartButton
+      />
     );
   }
 

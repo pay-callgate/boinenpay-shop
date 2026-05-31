@@ -9,6 +9,7 @@ import {
   viewpayPost,
   isStartpaySuccess,
   getRedirectUrlFromStartpayResponse,
+  isViewpayGatewayRedirectUrl,
   clearViewpayTokenCache,
   resolveViewpayWebhookUrl,
 } from "@/lib/viewpay";
@@ -211,6 +212,20 @@ export async function POST(request: NextRequest) {
       logger.warn(`${LOG} redirectUrl 없음`, { action: "payment_viewpay_prepare_no_redirect", data: { orderId } });
       return NextResponse.json(
         { success: false, message: "결제창 URL을 받지 못했습니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!isViewpayGatewayRedirectUrl(redirectUrl)) {
+      logger.warn(`${LOG} PG URL 아님`, {
+        action: "payment_viewpay_prepare_invalid_redirect",
+        data: { orderId, redirectUrlPreview: redirectUrl.slice(0, 120) },
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          message: "결제창 URL 형식이 올바르지 않습니다. 잠시 후 다시 시도해 주세요.",
+        },
         { status: 400 }
       );
     }

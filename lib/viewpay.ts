@@ -328,6 +328,20 @@ export function getRedirectUrlFromStartpayResponse(data: Record<string, unknown>
   return null;
 }
 
+/** startpay 응답 redirectUrl이 ViewPay PG 도메인인지 (가맹점 returnUrl 오인 방지) */
+export function isViewpayGatewayRedirectUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    const gatewayHost = new URL(getViewPayEnv().base).hostname.toLowerCase();
+    if (parsed.hostname.toLowerCase() === gatewayHost) return true;
+    return parsed.pathname.includes("/v1/web/landing");
+  } catch {
+    return false;
+  }
+}
+
 /**
  * startpay 응답 성공 여부
  * - ViewPay 실제 응답: result/response 래퍼 없이 최상위에 redirectUrl 만 반환 (result.code 없음)

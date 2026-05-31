@@ -4,21 +4,61 @@ import { authOptions } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { CART_SESSION_COOKIE } from "@/lib/cart-session-cookie";
+import { signGuestCheckout } from "@/lib/guest-checkout-signature";
+import type { CheckoutGuardApiResponse, CheckoutResumeOrder } from "@/lib/viewpay-checkout-context";
 import {
   buildOrderCompletePath,
   findRecentCheckoutOrder,
-  isRecentlyPaidOrder,
 } from "@/lib/viewpay-sync-status";
+import { resolveCheckoutGuardScenario } from "@/lib/viewpay-checkout-guard-logic";
 
 export const dynamic = "force-dynamic";
 
 const LOG = "[ViewPay:CheckoutGuard]";
 
+function buildResumeOrder(
+  order: {
+    id: string;
+    order_no: string;
+    total_amount: number;
+    is_guest: boolean;
+    guest_checkout_token?: string | null;
+    orderer_name?: string | null;
+    shipping_phone?: string | null;
+    shipping_name?: string | null;
+    guest_orderer_email?: string | null;
+  }
+): CheckoutResumeOrder {
+  const guestToken = order.guest_checkout_token?.trim() ?? "";
+  const buyerName =
+    order.orderer_name?.trim() ||
+    order.shipping_name?.trim() ||
+    "구매자";
+  const buyerPhone = order.shipping_phone?.trim() || "";
+
+  const resume: CheckoutResumeOrder = {
+    id: order.id,
+    orderNo: order.order_no,
+    totalAmount: Number(order.total_amount),
+    isGuest: Boolean(order.is_guest),
+    buyerName,
+    buyerPhone,
+    buyerEmail: order.guest_orderer_email?.trim() || undefined,
+  };
+
+  if (order.is_guest && guestToken) {
+    resume.guestCheckoutToken = guestToken;
+    resume.paymentSignature = signGuestCheckout(order.id, guestToken);
+  }
+
+  return resume;
+}
+
 /**
  * GET /api/payment/viewpay/checkout-guard?clientId=...
  *
- * checkout / guest-order 진입 시: 세션(회원) 또는 장바구니 쿠키(비회원)로
- * 최근 주문 1건 조회 — 직전 paid 이면 complete 경로 반환 (URL에 orderId 노출 없음)
+ * checkout / guest-order — cart 비었을 때: 세션·쿠키 기준 최근 주문 조회
+ * paid → complete / pending → 결제 이어가기 / none → 빈 장바구니 안내
  */
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +69,11 @@ export async function GET(request: NextRequest) {
 
     if (!clientId || !subdomain || !clientSlug) {
       return NextResponse.json(
-        { shouldRedirect: false, message: "clientId, subdomain, clientSlug가 필요합니다." },
+        {
+          scenario: "none",
+          paymentStatus: null,
+          message: "clientId, subdomain, clientSlug가 필요합니다.",
+        } satisfies CheckoutGuardApiResponse & { message?: string },
         { status: 400 }
       );
     }
@@ -40,8 +84,13 @@ export async function GET(request: NextRequest) {
       ? null
       : request.cookies.get(CART_SESSION_COOKIE)?.value ?? null;
 
-    if (!sessionUserId && !guestCartSessionId) {
-      return NextResponse.json({ shouldRedirect: false, paymentStatus: null });
+    const hasIdentity = Boolean(sessionUserId || guestCartSessionId);
+
+    if (!hasIdentity) {
+      return NextResponse.json({
+        scenario: "no_identity",
+        paymentStatus: null,
+      } satisfies CheckoutGuardApiResponse);
     }
 
     const order = await findRecentCheckoutOrder(supabase, {
@@ -50,32 +99,46 @@ export async function GET(request: NextRequest) {
       guestCartSessionId,
     });
 
-    if (!order || !isRecentlyPaidOrder(order)) {
-      return NextResponse.json({
-        shouldRedirect: false,
-        paymentStatus: order?.payment_status ?? null,
+    const scenario = resolveCheckoutGuardScenario(order, hasIdentity);
+
+    if (scenario === "paid" && order) {
+      const completePath = buildOrderCompletePath(subdomain, clientSlug, order);
+      logger.info(`${LOG} paid → complete`, {
+        action: "viewpay_checkout_guard_redirect",
+        data: { orderId: order.id, isGuest: order.is_guest },
       });
+      return NextResponse.json({
+        scenario: "paid",
+        paymentStatus: "paid",
+        order: buildResumeOrder(order),
+        completePath,
+      } satisfies CheckoutGuardApiResponse);
     }
 
-    const completePath = buildOrderCompletePath(subdomain, clientSlug, order);
-
-    logger.info(`${LOG} paid 리다이렉트`, {
-      action: "viewpay_checkout_guard_redirect",
-      data: { orderId: order.id, isGuest: order.is_guest },
-    });
+    if (scenario === "pending" && order) {
+      logger.info(`${LOG} pending → resume`, {
+        action: "viewpay_checkout_guard_pending",
+        data: { orderId: order.id, isGuest: order.is_guest },
+      });
+      return NextResponse.json({
+        scenario: "pending",
+        paymentStatus: "pending",
+        order: buildResumeOrder(order),
+      } satisfies CheckoutGuardApiResponse);
+    }
 
     return NextResponse.json({
-      shouldRedirect: true,
-      paymentStatus: "paid",
-      orderId: order.id,
-      orderNo: order.order_no,
-      completePath,
-    });
+      scenario: "none",
+      paymentStatus: order?.payment_status ?? null,
+    } satisfies CheckoutGuardApiResponse);
   } catch (err) {
     logger.error(`${LOG} error`, {
       action: "viewpay_checkout_guard_error",
       data: { error: String((err as Error).message) },
     });
-    return NextResponse.json({ shouldRedirect: false }, { status: 500 });
+    return NextResponse.json(
+      { scenario: "none", paymentStatus: null } satisfies CheckoutGuardApiResponse,
+      { status: 500 }
+    );
   }
 }
