@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
-import { VIEWPAY_CHECKOUT_GUARD_REDIRECT_ENABLED } from "@/lib/viewpay-checkout-guard-config";
+import {
+  VIEWPAY_CHECKOUT_GUARD_PAID_AUTO_REDIRECT_ENABLED,
+  VIEWPAY_CHECKOUT_GUARD_PENDING_PROBE_ENABLED,
+} from "@/lib/viewpay-checkout-guard-config";
 import {
   CHECKOUT_GUARD_INITIAL,
   type CheckoutGuardApiResponse,
@@ -16,45 +18,43 @@ type UseViewpayCheckoutGuardParams = {
   subdomain: string;
   clientSlug: string;
   cartLoading: boolean;
-  cartItemCount: number;
-  pendingOrderId?: string | null;
+  /** cancel=1 복귀 시 probe 스킵 */
+  skip?: boolean;
+  /** 변경 시 probe 재실행 (결제 취소 복귀 등) */
+  reprobeKey?: number;
 };
 
 /**
- * cart가 비었고 cartLoading === false 일 때만 서버 최근 주문 조회.
- * cart에 상품 있으면 phase=idle (신규 결제 보호).
- *
- * VIEWPAY_CHECKOUT_GUARD_REDIRECT_ENABLED === false 이면 API·리다이렉트를 수행하지 않고
- * order/complete + webhook/sync-status 폴링만으로 결제 완료를 기다립니다.
+ * checkout / guest-order 진입 시 서버 최근 주문 1건 조회.
+ * pending → 선택형 패널(pending_offer), paid → 안내만(paid_notice, 자동 이동 없음).
  */
 export function useViewpayCheckoutGuard({
   clientId,
   subdomain,
   clientSlug,
   cartLoading,
-  cartItemCount,
-  pendingOrderId = null,
+  skip = false,
+  reprobeKey = 0,
 }: UseViewpayCheckoutGuardParams): CheckoutGuardState {
-  const router = useRouter();
   const [state, setState] = useState<CheckoutGuardState>(CHECKOUT_GUARD_INITIAL);
-  const paidRedirectStarted = useRef(false);
-
-  const skipGuard = cartItemCount > 0 || Boolean(pendingOrderId);
+  const probeStarted = useRef(false);
 
   useEffect(() => {
-    if (!VIEWPAY_CHECKOUT_GUARD_REDIRECT_ENABLED) {
+    probeStarted.current = false;
+    setState(CHECKOUT_GUARD_INITIAL);
+  }, [reprobeKey]);
+
+  useEffect(() => {
+    if (!VIEWPAY_CHECKOUT_GUARD_PENDING_PROBE_ENABLED || skip) {
       setState(CHECKOUT_GUARD_INITIAL);
       return;
     }
-
-    if (!clientId || !subdomain || !clientSlug) return;
-    if (cartLoading || skipGuard) {
-      if (skipGuard) setState(CHECKOUT_GUARD_INITIAL);
-      return;
-    }
+    if (!clientId || !subdomain || !clientSlug || cartLoading) return;
+    if (probeStarted.current) return;
+    probeStarted.current = true;
 
     let cancelled = false;
-    setState({ phase: "loading", pendingOrder: null });
+    setState({ phase: "loading", pendingOrder: null, completePath: null });
 
     const qs = new URLSearchParams({ clientId, subdomain, clientSlug });
 
@@ -65,42 +65,47 @@ export function useViewpayCheckoutGuard({
       .then((data: CheckoutGuardApiResponse | null) => {
         if (cancelled) return;
 
-        if (!data) {
-          setState({ phase: "empty", pendingOrder: null });
+        if (!data || data.scenario === "none" || data.scenario === "no_identity") {
+          setState({ phase: "idle", pendingOrder: null, completePath: null });
           return;
         }
 
-        if (data.scenario === "paid" && data.completePath) {
-          if (!paidRedirectStarted.current) {
-            paidRedirectStarted.current = true;
-            toast("이미 결제된 주문입니다.", "info");
-            setState({ phase: "paid_redirect", pendingOrder: data.order ?? null });
-            router.replace(data.completePath);
-          }
+        if (data.scenario === "paid" && data.order) {
+          toast("이미 결제된 주문이 있습니다.", "info");
+          setState({
+            phase: VIEWPAY_CHECKOUT_GUARD_PAID_AUTO_REDIRECT_ENABLED
+              ? "paid_redirect"
+              : "paid_notice",
+            pendingOrder: data.order,
+            completePath: data.completePath ?? null,
+          });
           return;
         }
 
         if (data.scenario === "pending" && data.order) {
-          setState({ phase: "pending", pendingOrder: data.order });
+          setState({
+            phase: "pending_offer",
+            pendingOrder: data.order,
+            completePath: null,
+          });
           return;
         }
 
-        setState({ phase: "empty", pendingOrder: null });
+        setState({ phase: "idle", pendingOrder: null, completePath: null });
       })
       .catch(() => {
-        if (!cancelled) setState({ phase: "empty", pendingOrder: null });
+        if (!cancelled) setState({ phase: "idle", pendingOrder: null, completePath: null });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [clientId, subdomain, clientSlug, cartLoading, skipGuard, router]);
+  }, [clientId, subdomain, clientSlug, cartLoading, skip, reprobeKey]);
 
-  if (!VIEWPAY_CHECKOUT_GUARD_REDIRECT_ENABLED) {
+  if (!VIEWPAY_CHECKOUT_GUARD_PENDING_PROBE_ENABLED || skip) {
     return CHECKOUT_GUARD_INITIAL;
   }
-  if (skipGuard) return CHECKOUT_GUARD_INITIAL;
-  if (cartLoading) return { phase: "loading", pendingOrder: null };
+  if (cartLoading) return { phase: "loading", pendingOrder: null, completePath: null };
   return state;
 }
 

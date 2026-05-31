@@ -11,14 +11,16 @@ import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { effectiveGuestUnitPrice } from "@/lib/product-pricing";
 import { openDaumPostcode } from "@/lib/daum-postcode";
-import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
 import { useViewpayCheckoutGuard } from "@/lib/use-viewpay-checkout-guard";
 import {
   CheckoutOrderGuideEmpty,
   CheckoutOrderGuideLoading,
-  CheckoutOrderGuidePending,
+  CheckoutOrderGuidePaidNotice,
+  CheckoutOrderGuidePendingOffer,
 } from "@/components/shop/CheckoutOrderGuidePanel";
 import { runViewpayPreparePayment } from "@/lib/run-viewpay-prepare";
+import { extractPendingOrderFormSnapshot } from "@/lib/apply-pending-order-form";
+import { hasCheckoutCartMismatch } from "@/lib/checkout-cart-id-match";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { RibbonMessageSection } from "@/components/shop/RibbonMessageSection";
@@ -176,15 +178,29 @@ export default function GuestOrderPage() {
   const [pendingPrepareSnapshot, setPendingPrepareSnapshot] =
     useState<PendingOrderPrepareSnapshot | null>(null);
   const [guardResumeLoading, setGuardResumeLoading] = useState(false);
+  const [guardReprobeKey, setGuardReprobeKey] = useState(0);
+  const [dismissedPendingOfferId, setDismissedPendingOfferId] = useState<string | null>(null);
+  const [dismissedPaidNotice, setDismissedPaidNotice] = useState(false);
 
   const checkoutGuard = useViewpayCheckoutGuard({
     clientId,
     subdomain,
     clientSlug,
     cartLoading: loading,
-    cartItemCount: items.length,
-    pendingOrderId,
+    reprobeKey: guardReprobeKey,
   });
+
+  const pendingOfferOrder =
+    checkoutGuard.phase === "pending_offer" ? checkoutGuard.pendingOrder : null;
+  const showPendingOffer =
+    Boolean(pendingOfferOrder) &&
+    pendingOfferOrder!.id !== dismissedPendingOfferId;
+  const pendingCartMismatch = pendingOfferOrder
+    ? hasCheckoutCartMismatch(
+        items.map((i) => i.id),
+        pendingOfferOrder.checkoutCartItemIds
+      )
+    : false;
 
   /**
    * 로그인 회원이 /guest-order URL로 직접 들어온 경우:
@@ -306,6 +322,8 @@ export default function GuestOrderPage() {
     const cancel = searchParams?.get("cancel");
     if (cancel === "1") {
       toast("결제가 취소되었습니다. 아래에서 다시 결제를 시도해 주세요.", "error");
+      setGuardReprobeKey((k) => k + 1);
+      setDismissedPendingOfferId(null);
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.searchParams.delete("cancel");
@@ -339,6 +357,96 @@ export default function GuestOrderPage() {
       setShippingAddress(address);
       setVenueDetail("");
     });
+  };
+
+  const prepareForGuestOrder = async (
+    order: { id: string; order_no: string; total_amount: number },
+    opts: { guestTok?: string; paySig?: string; buyerName: string; buyerPhone: string; buyerEmail: string }
+  ): Promise<boolean> => {
+    toast("안전한 결제창으로 이동합니다.", "default");
+    return runViewpayPreparePayment({
+      subdomain,
+      clientSlug,
+      orderId: order.id,
+      orderNo: order.order_no,
+      amount: order.total_amount,
+      buyerName: opts.buyerName,
+      buyerPhone: opts.buyerPhone,
+      buyerEmail: opts.buyerEmail,
+      productName:
+        items.length > 0 ? items[0].product?.name ?? "주문상품" : "주문상품",
+      cancelPath: "guest-order",
+      itemsQuery,
+      isGuestCheckout: true,
+      guestCheckoutToken: opts.guestTok,
+      paymentSignature: opts.paySig,
+    });
+  };
+
+  const handleLoadPendingOrder = async () => {
+    const offer = pendingOfferOrder;
+    if (!offer?.guestCheckoutToken || !offer.paymentSignature) return;
+    const res = await shopFetch(
+      `/api/orders/${offer.id}?guestToken=${encodeURIComponent(offer.guestCheckoutToken)}&sig=${encodeURIComponent(offer.paymentSignature)}`,
+      { handleSessionExpiry: false }
+    );
+    if (!res.ok) {
+      toast("주문 정보를 불러오지 못했습니다.", "error");
+      return;
+    }
+    const data = await res.json();
+    const snap = extractPendingOrderFormSnapshot(
+      (data.order ?? {}) as Record<string, unknown>
+    );
+    setOrdererName(snap.ordererName);
+    setOrdererPhone(snap.ordererPhone);
+    setRecipientName(snap.shippingName);
+    setRecipientPhone(snap.shippingPhone);
+    setShippingPostcode(snap.shippingPostcode);
+    setShippingAddress(snap.shippingAddress);
+    setVenueDetail(snap.venueDetail);
+    if (snap.deliveryDate) setDeliveryDate(snap.deliveryDate);
+    if (snap.deliveryTimeSlot) setDeliveryTimeSlot(snap.deliveryTimeSlot);
+    setRibbonSender(snap.ribbonSender);
+    setRibbonMessageCustom(snap.ribbonMessage);
+    setRibbonPreset(snap.ribbonMessage ? "__custom__" : ribbonPreset);
+    setPendingOrderId(offer.id);
+    setPendingPrepareSnapshot({
+      orderNo: offer.orderNo,
+      totalAmount: offer.totalAmount,
+      guestCheckoutToken: offer.guestCheckoutToken,
+      paymentSignature: offer.paymentSignature,
+    });
+    setDismissedPendingOfferId(offer.id);
+    toast("주문 정보를 불러왔습니다.", "info");
+  };
+
+  const handleOfferResumePayment = async () => {
+    const offer = pendingOfferOrder;
+    if (!offer || guardResumeLoading) return;
+    setGuardResumeLoading(true);
+    try {
+      setPendingOrderId(offer.id);
+      setPendingPrepareSnapshot({
+        orderNo: offer.orderNo,
+        totalAmount: offer.totalAmount,
+        guestCheckoutToken: offer.guestCheckoutToken,
+        paymentSignature: offer.paymentSignature,
+      });
+      await prepareForGuestOrder(
+        { id: offer.id, order_no: offer.orderNo, total_amount: offer.totalAmount },
+        {
+          guestTok: offer.guestCheckoutToken,
+          paySig: offer.paymentSignature,
+          buyerName: offer.buyerName,
+          buyerPhone: offer.buyerPhone,
+          buyerEmail: offer.buyerEmail ?? "",
+        }
+      );
+      setDismissedPendingOfferId(offer.id);
+    } finally {
+      setGuardResumeLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -428,64 +536,22 @@ export default function GuestOrderPage() {
 
     setSubmitting(true);
 
-    const runViewPayPrepare = async (order: {
-      id: string;
-      order_no: string;
-      total_amount: number;
-      guestTok?: string;
-      paySig?: string;
-    }): Promise<boolean> => {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      let returnUrl = `${origin}/${subdomain}/${clientSlug}/order/complete?orderId=${order.id}`;
-      if (order.guestTok && order.paySig) {
-        returnUrl += `&guestToken=${encodeURIComponent(order.guestTok)}&sig=${encodeURIComponent(order.paySig)}`;
-      }
-      const cancelUrl = `${origin}/${subdomain}/${clientSlug}/guest-order?cancel=1&items=${encodeURIComponent(itemsQuery)}`;
-      const productName =
-        items.length > 0 ? items[0].product?.name ?? "주문상품" : "주문상품";
-      const prepareBody: Record<string, unknown> = {
-        orderId: order.id,
-        orderNo: order.order_no,
-        amount: order.total_amount,
-        productName,
-        returnUrl,
-        cancelUrl,
-        buyerName: on,
-        buyerPhone: op,
-        buyerEmail: em,
-      };
-      if (order.guestTok && order.paySig) {
-        prepareBody.guestCheckoutToken = order.guestTok;
-        prepareBody.paymentSignature = order.paySig;
-      }
-      const prepareRes = await shopFetch("/api/payment/viewpay/prepare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(prepareBody),
-      });
-      const prepareData = await prepareRes.json().catch(() => ({}));
-      if (prepareRes.ok && prepareData.success && prepareData.redirectUrl) {
-        assignLocationHrefForPayment(String(prepareData.redirectUrl));
-        return true;
-      }
-      toast(
-        (prepareData as { message?: string }).message ||
-          "결제창을 열 수 없습니다. 아래에서 결제하기를 다시 눌러 주세요.",
-        "error"
-      );
-      return false;
-    };
-
     try {
       if (pendingOrderId && pendingPrepareSnapshot) {
-        toast("안전한 결제창으로 이동합니다.", "default");
-        await runViewPayPrepare({
-          id: pendingOrderId,
-          order_no: pendingPrepareSnapshot.orderNo,
-          total_amount: pendingPrepareSnapshot.totalAmount,
-          guestTok: pendingPrepareSnapshot.guestCheckoutToken,
-          paySig: pendingPrepareSnapshot.paymentSignature,
-        });
+        await prepareForGuestOrder(
+          {
+            id: pendingOrderId,
+            order_no: pendingPrepareSnapshot.orderNo,
+            total_amount: pendingPrepareSnapshot.totalAmount,
+          },
+          {
+            guestTok: pendingPrepareSnapshot.guestCheckoutToken,
+            paySig: pendingPrepareSnapshot.paymentSignature,
+            buyerName: on,
+            buyerPhone: op,
+            buyerEmail: em,
+          }
+        );
         return;
       }
 
@@ -535,6 +601,9 @@ export default function GuestOrderPage() {
       const order = data.order as { id: string; order_no: string; total_amount: number };
       const guestTok = data.guestCheckoutToken as string | undefined;
       const paySig = data.paymentSignature as string | undefined;
+      if (data.idempotentReorder) {
+        toast("진행 중인 주문으로 결제를 이어갑니다.", "info");
+      }
       setPendingOrderId(order.id);
       setPendingPrepareSnapshot({
         orderNo: order.order_no,
@@ -542,17 +611,13 @@ export default function GuestOrderPage() {
         guestCheckoutToken: guestTok,
         paymentSignature: paySig,
       });
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("cart-updated"));
-      }
 
-      toast("안전한 결제창으로 이동합니다.", "default");
-      const redirected = await runViewPayPrepare({
-        id: order.id,
-        order_no: order.order_no,
-        total_amount: order.total_amount,
+      const redirected = await prepareForGuestOrder(order, {
         guestTok,
         paySig,
+        buyerName: on,
+        buyerPhone: op,
+        buyerEmail: em,
       });
       if (!redirected) {
         toast(
@@ -564,31 +629,6 @@ export default function GuestOrderPage() {
       toast("네트워크 오류가 발생했습니다.", "error");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleGuardResumePayment = async () => {
-    const order = checkoutGuard.pendingOrder;
-    if (!order || guardResumeLoading) return;
-    setGuardResumeLoading(true);
-    toast("안전한 결제창으로 이동합니다.", "info");
-    try {
-      await runViewpayPreparePayment({
-        subdomain,
-        clientSlug,
-        orderId: order.id,
-        orderNo: order.orderNo,
-        amount: order.totalAmount,
-        buyerName: order.buyerName,
-        buyerPhone: order.buyerPhone,
-        buyerEmail: order.buyerEmail,
-        cancelPath: "guest-order",
-        itemsQuery,
-        guestCheckoutToken: order.guestCheckoutToken,
-        paymentSignature: order.paymentSignature,
-      });
-    } finally {
-      setGuardResumeLoading(false);
     }
   };
 
@@ -633,30 +673,32 @@ export default function GuestOrderPage() {
       </OrderGuard>
     );
 
-    if (
-      loading ||
-      checkoutGuard.phase === "loading" ||
-      checkoutGuard.phase === "paid_redirect"
-    ) {
+    if (loading || checkoutGuard.phase === "loading") {
       return guideShell(<CheckoutOrderGuideLoading />);
     }
 
-    if (checkoutGuard.phase === "pending" && checkoutGuard.pendingOrder) {
-      return guideShell(
-        <CheckoutOrderGuidePending
-          order={checkoutGuard.pendingOrder}
-          subdomain={subdomain}
-          clientSlug={clientSlug}
-          resumeLoading={guardResumeLoading}
-          onResumePayment={handleGuardResumePayment}
-        />
-      );
-    }
-
     return guideShell(
-      <CheckoutOrderGuideEmpty subdomain={subdomain} clientSlug={clientSlug} />
+      <>
+        <CheckoutOrderGuideEmpty subdomain={subdomain} clientSlug={clientSlug} />
+        {showPendingOffer && pendingOfferOrder ? (
+          <CheckoutOrderGuidePendingOffer
+            order={pendingOfferOrder}
+            cartMismatch={pendingCartMismatch}
+            resumeLoading={guardResumeLoading}
+            onLoadOrder={() => void handleLoadPendingOrder()}
+            onResumePayment={() => void handleOfferResumePayment()}
+            onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
+          />
+        ) : null}
+      </>
     );
   }
+
+  const paidNoticeVisible =
+    checkoutGuard.phase === "paid_notice" &&
+    checkoutGuard.pendingOrder &&
+    checkoutGuard.completePath &&
+    !dismissedPaidNotice;
 
   const paymentLineProductSum = items.length > 0 ? getTotalProductPrice() : displayPayTotal;
 
@@ -679,6 +721,15 @@ export default function GuestOrderPage() {
         }}
       >
         <div className="px-4 py-5">
+          {paidNoticeVisible &&
+          checkoutGuard.pendingOrder &&
+          checkoutGuard.completePath ? (
+            <CheckoutOrderGuidePaidNotice
+              orderNo={checkoutGuard.pendingOrder.orderNo}
+              completePath={checkoutGuard.completePath}
+              onDismiss={() => setDismissedPaidNotice(true)}
+            />
+          ) : null}
           {pendingOrderId && pendingPrepareSnapshot && (
             <div
               className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
@@ -1107,6 +1158,17 @@ export default function GuestOrderPage() {
           </button>
         </div>
       </form>
+
+      {showPendingOffer && pendingOfferOrder ? (
+        <CheckoutOrderGuidePendingOffer
+          order={pendingOfferOrder}
+          cartMismatch={pendingCartMismatch}
+          resumeLoading={guardResumeLoading}
+          onLoadOrder={() => void handleLoadPendingOrder()}
+          onResumePayment={() => void handleOfferResumePayment()}
+          onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
+        />
+      ) : null}
     </OrderGuard>
   );
 }

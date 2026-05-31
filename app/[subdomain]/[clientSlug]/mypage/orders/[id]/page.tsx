@@ -17,6 +17,7 @@ import { OrderDetailSectionCard } from "@/components/shop/OrderDetailSectionCard
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
+import { confirmKakaoExternalPaymentIfNeeded } from "@/lib/confirm-kakao-external-payment-client";
 import { toast } from "@/components/shop/ToastContext";
 import { OrderProgressStepper } from "@/components/shop/OrderProgressStepper";
 import {
@@ -238,6 +239,8 @@ export default function MyOrderDetailPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success && data.redirectUrl) {
+        const confirmed = await confirmKakaoExternalPaymentIfNeeded();
+        if (!confirmed) return;
         console.debug("[Order:Mypage] ViewPay redirect 이동", { orderId: order.id });
         assignLocationHrefForPayment(String(data.redirectUrl));
         return;

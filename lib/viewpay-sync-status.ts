@@ -6,7 +6,7 @@ import {
 } from "@/lib/viewpay-payment-sync";
 
 const ORDER_SELECT =
-  "id, order_no, total_amount, payment_status, is_guest, guest_checkout_token, viewpay_merchant_order_no, user_id, client_id, updated_at, created_at, orderer_name, shipping_phone, shipping_name, guest_orderer_email";
+  "id, order_no, total_amount, payment_status, is_guest, guest_checkout_token, viewpay_merchant_order_no, user_id, client_id, updated_at, created_at, orderer_name, shipping_phone, shipping_name, guest_orderer_email, checkout_cart_item_ids";
 
 /** PG 복귀 직후 paid 리다이렉트 판단 (checkout/guest-order 방어) */
 export const VIEWPAY_RECENT_PAID_WINDOW_MS = 30 * 60 * 1000;

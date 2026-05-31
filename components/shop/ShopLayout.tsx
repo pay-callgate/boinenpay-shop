@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { Menu, Search, ShoppingBag } from "lucide-react";
 import { ShopTemplateProvider, useShopTemplate } from "./ShopTemplateContext";
 import { ToastProvider, toast } from "./ToastContext";
+import { KakaoPaymentBrowserNoticeHost } from "./KakaoPaymentBrowserNoticeHost";
 import { SideMenu } from "./SideMenu";
 import { ProductSearchModal } from "./ProductSearchModal";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
@@ -447,6 +448,7 @@ export function ShopLayout({
   return (
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>
+      <KakaoPaymentBrowserNoticeHost />
       <div
         className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#F3F4F6]"
       >
@@ -548,6 +550,7 @@ export function ShopGlobalLayout({
   return (
     <ShopTemplateProvider value={contextValue}>
       <ToastProvider>
+      <KakaoPaymentBrowserNoticeHost />
       <div
         className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#F3F4F6]"
       >

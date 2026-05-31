@@ -2,10 +2,10 @@
 
 import React from "react";
 import { CreditCard, Loader2, ShoppingBag } from "lucide-react";
-import type { CheckoutResumeOrder } from "@/lib/viewpay-checkout-context";
 import {
   buildShopCartPath,
   buildShopHomePath,
+  type CheckoutResumeOrder,
 } from "@/lib/viewpay-checkout-context";
 
 const PRIMARY = "#D6A8E0";
@@ -200,5 +200,146 @@ export function CheckoutOrderGuideEmpty({
         </a>
       ) : null}
     </GuideShell>
+  );
+}
+
+type PendingOfferProps = {
+  order: CheckoutResumeOrder;
+  cartMismatch?: boolean;
+  resumeLoading?: boolean;
+  onLoadOrder: () => void;
+  onResumePayment: () => void;
+  onDismiss: () => void;
+};
+
+/** 선택형 pending 패널 — overlay (강제 리다이렉트 없음) */
+export function CheckoutOrderGuidePendingOffer({
+  order,
+  cartMismatch = false,
+  resumeLoading = false,
+  onLoadOrder,
+  onResumePayment,
+  onDismiss,
+}: PendingOfferProps) {
+  return (
+    <div
+      className="fixed inset-0 z-[150] flex items-end justify-center bg-black/35 px-4 pb-6 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pending-offer-title"
+    >
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg">
+        <div className="flex flex-col items-center text-center">
+          <div
+            className="mb-4 flex h-14 w-14 items-center justify-center rounded-full"
+            style={{ backgroundColor: PRIMARY_LIGHT }}
+          >
+            <CreditCard className="h-7 w-7" style={{ color: PRIMARY }} strokeWidth={2} />
+          </div>
+          <h2 id="pending-offer-title" className="text-lg font-bold" style={{ color: TEXT }}>
+            진행 중인 주문이 있어요
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
+            주문 정보를 불러오시겠습니까?
+          </p>
+        </div>
+
+        {cartMismatch ? (
+          <p
+            className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-left text-xs leading-relaxed text-amber-950"
+            role="note"
+          >
+            주문 내용이 장바구니 상품과 다릅니다. 이어서 하시겠습니까?
+          </p>
+        ) : null}
+
+        <div
+          className="mt-4 rounded-xl border px-4 py-3 text-left text-sm"
+          style={{ borderColor: `${PRIMARY}55`, backgroundColor: PRIMARY_LIGHT }}
+        >
+          <p style={{ color: TEXT_MUTED }}>
+            주문번호{" "}
+            <span className="font-semibold" style={{ color: TEXT }}>
+              {order.orderNo}
+            </span>
+          </p>
+          <p className="mt-1" style={{ color: TEXT_MUTED }}>
+            결제 금액{" "}
+            <span className="text-base font-bold" style={{ color: TEXT }}>
+              {formatPrice(order.totalAmount)}원
+            </span>
+          </p>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={onLoadOrder}
+            className="w-full rounded-xl py-3.5 text-sm font-bold text-white"
+            style={{ backgroundColor: PRIMARY }}
+          >
+            주문 불러오기
+          </button>
+          <button
+            type="button"
+            disabled={resumeLoading}
+            onClick={onResumePayment}
+            className="w-full rounded-xl border-2 bg-white py-3.5 text-sm font-bold disabled:opacity-60"
+            style={{ borderColor: PRIMARY, color: PRIMARY }}
+          >
+            {resumeLoading ? "결제창 연결 중…" : "결제만 이어가기"}
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="w-full py-2 text-sm font-medium underline-offset-2 hover:underline"
+            style={{ color: TEXT_MUTED }}
+          >
+            장바구니 그대로 주문
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type PaidNoticeProps = {
+  orderNo: string;
+  completePath: string;
+  onDismiss: () => void;
+};
+
+export function CheckoutOrderGuidePaidNotice({
+  orderNo,
+  completePath,
+  onDismiss,
+}: PaidNoticeProps) {
+  return (
+    <div
+      className="mx-4 mb-4 rounded-xl border px-4 py-3"
+      style={{ borderColor: `${PRIMARY}66`, backgroundColor: PRIMARY_LIGHT }}
+      role="status"
+    >
+      <p className="text-sm font-medium" style={{ color: TEXT }}>
+        이미 결제된 주문이 있습니다. (주문번호 {orderNo})
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <a
+          href={completePath}
+          className="text-sm font-bold underline-offset-2 hover:underline"
+          style={{ color: PRIMARY }}
+        >
+          주문 완료 보기
+        </a>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-xs font-medium"
+          style={{ color: TEXT_MUTED }}
+        >
+          닫기
+        </button>
+      </div>
+    </div>
   );
 }

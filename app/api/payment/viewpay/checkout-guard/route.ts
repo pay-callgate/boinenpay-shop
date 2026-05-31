@@ -11,7 +11,7 @@ import {
   findRecentCheckoutOrder,
 } from "@/lib/viewpay-sync-status";
 import { resolveCheckoutGuardScenario } from "@/lib/viewpay-checkout-guard-logic";
-import { VIEWPAY_CHECKOUT_GUARD_REDIRECT_ENABLED } from "@/lib/viewpay-checkout-guard-config";
+import { VIEWPAY_CHECKOUT_GUARD_PENDING_PROBE_ENABLED } from "@/lib/viewpay-checkout-guard-config";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +28,7 @@ function buildResumeOrder(
     shipping_phone?: string | null;
     shipping_name?: string | null;
     guest_orderer_email?: string | null;
+    checkout_cart_item_ids?: string[] | null;
   }
 ): CheckoutResumeOrder {
   const guestToken = order.guest_checkout_token?.trim() ?? "";
@@ -37,6 +38,10 @@ function buildResumeOrder(
     "구매자";
   const buyerPhone = order.shipping_phone?.trim() || "";
 
+  const storedCartIds = Array.isArray(order.checkout_cart_item_ids)
+    ? order.checkout_cart_item_ids.map((id) => String(id).trim()).filter(Boolean)
+    : undefined;
+
   const resume: CheckoutResumeOrder = {
     id: order.id,
     orderNo: order.order_no,
@@ -45,6 +50,7 @@ function buildResumeOrder(
     buyerName,
     buyerPhone,
     buyerEmail: order.guest_orderer_email?.trim() || undefined,
+    checkoutCartItemIds: storedCartIds?.length ? storedCartIds : undefined,
   };
 
   if (order.is_guest && guestToken) {
@@ -58,8 +64,7 @@ function buildResumeOrder(
 /**
  * GET /api/payment/viewpay/checkout-guard?clientId=...
  *
- * checkout / guest-order — cart 비었을 때: 세션·쿠키 기준 최근 주문 조회
- * paid → complete / pending → 결제 이어가기 / none → 빈 장바구니 안내
+ * 세션·쿠키 기준 최근 주문 1건 — pending 선택형 패널 / paid 안내 (자동 리다이렉트 없음)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -94,11 +99,7 @@ export async function GET(request: NextRequest) {
       } satisfies CheckoutGuardApiResponse);
     }
 
-    if (!VIEWPAY_CHECKOUT_GUARD_REDIRECT_ENABLED) {
-      logger.info(`${LOG} redirect disabled — webhook/sync 대기`, {
-        action: "viewpay_checkout_guard_deferred",
-        data: { clientId },
-      });
+    if (!VIEWPAY_CHECKOUT_GUARD_PENDING_PROBE_ENABLED) {
       return NextResponse.json({
         scenario: "none",
         paymentStatus: null,
@@ -115,8 +116,8 @@ export async function GET(request: NextRequest) {
 
     if (scenario === "paid" && order) {
       const completePath = buildOrderCompletePath(subdomain, clientSlug, order);
-      logger.info(`${LOG} paid → complete`, {
-        action: "viewpay_checkout_guard_redirect",
+      logger.info(`${LOG} paid notice`, {
+        action: "viewpay_checkout_guard_paid_notice",
         data: { orderId: order.id, isGuest: order.is_guest },
       });
       return NextResponse.json({
@@ -128,8 +129,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (scenario === "pending" && order) {
-      logger.info(`${LOG} pending → resume`, {
-        action: "viewpay_checkout_guard_pending",
+      logger.info(`${LOG} pending offer`, {
+        action: "viewpay_checkout_guard_pending_offer",
         data: { orderId: order.id, isGuest: order.is_guest },
       });
       return NextResponse.json({
