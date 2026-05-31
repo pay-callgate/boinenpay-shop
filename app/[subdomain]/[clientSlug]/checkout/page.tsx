@@ -590,6 +590,13 @@ export default function CheckoutPage() {
         order_no: order.order_no,
         total_amount: order.total_amount,
       });
+      setPendingOrderId(order.id);
+      setPendingPrepareSnapshot({
+        orderNo: order.order_no,
+        totalAmount: order.total_amount,
+        guestCheckoutToken: guestTok,
+        paymentSignature: paySig,
+      });
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("cart-updated"));
       }
@@ -613,13 +620,10 @@ export default function CheckoutPage() {
       toast("안전한 결제창으로 이동합니다.", "default");
       const redirected = await runViewPayPrepare(order, guestTok, paySig);
       if (!redirected) {
-        setPendingOrderId(order.id);
-        setPendingPrepareSnapshot({
-          orderNo: order.order_no,
-          totalAmount: order.total_amount,
-          guestCheckoutToken: guestTok,
-          paymentSignature: paySig,
-        });
+        toast(
+          "결제창을 열 수 없습니다. 아래에서 결제하기를 다시 시도해 주세요.",
+          "error"
+        );
       }
     } catch (e) {
       console.debug("[Order:Checkout] 예외", e);

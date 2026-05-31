@@ -21,6 +21,10 @@ import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
 import { toDesiredDeliveryYmd } from "@/lib/admin-florist-order-display";
 import { formatFloristShippingAddressForCustomerUI } from "@/lib/checkout-florist-fields";
+import {
+  collectViewpayPgReturnSnapshot,
+  logViewpayPgReturnSnapshot,
+} from "@/lib/viewpay";
 
 /**
  * Phase E1: 주문 완료 페이지 (ViewPay returnUrl 리다이렉트 대상)
@@ -207,6 +211,14 @@ export default function OrderCompletePage() {
   const [orderDetailLoading, setOrderDetailLoading] = useState(false);
 
   const syncPollStarted = useRef(false);
+  const pgReturnLogged = useRef(false);
+
+  useEffect(() => {
+    if (pgReturnLogged.current || typeof window === "undefined") return;
+    pgReturnLogged.current = true;
+    const snapshot = collectViewpayPgReturnSnapshot(searchParams);
+    logViewpayPgReturnSnapshot("order/complete 마운트 — PG returnUrl 복귀", snapshot);
+  }, [searchParams]);
 
   const fetchSyncStatus = async (opts?: { cgTidForSync?: string }) => {
     const qs = new URLSearchParams({ orderId, sync: "1" });
@@ -308,12 +320,26 @@ export default function OrderCompletePage() {
       .then(async (data) => {
         if (cancelled) return;
         const payload = data as Record<string, unknown>;
+        console.log("[ViewPay:PGReturn] complete API 응답", {
+          orderId,
+          cgTid,
+          success: payload?.success,
+          orderNo: payload?.orderNo,
+          message: payload?.message,
+          newrun: payload?.newrun,
+          raw: payload,
+        });
         if (payload?.success && payload?.orderNo) {
           applyCompletePayload(payload);
           return;
         }
         const syncData = await fetchSyncStatus({ cgTidForSync: cgTid });
         if (cancelled) return;
+        console.log("[ViewPay:PGReturn] sync-status 폴백 응답", {
+          orderId,
+          cgTid,
+          syncData,
+        });
         if (syncData?.success && syncData?.status === "paid" && syncData?.orderNo) {
           applyCompletePayload(syncData);
           return;
@@ -358,6 +384,15 @@ export default function OrderCompletePage() {
       try {
         const data = await fetchSyncStatus();
         if (cancelled) return;
+        console.log("[ViewPay:PGReturn] webhook 대기 폴링", {
+          orderId,
+          attempt: attempts,
+          status: data?.status,
+          success: data?.success,
+          orderNo: data?.orderNo,
+          message: data?.message,
+          raw: data,
+        });
         if (data?.success && data?.status === "paid" && data?.orderNo) {
           applyCompletePayload(data);
           return;

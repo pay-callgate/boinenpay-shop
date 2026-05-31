@@ -302,6 +302,7 @@ export function buildStartpayBody(params: ViewpayStartpayParams): Record<string,
     currency: "KRW",
     language: "",
     metaData: metaSafe,
+    /** PG 결제 완료 후 브라우저가 이동할 returnUrl (order/complete). 클라이언트 CheckoutGuard는 여기서 리다이렉트하지 않음. */
     redirectUrl: returnUrl,
     webhookUrl: resolveViewpayWebhookUrl(),
     items: null,
@@ -366,3 +367,170 @@ export function getViewPayBase(): string {
 export const VIEWPAY_BASE = process.env.VIEWPAY_API_BASE_URL || "https://stgvl.boinenpay.com";
 export const MERCHANT_ID = process.env.VIEWPAY_MERCHANT_ID || "";
 export const CHANNEL_ID = process.env.VIEWPAY_CHANNEL_ID || "";
+
+/** PG returnUrl / get-payment-info 승인 상태 (viewpay-order-completion PAYMENT_SUCCESS_STATUSES 와 동일) */
+export const VIEWPAY_PAYMENT_SUCCESS_STATUSES = [
+  "0000",
+  "PG_APPROVAL_SUCCESS",
+  "PG_MODULE_SUCCESS",
+  "PG_MODULE_VIRACC_ISSUE_SUCCESS",
+] as const;
+
+/** ViewPay returnUrl 복귀 시 브라우저 URL에서 수집한 PG 원시 데이터 */
+export type ViewpayPgReturnSnapshot = {
+  href: string;
+  orderId: string | null;
+  cgTid: string | null;
+  queryParams: Record<string, string>;
+  hashRaw: string | null;
+  hashParams: Record<string, string>;
+  dataParamRaw: string | null;
+  dataParamParsed: unknown;
+  inferredPaymentStatus: string | null;
+  isSuccessPay: boolean;
+};
+
+function parseJsonParamSafe(raw: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function readPaymentStatusFromPgPayload(payload: Record<string, unknown>): string | null {
+  const response = payload.response as Record<string, unknown> | undefined;
+  const raw = response ?? payload;
+  const data = raw?.data as Record<string, unknown> | undefined;
+  const candidates = [
+    data?.paymentStatus,
+    raw?.paymentStatus,
+    raw?.payment_status,
+    raw?.status,
+    raw?.payStatus,
+    payload?.paymentStatus,
+    payload?.status,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c.trim();
+    if (typeof c === "object" && c !== null) {
+      const obj = c as Record<string, unknown>;
+      const inner = (obj.code ?? obj.status ?? obj.value) as string | undefined;
+      if (typeof inner === "string" && inner.trim()) return inner.trim();
+    }
+  }
+  const eventData = (payload.event as Record<string, unknown> | undefined)?.data as
+    | Record<string, unknown>
+    | undefined;
+  if (eventData) {
+    for (const key of ["paymentStatus", "status", "payStatus"] as const) {
+      const v = eventData[key];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+  }
+  return null;
+}
+
+/**
+ * PG returnUrl·해시·data 쿼리에서 승인 여부 판단.
+ * webhook / get-payment-info 확정 전에는 false일 수 있음 — 클라이언트 리다이렉트 유예 기준.
+ */
+export function isSuccessPay(payload: Record<string, unknown> | null | undefined): boolean {
+  if (!payload) return false;
+  const status = readPaymentStatusFromPgPayload(payload);
+  return Boolean(status && VIEWPAY_PAYMENT_SUCCESS_STATUSES.includes(status as (typeof VIEWPAY_PAYMENT_SUCCESS_STATUSES)[number]));
+}
+
+function paramsToRecord(params: URLSearchParams): Record<string, string> {
+  const out: Record<string, string> = {};
+  params.forEach((value, key) => {
+    out[key] = value;
+  });
+  return out;
+}
+
+function extractCgTidFromParams(params: URLSearchParams): string | null {
+  for (const name of ["cgTid", "tid", "tId", "paymentId", "transactionId", "cg_tid"]) {
+    const v = params.get(name)?.trim();
+    if (v) return v;
+  }
+  const dataRaw = params.get("data")?.trim();
+  if (!dataRaw) return null;
+  const parsed = parseJsonParamSafe(dataRaw);
+  if (!parsed || typeof parsed !== "object") return null;
+  const p = parsed as Record<string, unknown>;
+  const eventData = (p.event as Record<string, unknown> | undefined)?.data as
+    | Record<string, unknown>
+    | undefined;
+  for (const source of [eventData, p.data as Record<string, unknown> | undefined, p]) {
+    if (!source) continue;
+    for (const key of ["cgTid", "tid", "tId"] as const) {
+      const v = source[key];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+  }
+  return null;
+}
+
+/** 결제 인증 후 returnUrl 도착 시 PG가 넘긴 URL 전체를 구조화 (order/complete·디버깅용) */
+export function collectViewpayPgReturnSnapshot(
+  searchParams: URLSearchParams | null,
+  hash?: string
+): ViewpayPgReturnSnapshot {
+  const href = typeof window !== "undefined" ? window.location.href : "";
+  const queryParams = searchParams ? paramsToRecord(searchParams) : {};
+  const hashRaw = hash?.trim() || (typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "") || null;
+  const hashParams = hashRaw ? paramsToRecord(new URLSearchParams(hashRaw)) : {};
+
+  const merged = new URLSearchParams(queryParams);
+  for (const [k, v] of Object.entries(hashParams)) {
+    if (!merged.has(k)) merged.set(k, v);
+  }
+
+  const dataParamRaw = merged.get("data") ?? queryParams.data ?? hashParams.data ?? null;
+  const dataParamParsed =
+    dataParamRaw && dataParamRaw.trim() ? parseJsonParamSafe(dataParamRaw.trim()) : null;
+
+  let inferredPaymentStatus: string | null = null;
+  if (dataParamParsed && typeof dataParamParsed === "object") {
+    inferredPaymentStatus = readPaymentStatusFromPgPayload(dataParamParsed as Record<string, unknown>);
+  }
+
+  const orderId = merged.get("orderId")?.trim() ?? queryParams.orderId?.trim() ?? null;
+  const cgTid = extractCgTidFromParams(merged);
+
+  const isSuccess = dataParamParsed && typeof dataParamParsed === "object"
+    ? isSuccessPay(dataParamParsed as Record<string, unknown>)
+    : false;
+
+  return {
+    href,
+    orderId,
+    cgTid,
+    queryParams,
+    hashRaw,
+    hashParams,
+    dataParamRaw,
+    dataParamParsed,
+    inferredPaymentStatus,
+    isSuccessPay: isSuccess,
+  };
+}
+
+/** PG returnUrl 복귀 데이터를 console.log — webhook 대기 중 조급한 리다이렉트 디버깅용 */
+export function logViewpayPgReturnSnapshot(
+  label: string,
+  snapshot: ViewpayPgReturnSnapshot
+): void {
+  console.log(`[ViewPay:PGReturn] ${label}`, {
+    href: snapshot.href,
+    orderId: snapshot.orderId,
+    cgTid: snapshot.cgTid,
+    inferredPaymentStatus: snapshot.inferredPaymentStatus,
+    isSuccessPay: snapshot.isSuccessPay,
+    queryParams: snapshot.queryParams,
+    hashParams: snapshot.hashParams,
+    dataParamRaw: snapshot.dataParamRaw,
+    dataParamParsed: snapshot.dataParamParsed,
+  });
+}

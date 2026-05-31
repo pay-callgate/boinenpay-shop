@@ -11,6 +11,7 @@ import {
   findRecentCheckoutOrder,
 } from "@/lib/viewpay-sync-status";
 import { resolveCheckoutGuardScenario } from "@/lib/viewpay-checkout-guard-logic";
+import { VIEWPAY_CHECKOUT_GUARD_REDIRECT_ENABLED } from "@/lib/viewpay-checkout-guard-config";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,17 @@ export async function GET(request: NextRequest) {
     if (!hasIdentity) {
       return NextResponse.json({
         scenario: "no_identity",
+        paymentStatus: null,
+      } satisfies CheckoutGuardApiResponse);
+    }
+
+    if (!VIEWPAY_CHECKOUT_GUARD_REDIRECT_ENABLED) {
+      logger.info(`${LOG} redirect disabled — webhook/sync 대기`, {
+        action: "viewpay_checkout_guard_deferred",
+        data: { clientId },
+      });
+      return NextResponse.json({
+        scenario: "none",
         paymentStatus: null,
       } satisfies CheckoutGuardApiResponse);
     }

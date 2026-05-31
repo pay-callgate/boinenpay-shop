@@ -535,6 +535,13 @@ export default function GuestOrderPage() {
       const order = data.order as { id: string; order_no: string; total_amount: number };
       const guestTok = data.guestCheckoutToken as string | undefined;
       const paySig = data.paymentSignature as string | undefined;
+      setPendingOrderId(order.id);
+      setPendingPrepareSnapshot({
+        orderNo: order.order_no,
+        totalAmount: order.total_amount,
+        guestCheckoutToken: guestTok,
+        paymentSignature: paySig,
+      });
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("cart-updated"));
       }
@@ -548,13 +555,10 @@ export default function GuestOrderPage() {
         paySig,
       });
       if (!redirected) {
-        setPendingOrderId(order.id);
-        setPendingPrepareSnapshot({
-          orderNo: order.order_no,
-          totalAmount: order.total_amount,
-          guestCheckoutToken: guestTok,
-          paymentSignature: paySig,
-        });
+        toast(
+          "결제창을 열 수 없습니다. 아래에서 결제하기를 다시 시도해 주세요.",
+          "error"
+        );
       }
     } catch {
       toast("네트워크 오류가 발생했습니다.", "error");

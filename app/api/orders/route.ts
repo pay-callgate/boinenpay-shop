@@ -600,6 +600,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "주문 항목 생성에 실패했습니다." }, { status: 500 });
     }
 
+    const { error: cartDeleteError } = await supabase
+      .from("cart_items")
+      .delete()
+      .in("id", cartItemIds);
+    if (cartDeleteError) {
+      console.error("[Order:Create] 장바구니 항목 삭제 실패", cartDeleteError);
+    } else {
+      console.debug("[Order:Create] 장바구니 항목 삭제 완료", {
+        orderId: order.id,
+        deletedCount: cartItemIds.length,
+      });
+    }
+
     const stockUpdates = cartItems.map(
       (item: { product_id: string; product: { stock_qty?: number }; quantity: number }) => {
         const newStockQty = (item.product.stock_qty || 0) - item.quantity;
