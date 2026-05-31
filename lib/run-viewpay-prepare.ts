@@ -2,7 +2,6 @@
 
 import { shopFetch } from "@/lib/shop-fetch";
 import { assignLocationHrefForPayment } from "@/lib/kakao-in-app-browser";
-import { confirmKakaoExternalPaymentIfNeeded } from "@/lib/confirm-kakao-external-payment-client";
 import { toast } from "@/components/shop/ToastContext";
 
 export type ViewpayPrepareParams = {
@@ -73,8 +72,6 @@ export async function runViewpayPreparePayment(
   };
 
   if (prepareRes.ok && prepareData.success && prepareData.redirectUrl) {
-    const confirmed = await confirmKakaoExternalPaymentIfNeeded();
-    if (!confirmed) return false;
     assignLocationHrefForPayment(String(prepareData.redirectUrl));
     return true;
   }
