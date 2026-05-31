@@ -9,7 +9,7 @@ describe("deriveRibbonPresetFromCartItems", () => {
   it("카테고리 없음(근조·축하 화환 외) → 직접 입력", () => {
     expect(
       deriveRibbonPresetFromCartItems([
-        { product: { id: "1", name: "프리미엄 혼합 꽃다발", slug: "premium-mixed" } },
+        { product: { product_category_mappings: [] } },
       ])
     ).toBe("__custom__");
   });
@@ -59,7 +59,13 @@ describe("deriveRibbonPresetFromCartItems", () => {
   it("꽃다발·카테고리 없음 → 통합 리본·카드 UI", () => {
     expect(
       isRibbonCombinedMessageUiFromCartItems([
-        { product: { id: "1", name: "프리미엄 혼합 꽃다발", slug: "premium-mixed" } },
+        {
+          product: {
+            product_category_mappings: [
+              { category: { id: "3", name: "꽃다발", slug: "bouquet" } },
+            ],
+          },
+        },
       ])
     ).toBe(true);
     expect(

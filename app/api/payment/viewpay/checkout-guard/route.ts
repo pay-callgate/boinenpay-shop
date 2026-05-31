@@ -21,7 +21,7 @@ function buildResumeOrder(
     id: string;
     order_no: string;
     total_amount: number;
-    is_guest: boolean;
+    is_guest?: boolean | null;
     guest_checkout_token?: string | null;
     orderer_name?: string | null;
     shipping_phone?: string | null;
