@@ -34,7 +34,12 @@ import {
   resolveRibbonPhrase,
   VENUE_DETAIL_DEFAULT_NOTICE,
   SHIPPING_ADDRESS_UNSPECIFIED,
+  DEFAULT_DELIVERY_TIME_SLOT,
 } from "@/lib/checkout-florist-fields";
+import {
+  cartShowsPreferredTimeSlot,
+  resolveOrderDeliveryTimeSlot,
+} from "@/lib/cart-preferred-time-slot";
 import {
   alertRibbonSectionPayValidation,
   validateRibbonSectionBeforePayment,
@@ -173,9 +178,16 @@ export default function CheckoutPage() {
 
   const minDeliveryDateYmd = useMemo(() => getSeoulTodayYmd(), []);
   const [deliveryDate, setDeliveryDate] = useState(() => getSeoulTodayYmd());
-  const DEFAULT_TIME_SLOT = "14:00~16:00";
-  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(DEFAULT_TIME_SLOT);
+  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(DEFAULT_DELIVERY_TIME_SLOT);
   const [openTimeAccordion, setOpenTimeAccordion] = useState(false);
+  const showPreferredTimeSlot = useMemo(
+    () => cartShowsPreferredTimeSlot(items),
+    [items]
+  );
+  const effectiveDeliveryTimeSlot = useMemo(
+    () => resolveOrderDeliveryTimeSlot(showPreferredTimeSlot, deliveryTimeSlot),
+    [showPreferredTimeSlot, deliveryTimeSlot]
+  );
 
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
@@ -530,7 +542,7 @@ export default function CheckoutPage() {
     const shippingDetailBlob = buildFloristShippingDetailText({
       venueDetail,
       deliveryDate,
-      deliveryTimeSlot,
+      deliveryTimeSlot: effectiveDeliveryTimeSlot,
       ordererName: on,
       ordererPhone: op,
       ribbonSender: ribbonSender.trim(),
@@ -590,7 +602,7 @@ export default function CheckoutPage() {
         shippingDetail: shippingDetailBlob,
         detailPlace: venueDetail.trim(),
         deliveryDate: deliveryDate || null,
-        deliveryTimeSlot: deliveryTimeSlot || DEFAULT_TIME_SLOT,
+        deliveryTimeSlot: effectiveDeliveryTimeSlot,
         deliveryMethod,
         deliveryFee,
         ordererName: on,
@@ -1043,45 +1055,48 @@ export default function CheckoutPage() {
                     style={{ color: TEXT }}
                   />
                 </div>
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-                  <button
-                    type="button"
-                    onClick={() => setOpenTimeAccordion((v) => !v)}
-                    className="flex min-h-[52px] w-full items-center justify-between px-4 py-3 text-left"
-                  >
-                    <span className="text-sm" style={{ color: TEXT }}>
-                      희망 시간대
-                    </span>
-                    <span className="flex items-center gap-2 text-sm" style={{ color: TEXT_MUTED }}>
-                      {deliveryTimeSlot}
-                      {openTimeAccordion ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </span>
-                  </button>
-                  {openTimeAccordion && (
-                    <div className="border-t border-gray-200 px-3 pb-3 pt-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        {TIME_SLOTS.map((slot) => (
-                          <button
-                            key={slot}
-                            type="button"
-                            onClick={() => {
-                              setDeliveryTimeSlot(slot);
-                              setOpenTimeAccordion(false);
-                            }}
-                            className="rounded-lg border px-2 py-3 text-sm font-medium transition-colors"
-                            style={{
-                              borderColor: deliveryTimeSlot === slot ? PRIMARY : BORDER,
-                              backgroundColor: deliveryTimeSlot === slot ? PRIMARY_LIGHT : "white",
-                              color: deliveryTimeSlot === slot ? PRIMARY : TEXT,
-                            }}
-                          >
-                            {slot}
-                          </button>
-                        ))}
+                {showPreferredTimeSlot ? (
+                  <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={() => setOpenTimeAccordion((v) => !v)}
+                      className="flex min-h-[52px] w-full items-center justify-between px-4 py-3 text-left"
+                    >
+                      <span className="text-sm" style={{ color: TEXT }}>
+                        희망 시간대
+                      </span>
+                      <span className="flex items-center gap-2 text-sm" style={{ color: TEXT_MUTED }}>
+                        {deliveryTimeSlot}
+                        {openTimeAccordion ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </span>
+                    </button>
+                    {openTimeAccordion && (
+                      <div className="border-t border-gray-200 px-3 pb-3 pt-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          {TIME_SLOTS.map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => {
+                                setDeliveryTimeSlot(slot);
+                                setOpenTimeAccordion(false);
+                              }}
+                              className="rounded-lg border px-2 py-3 text-sm font-medium transition-colors"
+                              style={{
+                                borderColor: deliveryTimeSlot === slot ? PRIMARY : BORDER,
+                                backgroundColor:
+                                  deliveryTimeSlot === slot ? PRIMARY_LIGHT : "white",
+                                color: deliveryTimeSlot === slot ? PRIMARY : TEXT,
+                              }}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
             <div>

@@ -60,7 +60,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, slug, parentId, sortOrder, mobileVisible, defaultTemplateId } =
+    const { name, slug, parentId, sortOrder, mobileVisible, showPreferredTime, defaultTemplateId } =
       body;
 
     const supabase = createServerSupabase();
@@ -104,6 +104,8 @@ export async function PUT(
     if (sortOrder !== undefined) updateData.sort_order = sortOrder;
     if (typeof mobileVisible === "boolean")
       updateData.mobile_visible = mobileVisible;
+    if (typeof showPreferredTime === "boolean")
+      updateData.show_preferred_time = showPreferredTime;
 
     if (defaultTemplateId !== undefined) {
       if (defaultTemplateId === null || defaultTemplateId === "") {

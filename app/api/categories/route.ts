@@ -77,8 +77,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { partnerId, name, slug, parentId, sortOrder, mobileVisible, defaultTemplateId } =
-      body;
+    const {
+      partnerId,
+      name,
+      slug,
+      parentId,
+      sortOrder,
+      mobileVisible,
+      showPreferredTime,
+      defaultTemplateId,
+    } = body;
 
     if (!partnerId || !name) {
       return NextResponse.json(
@@ -136,6 +144,8 @@ export async function POST(request: NextRequest) {
         sort_order: sortOrder ?? 0,
         mobile_visible:
           typeof mobileVisible === "boolean" ? mobileVisible : true,
+        show_preferred_time:
+          typeof showPreferredTime === "boolean" ? showPreferredTime : false,
         default_template_id: defaultTemplateUuid,
       })
       .select()

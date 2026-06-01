@@ -2,6 +2,11 @@
  * 화훼 배달 주문서 공통 — 비회원·회원 체크아웃에서 공유
  */
 
+/** 희망시간대 미노출(혼합 장바구니 등) 시 orders.delivery_time_slot 기본값 */
+export const DELIVERY_TIME_SLOT_ASAP = "빠른 배송(ASAP)";
+
+export const DEFAULT_DELIVERY_TIME_SLOT = "14:00~16:00";
+
 export const TIME_SLOTS = [
   "09:00~11:00",
   "11:00~13:00",

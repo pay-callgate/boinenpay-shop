@@ -40,7 +40,8 @@ const CART_PRODUCT_SELECT = `
             id,
             name,
             slug,
-            parent_id
+            parent_id,
+            show_preferred_time
           )
         )
       `;

@@ -5,6 +5,8 @@ export type ShopProductCategoryRef = {
   name: string;
   slug: string;
   parent_id?: string | null;
+  /** 주문서 희망시간대 All-or-Nothing 노출 (product_categories.show_preferred_time) */
+  show_preferred_time?: boolean | null;
 };
 
 type ProductWithMappings = {

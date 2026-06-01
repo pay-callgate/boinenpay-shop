@@ -36,6 +36,7 @@ interface Category {
   slug: string;
   sort_order: number;
   mobile_visible?: boolean | null;
+  show_preferred_time?: boolean | null;
   default_template_id?: string | null;
   created_at: string;
   children?: Category[];
@@ -98,6 +99,7 @@ export default function CategoriesPage() {
     defaultTemplateId: "",
   });
   const [mobileVisible, setMobileVisible] = useState(true);
+  const [showPreferredTime, setShowPreferredTime] = useState(false);
   const [infoTemplates, setInfoTemplates] = useState<InfoTemplateOption[]>([]);
 
   useEffect(() => {
@@ -176,6 +178,7 @@ export default function CategoriesPage() {
         parentId: formData.parentId || null,
         sortOrder: formData.sortOrder,
         mobileVisible,
+        showPreferredTime,
         defaultTemplateId: formData.defaultTemplateId || null,
       }),
     });
@@ -205,6 +208,7 @@ export default function CategoriesPage() {
     setSelectedId(cat.id);
     setEditingCategory(cat);
     setMobileVisible(cat.mobile_visible !== false);
+    setShowPreferredTime(cat.show_preferred_time === true);
     setFormData({
       name: cat.name,
       slug: cat.slug,
@@ -218,6 +222,7 @@ export default function CategoriesPage() {
     setSelectedId(null);
     setEditingCategory(null);
     setMobileVisible(true);
+    setShowPreferredTime(false);
     setFormData({ name: "", slug: "", parentId: "", sortOrder: 0, defaultTemplateId: "" });
   };
 
@@ -225,6 +230,7 @@ export default function CategoriesPage() {
     setSelectedId(null);
     setEditingCategory(null);
     setMobileVisible(true);
+    setShowPreferredTime(false);
     setFormData({ name: "", slug: "", parentId: "", sortOrder: flatCategories.length, defaultTemplateId: "" });
   };
 
@@ -440,6 +446,19 @@ export default function CategoriesPage() {
                   <p className="text-xs text-slate-500">비활성화 시 쇼핑몰 메뉴에서 숨겨집니다</p>
                 </div>
                 <Switch checked={mobileVisible} onCheckedChange={setMobileVisible} />
+              </div>
+
+              <div className="flex items-center justify-between rounded-md border border-gray-200 bg-slate-50 px-3 py-2.5">
+                <div>
+                  <span className="text-sm font-medium text-slate-700">
+                    희망시간대 노출 여부
+                  </span>
+                  <p className="text-xs text-slate-500">
+                    ON인 카테고리만 장바구니 전체가 해당일 때 주문서에 희망 시간대가
+                    표시됩니다. 신규 카테고리는 기본 OFF입니다.
+                  </p>
+                </div>
+                <Switch checked={showPreferredTime} onCheckedChange={setShowPreferredTime} />
               </div>
 
               <div>
