@@ -65,7 +65,7 @@ const TEXT_MUTED = "#6B7280";
 const BORDER = "#E5E7EB";
 
 const inputClass =
-  "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
+  "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm max-md:text-base outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
 const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
 const sectionCardClass = "overflow-hidden rounded-xl border border-gray-200 bg-gray-50/90 p-5";
 
@@ -830,7 +830,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setOrdererName(e.target.value)}
                   onFocus={checkoutFieldFocusScroll}
                   onKeyDown={checkoutInputEnterGoNext}
-                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm max-md:text-base min-h-[48px]"
                   placeholder="주문하시는 분 성함"
                   autoComplete="name"
                 />
@@ -845,7 +845,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setOrdererPhone(digitsOnlyPhone(e.target.value))}
                   onFocus={checkoutFieldFocusScroll}
                   onKeyDown={checkoutInputEnterGoNext}
-                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm max-md:text-base min-h-[48px]"
                   placeholder="01012345678 (숫자만)"
                   autoComplete="tel"
                 />
@@ -861,7 +861,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setGuestEmail(e.target.value)}
                   onFocus={checkoutFieldFocusScroll}
                   onKeyDown={checkoutInputEnterGoNext}
-                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm max-md:text-base min-h-[48px]"
                   placeholder="example@email.com"
                   autoComplete="email"
                 />
@@ -875,7 +875,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setGuestPassword(e.target.value)}
                   onFocus={checkoutFieldFocusScroll}
                   onKeyDown={checkoutInputEnterGoNext}
-                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm max-md:text-base min-h-[48px]"
                   placeholder="4자 이상"
                   autoComplete="new-password"
                 />
@@ -889,7 +889,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setGuestPasswordConfirm(e.target.value)}
                   onFocus={checkoutFieldFocusScroll}
                   onKeyDown={checkoutInputEnterGoNext}
-                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm min-h-[48px]"
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-3 text-sm max-md:text-base min-h-[48px]"
                   autoComplete="new-password"
                 />
               </div>
@@ -946,7 +946,7 @@ export default function CheckoutPage() {
                         onFocus={checkoutFieldFocusScroll}
                         onKeyDown={checkoutInputEnterGoNext}
                         placeholder="01012345678 (숫자만)"
-                        className="w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30"
+                        className="w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm max-md:text-base outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30"
                       />
                     </div>
                     <div>
@@ -1041,7 +1041,7 @@ export default function CheckoutPage() {
                     }}
                     onFocus={checkoutFieldFocusScroll}
                     onKeyDown={checkoutInputEnterGoNext}
-                    className="min-h-[52px] min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-3 text-base"
+                    className="min-h-[52px] min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-3 text-sm max-md:text-base"
                     style={{ color: TEXT }}
                   />
                 </div>
@@ -1133,7 +1133,7 @@ export default function CheckoutPage() {
                 onChange={(e) => setVenueDetail(e.target.value)}
                 onFocus={checkoutFieldFocusScroll}
                 onKeyDown={checkoutInputEnterGoNext}
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-300/50"
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm max-md:text-base outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-300/50"
                 placeholder="예) 아산병원 장례식장 201호, 3층 그랜드홀"
               />
             </div>

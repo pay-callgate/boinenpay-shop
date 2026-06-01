@@ -93,7 +93,7 @@ type PendingOrderPrepareSnapshot = {
 };
 
 const inputClass =
-  "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
+  "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm max-md:text-base outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
 const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
 const sectionCardClass = "overflow-hidden rounded-xl border border-gray-200 bg-gray-50/90 p-5";
 
@@ -947,7 +947,7 @@ export default function GuestOrderPage() {
                       }}
                       onFocus={checkoutFieldFocusScroll}
                       onKeyDown={checkoutInputEnterGoNext}
-                      className="min-h-[52px] min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-3 text-base"
+                      className="min-h-[52px] min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-3 text-sm max-md:text-base"
                       style={{ color: TEXT }}
                     />
                   </div>
@@ -1044,7 +1044,7 @@ export default function GuestOrderPage() {
                   onChange={(e) => setVenueDetail(e.target.value)}
                   onFocus={checkoutFieldFocusScroll}
                   onKeyDown={checkoutInputEnterGoNext}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-300/50"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm max-md:text-base outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-300/50"
                   placeholder="예) 아산병원 장례식장 201호, 3층 그랜드홀"
                 />
               </div>
