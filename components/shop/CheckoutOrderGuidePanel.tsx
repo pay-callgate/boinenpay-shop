@@ -206,19 +206,19 @@ export function CheckoutOrderGuideEmpty({
 type PendingOfferProps = {
   order: CheckoutResumeOrder;
   cartMismatch?: boolean;
-  resumeLoading?: boolean;
   onLoadOrder: () => void;
-  onResumePayment: () => void;
   onDismiss: () => void;
+  /** ViewPay sync 이슈로 임시 비활성 — 재활성 시 아래 주석 해제
+   * resumeLoading?: boolean;
+   * onResumePayment: () => void;
+   */
 };
 
 /** 선택형 pending 패널 — overlay (강제 리다이렉트 없음) */
 export function CheckoutOrderGuidePendingOffer({
   order,
   cartMismatch = false,
-  resumeLoading = false,
   onLoadOrder,
-  onResumePayment,
   onDismiss,
 }: PendingOfferProps) {
   return (
@@ -253,10 +253,7 @@ export function CheckoutOrderGuidePendingOffer({
           </p>
         ) : null}
 
-        <div
-          className="mt-4 rounded-xl border px-4 py-3 text-left text-sm"
-          style={{ borderColor: `${PRIMARY}55`, backgroundColor: PRIMARY_LIGHT }}
-        >
+        <div className="mt-4 rounded-xl bg-purple-50 px-4 py-4 text-left text-sm">
           <p style={{ color: TEXT_MUTED }}>
             주문번호{" "}
             <span className="font-semibold" style={{ color: TEXT }}>
@@ -275,11 +272,13 @@ export function CheckoutOrderGuidePendingOffer({
           <button
             type="button"
             onClick={onLoadOrder}
-            className="w-full rounded-xl py-3.5 text-sm font-bold text-white"
+            className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-opacity hover:opacity-95"
             style={{ backgroundColor: PRIMARY }}
           >
             주문 불러오기
           </button>
+          {/*
+          결제만 이어가기 — ViewPay returnUrl(cgTid) 미동기화 이슈로 임시 비활성
           <button
             type="button"
             disabled={resumeLoading}
@@ -289,13 +288,13 @@ export function CheckoutOrderGuidePendingOffer({
           >
             {resumeLoading ? "결제창 연결 중…" : "결제만 이어가기"}
           </button>
+          */}
           <button
             type="button"
             onClick={onDismiss}
-            className="w-full py-2 text-sm font-medium underline-offset-2 hover:underline"
-            style={{ color: TEXT_MUTED }}
+            className="w-full py-2.5 text-sm font-medium text-gray-500 underline-offset-2 hover:text-gray-700 hover:underline"
           >
-            장바구니 그대로 주문
+            무시하고 새로 주문하기
           </button>
         </div>
       </div>

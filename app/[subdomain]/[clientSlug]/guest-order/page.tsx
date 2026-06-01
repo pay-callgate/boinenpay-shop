@@ -168,7 +168,7 @@ export default function GuestOrderPage() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [pendingPrepareSnapshot, setPendingPrepareSnapshot] =
     useState<PendingOrderPrepareSnapshot | null>(null);
-  const [guardResumeLoading, setGuardResumeLoading] = useState(false);
+  // const [guardResumeLoading, setGuardResumeLoading] = useState(false);
   const [guardReprobeKey, setGuardReprobeKey] = useState(0);
   const [dismissedPendingOfferId, setDismissedPendingOfferId] = useState<string | null>(null);
   const [dismissedPaidNotice, setDismissedPaidNotice] = useState(false);
@@ -412,6 +412,7 @@ export default function GuestOrderPage() {
     toast("주문 정보를 불러왔습니다.", "info");
   };
 
+  /*
   const handleOfferResumePayment = async () => {
     const offer = pendingOfferOrder;
     if (!offer || guardResumeLoading) return;
@@ -439,6 +440,7 @@ export default function GuestOrderPage() {
       setGuardResumeLoading(false);
     }
   };
+  */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -675,9 +677,7 @@ export default function GuestOrderPage() {
           <CheckoutOrderGuidePendingOffer
             order={pendingOfferOrder}
             cartMismatch={pendingCartMismatch}
-            resumeLoading={guardResumeLoading}
             onLoadOrder={() => void handleLoadPendingOrder()}
-            onResumePayment={() => void handleOfferResumePayment()}
             onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
           />
         ) : null}
@@ -1150,9 +1150,7 @@ export default function GuestOrderPage() {
         <CheckoutOrderGuidePendingOffer
           order={pendingOfferOrder}
           cartMismatch={pendingCartMismatch}
-          resumeLoading={guardResumeLoading}
           onLoadOrder={() => void handleLoadPendingOrder()}
-          onResumePayment={() => void handleOfferResumePayment()}
           onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
         />
       ) : null}

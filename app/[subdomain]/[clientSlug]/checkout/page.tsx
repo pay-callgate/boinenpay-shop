@@ -187,7 +187,7 @@ export default function CheckoutPage() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [pendingPrepareSnapshot, setPendingPrepareSnapshot] =
     useState<PendingOrderPrepareSnapshot | null>(null);
-  const [guardResumeLoading, setGuardResumeLoading] = useState(false);
+  // const [guardResumeLoading, setGuardResumeLoading] = useState(false);
   const [guardReprobeKey, setGuardReprobeKey] = useState(0);
   const [dismissedPendingOfferId, setDismissedPendingOfferId] = useState<string | null>(null);
   const [dismissedPaidNotice, setDismissedPaidNotice] = useState(false);
@@ -438,6 +438,7 @@ export default function CheckoutPage() {
     toast("주문 정보를 불러왔습니다.", "info");
   };
 
+  /*
   const handleOfferResumePayment = async () => {
     const offer = pendingOfferOrder;
     if (!offer || guardResumeLoading) return;
@@ -465,6 +466,7 @@ export default function CheckoutPage() {
       setGuardResumeLoading(false);
     }
   };
+  */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -730,9 +732,7 @@ export default function CheckoutPage() {
           <CheckoutOrderGuidePendingOffer
             order={pendingOfferOrder}
             cartMismatch={pendingCartMismatch}
-            resumeLoading={guardResumeLoading}
             onLoadOrder={() => void handleLoadPendingOrder()}
-            onResumePayment={() => void handleOfferResumePayment()}
             onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
           />
         ) : null}
@@ -1293,9 +1293,7 @@ export default function CheckoutPage() {
         <CheckoutOrderGuidePendingOffer
           order={pendingOfferOrder}
           cartMismatch={pendingCartMismatch}
-          resumeLoading={guardResumeLoading}
           onLoadOrder={() => void handleLoadPendingOrder()}
-          onResumePayment={() => void handleOfferResumePayment()}
           onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
         />
       ) : null}
