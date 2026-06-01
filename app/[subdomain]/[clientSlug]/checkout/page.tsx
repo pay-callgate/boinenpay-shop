@@ -32,6 +32,8 @@ import {
   digitsOnlyPhone,
   buildFloristShippingDetailText,
   resolveRibbonPhrase,
+  VENUE_DETAIL_DEFAULT_NOTICE,
+  SHIPPING_ADDRESS_UNSPECIFIED,
 } from "@/lib/checkout-florist-fields";
 import {
   alertRibbonSectionPayValidation,
@@ -49,7 +51,6 @@ import {
 } from "@/lib/product-pricing";
 import {
   getSeoulTodayYmd,
-  getSeoulTomorrowYmd,
   isDeliveryDateInPast,
 } from "@/lib/shop-delivery-date";
 
@@ -147,7 +148,7 @@ export default function CheckoutPage() {
   const [shippingPhone, setShippingPhone] = useState("");
   const [shippingPostcode, setShippingPostcode] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
-  const [venueDetail, setVenueDetail] = useState("");
+  const [venueDetail, setVenueDetail] = useState(VENUE_DETAIL_DEFAULT_NOTICE);
 
   const [ribbonSender, setRibbonSender] = useState("");
   const {
@@ -171,7 +172,7 @@ export default function CheckoutPage() {
   const [saveAsDefaultAddress, setSaveAsDefaultAddress] = useState(false);
 
   const minDeliveryDateYmd = useMemo(() => getSeoulTodayYmd(), []);
-  const [deliveryDate, setDeliveryDate] = useState(() => getSeoulTomorrowYmd());
+  const [deliveryDate, setDeliveryDate] = useState(() => getSeoulTodayYmd());
   const DEFAULT_TIME_SLOT = "14:00~16:00";
   const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(DEFAULT_TIME_SLOT);
   const [openTimeAccordion, setOpenTimeAccordion] = useState(false);
@@ -308,7 +309,7 @@ export default function CheckoutPage() {
             setShippingPhone(defaultAddr.phone);
             setShippingPostcode(defaultAddr.postcode || "");
             setShippingAddress(defaultAddr.address);
-            setVenueDetail(defaultAddr.detail || "");
+            setVenueDetail(defaultAddr.detail?.trim() || VENUE_DETAIL_DEFAULT_NOTICE);
           }
         } else {
           /* no saved addresses */
@@ -356,7 +357,7 @@ export default function CheckoutPage() {
     setShippingPhone(a.phone);
     setShippingPostcode(a.postcode || "");
     setShippingAddress(a.address);
-    setVenueDetail(a.detail || "");
+    setVenueDetail(a.detail?.trim() || VENUE_DETAIL_DEFAULT_NOTICE);
     setShowAddressModal(false);
   };
 
@@ -364,7 +365,7 @@ export default function CheckoutPage() {
     openDaumPostcode(({ zonecode, address }) => {
       setShippingPostcode(zonecode);
       setShippingAddress(address);
-      setVenueDetail("");
+      setVenueDetail(VENUE_DETAIL_DEFAULT_NOTICE);
     });
   };
 
@@ -421,7 +422,7 @@ export default function CheckoutPage() {
     setShippingPhone(snap.shippingPhone);
     setShippingPostcode(snap.shippingPostcode);
     setShippingAddress(snap.shippingAddress);
-    setVenueDetail(snap.venueDetail);
+    setVenueDetail(snap.venueDetail?.trim() || VENUE_DETAIL_DEFAULT_NOTICE);
     if (snap.deliveryDate) setDeliveryDate(snap.deliveryDate);
     if (snap.deliveryTimeSlot) setDeliveryTimeSlot(snap.deliveryTimeSlot);
     setRibbonSender(snap.ribbonSender);
@@ -514,11 +515,6 @@ export default function CheckoutPage() {
       toast("배달 일시는 과거 날짜를 선택할 수 없습니다.");
       return;
     }
-    if (!address) {
-      toast("배달지 주소를 입력해 주세요. 우편번호 찾기를 이용해 주세요.");
-      addressSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
     if (
       !validateRibbonSectionBeforePayment({
         items,
@@ -590,7 +586,7 @@ export default function CheckoutPage() {
         shippingName: name,
         shippingPhone: phoneDigits,
         shippingPostcode: postcode || "00000",
-        shippingAddress: address,
+        shippingAddress: address || SHIPPING_ADDRESS_UNSPECIFIED,
         shippingDetail: shippingDetailBlob,
         detailPlace: venueDetail.trim(),
         deliveryDate: deliveryDate || null,
@@ -657,7 +653,7 @@ export default function CheckoutPage() {
         paymentSignature: paySig,
       });
 
-      if (saveAsDefaultAddress && session?.user?.id) {
+      if (saveAsDefaultAddress && session?.user?.id && address) {
         shopFetch("/api/mypage/addresses", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -850,6 +846,7 @@ export default function CheckoutPage() {
                   autoComplete="tel"
                 />
               </div>
+              {/*
               <div>
                 <label className="mb-1 block text-xs font-medium text-amber-900/80">
                   이메일 (선택)
@@ -866,6 +863,7 @@ export default function CheckoutPage() {
                   autoComplete="email"
                 />
               </div>
+              */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-amber-900/80">주문 조회 비밀번호</label>
                 <input
@@ -1088,7 +1086,7 @@ export default function CheckoutPage() {
             </div>
             <div>
               <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                배달지 주소 <span className="text-rose-500">*</span>
+                배달지 주소 <span className="text-xs font-normal">(선택)</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -1125,15 +1123,18 @@ export default function CheckoutPage() {
               <p className="mb-2 text-xs leading-snug" style={{ color: TEXT_MUTED }}>
                 빈소·예식장 호실, 층수, 홀 이름 등 배달 기사님이 찾으실 수 있게 적어 주세요.
               </p>
-              <input
-                type="text"
-                inputMode="text"
+              <textarea
+                rows={3}
                 enterKeyHint="done"
                 value={venueDetail}
                 onChange={(e) => setVenueDetail(e.target.value)}
                 onFocus={checkoutFieldFocusScroll}
                 onKeyDown={checkoutInputEnterGoNext}
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm max-md:text-base outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-300/50"
+                className={`${inputClass} min-h-[88px] resize-y ${
+                  venueDetail.trim() === VENUE_DETAIL_DEFAULT_NOTICE
+                    ? "font-medium text-blue-600"
+                    : ""
+                }`}
                 placeholder="예) 아산병원 장례식장 201호, 3층 그랜드홀"
               />
             </div>
@@ -1177,12 +1178,6 @@ export default function CheckoutPage() {
             onRibbonPresetChange={setRibbonPreset}
             ribbonMessageCustom={ribbonMessageCustom}
             onRibbonMessageCustomChange={setRibbonMessageCustom}
-            {...(!combinedRibbonAndCard
-              ? {
-                  ribbonCardExtra,
-                  onRibbonCardExtraChange: setRibbonCardExtra,
-                }
-              : {})}
           />
         </div>
       </section>

@@ -32,6 +32,8 @@ import {
   digitsOnlyPhone,
   buildFloristShippingDetailText,
   resolveRibbonPhrase,
+  VENUE_DETAIL_DEFAULT_NOTICE,
+  SHIPPING_ADDRESS_UNSPECIFIED,
 } from "@/lib/checkout-florist-fields";
 import {
   alertRibbonSectionPayValidation,
@@ -45,7 +47,6 @@ import { useRibbonPresetFromCart } from "@/lib/use-ribbon-preset-from-cart";
 import type { ShopProductCategoryRef } from "@/lib/shop-product-categories";
 import {
   getSeoulTodayYmd,
-  getSeoulTomorrowYmd,
   isDeliveryDateInPast,
 } from "@/lib/shop-delivery-date";
 
@@ -131,13 +132,13 @@ export default function GuestOrderPage() {
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
   const minDeliveryDateYmd = useMemo(() => getSeoulTodayYmd(), []);
-  const [deliveryDate, setDeliveryDate] = useState(() => getSeoulTomorrowYmd());
+  const [deliveryDate, setDeliveryDate] = useState(() => getSeoulTodayYmd());
   const DEFAULT_TIME_SLOT = "14:00~16:00";
   const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(DEFAULT_TIME_SLOT);
   const [openTimeAccordion, setOpenTimeAccordion] = useState(false);
   const [shippingPostcode, setShippingPostcode] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
-  const [venueDetail, setVenueDetail] = useState("");
+  const [venueDetail, setVenueDetail] = useState(VENUE_DETAIL_DEFAULT_NOTICE);
 
   const [ribbonSender, setRibbonSender] = useState("");
   const {
@@ -346,7 +347,7 @@ export default function GuestOrderPage() {
     openDaumPostcode(({ zonecode, address }) => {
       setShippingPostcode(zonecode);
       setShippingAddress(address);
-      setVenueDetail("");
+      setVenueDetail(VENUE_DETAIL_DEFAULT_NOTICE);
     });
   };
 
@@ -395,7 +396,7 @@ export default function GuestOrderPage() {
     setRecipientPhone(snap.shippingPhone);
     setShippingPostcode(snap.shippingPostcode);
     setShippingAddress(snap.shippingAddress);
-    setVenueDetail(snap.venueDetail);
+    setVenueDetail(snap.venueDetail?.trim() || VENUE_DETAIL_DEFAULT_NOTICE);
     if (snap.deliveryDate) setDeliveryDate(snap.deliveryDate);
     if (snap.deliveryTimeSlot) setDeliveryTimeSlot(snap.deliveryTimeSlot);
     setRibbonSender(snap.ribbonSender);
@@ -498,10 +499,6 @@ export default function GuestOrderPage() {
       toast("배달 일시는 과거 날짜를 선택할 수 없습니다.");
       return;
     }
-    if (!shippingAddress.trim()) {
-      toast("배달지 주소를 입력해 주세요. 우편번호 찾기를 이용해 주세요.");
-      return;
-    }
     if (
       !validateRibbonSectionBeforePayment({
         items,
@@ -555,7 +552,7 @@ export default function GuestOrderPage() {
         shippingName: rn,
         shippingPhone: rp,
         shippingPostcode: shippingPostcode.trim() || "00000",
-        shippingAddress: shippingAddress.trim(),
+        shippingAddress: shippingAddress.trim() || SHIPPING_ADDRESS_UNSPECIFIED,
         shippingDetail,
         detailPlace: venueDetail.trim(),
         deliveryDate: deliveryDate || null,
@@ -830,6 +827,7 @@ export default function GuestOrderPage() {
                   placeholder="01012345678 (숫자만)"
                 />
               </div>
+              {/*
               <div>
                 <label className={labelClass} style={{ color: TEXT_MUTED }}>
                   이메일 (선택)
@@ -847,6 +845,7 @@ export default function GuestOrderPage() {
                   placeholder="example@email.com"
                 />
               </div>
+              */}
               <div>
                 <label className={labelClass} style={{ color: TEXT_MUTED }}>
                   주문조회 비밀번호 <span className="text-rose-500">*</span>
@@ -998,7 +997,7 @@ export default function GuestOrderPage() {
               </div>
               <div>
                 <label className={labelClass} style={{ color: TEXT_MUTED }}>
-                  배달지 주소 <span className="text-rose-500">*</span>
+                  배달지 주소 <span className="text-xs font-normal">(선택)</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -1036,15 +1035,19 @@ export default function GuestOrderPage() {
                   <span className="block">배달 기사님이 쉽게 찾으실 수 있게 자세한 사항을 적어 주세요.</span>
                   <span className="mt-0.5 block">(빈소·예식장 호실, 층수, 홀 이름 등).</span>
                 </p>
-                <input
-                  type="text"
+                <textarea
+                  rows={3}
                   inputMode="text"
                   enterKeyHint="done"
                   value={venueDetail}
                   onChange={(e) => setVenueDetail(e.target.value)}
                   onFocus={checkoutFieldFocusScroll}
                   onKeyDown={checkoutInputEnterGoNext}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm max-md:text-base outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-300/50"
+                  className={`${inputClass} min-h-[88px] resize-y ${
+                    venueDetail.trim() === VENUE_DETAIL_DEFAULT_NOTICE
+                      ? "font-medium text-blue-600"
+                      : ""
+                  }`}
                   placeholder="예) 아산병원 장례식장 201호, 3층 그랜드홀"
                 />
               </div>
@@ -1071,12 +1074,6 @@ export default function GuestOrderPage() {
               onRibbonPresetChange={setRibbonPreset}
               ribbonMessageCustom={ribbonMessageCustom}
               onRibbonMessageCustomChange={setRibbonMessageCustom}
-              {...(!combinedRibbonAndCard
-                ? {
-                    ribbonCardExtra,
-                    onRibbonCardExtraChange: setRibbonCardExtra,
-                  }
-                : {})}
             />
           </section>
 

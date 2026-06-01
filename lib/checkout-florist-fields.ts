@@ -57,6 +57,13 @@ export function digitsOnlyPhone(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+/** 장소 상세 기본 안내 — 주문서 초기값(청첩장·부고장 전달) */
+export const VENUE_DETAIL_DEFAULT_NOTICE =
+  "예: 청첩장 및 부고장을 010-8755-1897 로 전달해주세요.";
+
+/** 배달지 주소 미입력 시 DB·API 기본값 */
+export const SHIPPING_ADDRESS_UNSPECIFIED = "배달지 주소 미입력";
+
 /** shipping_detail 텍스트 — 뉴런/내부 이력용 블록 */
 export function buildFloristShippingDetailText(parts: {
   venueDetail: string;

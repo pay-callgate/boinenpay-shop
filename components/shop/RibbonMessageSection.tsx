@@ -166,6 +166,8 @@ export function RibbonMessageSection(p: RibbonMessageSectionProps) {
         )}
       </div>
 
+      {/*
+      카드·추가 문구 — 주문서 UI 단순화로 임시 비노출 (재활성 시 onRibbonCardExtraChange prop 전달)
       {!combined && p.onRibbonCardExtraChange != null && (
         <div>
           <label className={p.labelClass} style={{ color: p.textMutedColor }}>
@@ -182,6 +184,7 @@ export function RibbonMessageSection(p: RibbonMessageSectionProps) {
           />
         </div>
       )}
+      */}
     </div>
   );
 }
