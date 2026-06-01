@@ -156,6 +156,14 @@ export default function ProductsPage() {
     fetchProducts(1);
   };
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setPage(1);
+      fetchProducts(1);
+    }
+  };
+
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("ko-KR").format(price) + "원";
 
@@ -207,14 +215,9 @@ export default function ProductsPage() {
                   placeholder="상품명 검색..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                   className="h-10 min-w-0 flex-1 rounded-md border border-gray-200 bg-slate-50 px-3 text-sm text-slate-900 shadow-none placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 sm:min-w-[200px] sm:flex-initial"
                 />
-                <button
-                  type="submit"
-                  className="h-10 shrink-0 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  검색
-                </button>
                 <button
                   type="button"
                   onClick={() => setFilterDetailExpanded((v) => !v)}
@@ -226,7 +229,7 @@ export default function ProductsPage() {
                   aria-expanded={filterDetailExpanded}
                 >
                   <Calendar className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
-                  카테고리·상태
+                  검색 조건
                   <ChevronDown
                     className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
                       filterDetailExpanded ? "rotate-180" : ""
@@ -234,6 +237,41 @@ export default function ProductsPage() {
                     aria-hidden
                   />
                 </button>
+                {filterDetailExpanded ? (
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
+                    <select
+                      value={categoryId}
+                      onChange={(e) => {
+                        setCategoryId(e.target.value);
+                        setPage(1);
+                      }}
+                      className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 sm:min-w-[140px] sm:flex-initial"
+                      aria-label="카테고리"
+                    >
+                      <option value="">전체 카테고리</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={status}
+                      onChange={(e) => {
+                        setStatus(e.target.value);
+                        setPage(1);
+                      }}
+                      className="h-10 min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 sm:min-w-[120px] sm:flex-initial"
+                      aria-label="판매 상태"
+                    >
+                      <option value="">전체 상태</option>
+                      <option value="active">판매중</option>
+                      <option value="draft">임시저장</option>
+                      <option value="sold_out">품절</option>
+                      <option value="inactive">비활성</option>
+                    </select>
+                  </div>
+                ) : null}
                 <div className="ml-auto flex shrink-0">
                   <button
                     type="button"
@@ -248,39 +286,6 @@ export default function ProductsPage() {
                   </button>
                 </div>
               </div>
-              {filterDetailExpanded ? (
-                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3">
-                  <select
-                    value={categoryId}
-                    onChange={(e) => {
-                      setCategoryId(e.target.value);
-                      setPage(1);
-                    }}
-                    className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-                  >
-                    <option value="">전체 카테고리</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={status}
-                    onChange={(e) => {
-                      setStatus(e.target.value);
-                      setPage(1);
-                    }}
-                    className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
-                  >
-                    <option value="">전체 상태</option>
-                    <option value="active">판매중</option>
-                    <option value="draft">임시저장</option>
-                    <option value="sold_out">품절</option>
-                    <option value="inactive">비활성</option>
-                  </select>
-                </div>
-              ) : null}
             </form>
           </div>
 

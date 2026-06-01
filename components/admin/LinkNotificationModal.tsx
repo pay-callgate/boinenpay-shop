@@ -405,7 +405,7 @@ export function LinkNotificationModal({
             ✕
           </button>
           <h2 className="pr-10 text-lg font-bold text-white">
-            고객사 Link 안내 메시지
+            Link 안내 발송
           </h2>
           <p className="mt-1 text-sm text-slate-300">
             고객의 간편한 주문을 위한 &apos;주문 안내 알림톡&apos;을 발송합니다.

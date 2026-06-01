@@ -373,7 +373,7 @@ export default function CategoriesPage() {
               </div>
               <div>
                 <label className={labelClass} htmlFor="cat-slug">
-                  Slug{" "}
+                  주문 링크 고유주소 식별자(영문 URL용){" "}
                   <span className="font-normal text-slate-400">
                     (비워두면 카테고리 이름으로 주소가 자동 생성됩니다)
                   </span>
@@ -436,7 +436,7 @@ export default function CategoriesPage() {
 
               <div className="flex items-center justify-between rounded-md border border-gray-200 bg-slate-50 px-3 py-2.5">
                 <div>
-                  <span className="text-sm font-medium text-slate-700">모바일 노출</span>
+                  <span className="text-sm font-medium text-slate-700">모바일 노출 여부</span>
                   <p className="text-xs text-slate-500">비활성화 시 쇼핑몰 메뉴에서 숨겨집니다</p>
                 </div>
                 <Switch checked={mobileVisible} onCheckedChange={setMobileVisible} />
@@ -444,7 +444,7 @@ export default function CategoriesPage() {
 
               <div>
                 <label className={labelClass} htmlFor="cat-template">
-                  상세페이지 공통 안내 설정
+                  상세페이지 공통 안내 템플릿
                 </label>
                 <select
                   id="cat-template"

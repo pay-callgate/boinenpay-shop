@@ -175,6 +175,7 @@ export default function CustomerLoginPage() {
           clientInfo={clientInfo}
           partnerCompanyName={partnerCompanyName}
           subdomain={subdomain}
+          clientSlug={resolvedClientSlug ?? clientInfo?.slug ?? clientSlugForGuest}
         />
 
         <div className="bg-white px-6 pb-10 pt-6 sm:px-8 sm:pb-10 sm:pt-7">

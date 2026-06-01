@@ -171,7 +171,7 @@ export function AlimtalkHistoryDetailModal({
             ✕
           </button>
           <h2 className="pr-10 text-lg font-bold text-white">
-            고객사 Link 안내 메시지
+            Link 안내 발송
           </h2>
           <p className="mt-1 text-sm text-slate-300">
             발송된 알림톡 본문을 확인합니다. (읽기 전용)

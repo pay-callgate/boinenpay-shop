@@ -167,7 +167,7 @@ function AdminLoginContent() {
             <svg width="20" height="20" viewBox="0 0 48 48">
               <path fill="#3C1E1E" d="M24 4C12.95 4 4 11.16 4 20c0 5.6 3.6 10.52 9.04 13.36-.4 1.48-1.44 5.36-1.64 6.2-.24 1.04.4 1.04.84.76.36-.24 5.6-3.8 7.88-5.32 1.28.16 2.6.24 3.92.24 11.04 0 20-7.16 20-16S35.04 4 24 4z"/>
             </svg>
-            카카오톡 계정으로 가입하기
+            카카오톡 계정으로 시작하기
           </button>
           <button
             type="button"
@@ -193,7 +193,7 @@ function AdminLoginContent() {
               <rect width="48" height="48" rx="6" fill="#03C75A"/>
               <path fill="#fff" d="M16 14h5.2l5.6 9.6V14H32v20h-5.2l-5.6-9.6V34H16V14z"/>
             </svg>
-            네이버 계정으로 가입하기
+            네이버 계정으로 시작하기
           </button>
           </div>
           <p

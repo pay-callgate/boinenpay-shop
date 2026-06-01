@@ -29,15 +29,11 @@ function formatSentAtDashboard(iso: string): string {
   return `${y}. ${m}. ${day}. ${h}:${min}`;
 }
 
-function formatDotDate(ymd: string): string {
-  const [y, m, day] = ymd.split("-");
-  if (!y || !m || !day) return ymd;
-  return `${y}. ${m}. ${day}.`;
-}
-
 function defaultDateRange() {
-  const to = new Date();
-  const from = new Date(to.getFullYear(), to.getMonth(), 1);
+  const now = new Date();
+  /** 이번 달 말일 ~ 3개월 전 해당 월 1일 (매월 1일 빈 목록 오해 방지) */
+  const from = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
   const ymd = (x: Date) =>
     `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
@@ -291,8 +287,6 @@ export default function AdminAlimtalkMessagesPage() {
     }
   };
 
-  const dateRangeLabel = `${formatDotDate(dateFrom)} ~ ${formatDotDate(dateTo)}`;
-
   return (
     <Fragment>
       {detailRow && (
@@ -332,9 +326,6 @@ export default function AdminAlimtalkMessagesPage() {
             <p className="mt-1 text-xs text-gray-500 [@media(min-width:768px)_and_(max-height:860px)]:mt-0.5">
               (카카오톡 {summary.kakaoSuccess.toLocaleString("ko-KR")} / 문자{" "}
               {summary.smsSuccess.toLocaleString("ko-KR")})
-            </p>
-            <p className="mt-1 text-[11px] text-gray-400 [@media(min-width:768px)_and_(max-height:860px)]:hidden">
-              * 조회 기간·상태·검색과 동일 집계
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-3">
@@ -381,9 +372,6 @@ export default function AdminAlimtalkMessagesPage() {
               className="h-9 rounded-md border border-gray-300 px-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
               aria-label="종료일"
             />
-            <span className="hidden text-xs text-gray-500 sm:inline">
-              ({dateRangeLabel})
-            </span>
           </div>
           <select
             value={status}
