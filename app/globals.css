@@ -13,11 +13,40 @@
   }
 }
 
-/* 모바일 주문서: 주소창/가상 키보드에 대응 (100dvh 미지원 브라우저는 min-h-screen 클래스로 보완) */
-@supports (height: 100dvh) {
-  .checkout-tunnel-form {
-    min-height: 100dvh;
-  }
+/* 결제 터널: Android·PC 기본 하단 여백 (iOS 전용 보정은 html[data-ios-touch] 아래) */
+.checkout-tunnel-form {
+  padding-bottom: calc(
+    136px + env(safe-area-inset-bottom, 0px) + var(--checkout-sticky-above-nav, 0px)
+  );
+}
+
+.checkout-sticky-footer {
+  bottom: var(--checkout-sticky-above-nav, 0px);
+}
+
+html[data-ios-touch="true"] .checkout-tunnel-form {
+  padding-bottom: calc(
+    var(--checkout-sticky-footer-height, 136px) + var(--shop-visual-viewport-bottom, 0px) +
+      env(safe-area-inset-bottom, 0px) + var(--checkout-sticky-above-nav, 0px)
+  );
+}
+
+html[data-ios-touch="true"] .checkout-sticky-footer {
+  bottom: calc(
+    var(--shop-visual-viewport-bottom, 0px) + var(--checkout-sticky-above-nav, 0px)
+  );
+}
+
+/* 회원가입·로그인: iOS 키보드 포커스 시 필드가 가려지지 않도록 (PC·Android 미적용) */
+html[data-ios-touch="true"] .ios-keyboard-scroll-form input:not([type="hidden"]),
+html[data-ios-touch="true"] .ios-keyboard-scroll-form textarea,
+html[data-ios-touch="true"] .ios-keyboard-scroll-form select {
+  scroll-margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+}
+
+html[data-ios-touch="true"] .ios-standalone-page {
+  min-height: var(--shop-viewport-height, 100dvh);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--shop-visual-viewport-bottom, 0px));
 }
 
 html,

@@ -9,12 +9,14 @@ import {
   readLastShopClientSlugFromBrowser,
   sanitizeCallbackUrlAgainstLoginLoop,
 } from "@/lib/shop-callback-url";
+import { useShopVisualViewportCssVars } from "@/lib/use-shop-visual-viewport-css-vars";
 
 /**
  * 소셜/이메일 가입 후 추가 정보: 휴대폰 + 필수 약관.
  * /{subdomain}/signup/extra
  */
 export default function SignupExtraPage() {
+  useShopVisualViewportCssVars();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,13 +92,13 @@ export default function SignupExtraPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-white px-5 py-8 max-w-md mx-auto">
+    <div className="ios-standalone-page min-h-[100dvh] bg-white px-5 py-8 max-w-md mx-auto">
       <h1 className="text-xl font-bold text-slate-900">회원 정보 입력</h1>
       <p className="mt-2 text-sm text-slate-600">
         서비스 이용을 위해 휴대폰 번호와 약관 동의가 필요합니다.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+      <form onSubmit={handleSubmit} className="ios-keyboard-scroll-form mt-8 space-y-6">
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">이름</label>
           <input

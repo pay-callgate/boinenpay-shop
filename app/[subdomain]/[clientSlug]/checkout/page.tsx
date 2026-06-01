@@ -6,7 +6,9 @@ import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronUp, Calendar, ChevronRight } from "lucide-react";
 import { OrderGuard } from "@/components/shop/OrderGuard";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
-import { BOTTOM_NAV_HEIGHT, HEADER_HEIGHT } from "@/components/shop/ShopLayout";
+import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
+import { CheckoutStickyFooterPortal } from "@/components/shop/CheckoutStickyFooterPortal";
+import { checkoutTunnelFormStyle } from "@/lib/checkout-tunnel-layout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { useViewpayCheckoutGuard } from "@/lib/use-viewpay-checkout-guard";
 import {
@@ -66,19 +68,8 @@ const inputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-4 py-3.5 text-sm outline-none transition-colors focus:border-[#D6A8E0] focus:ring-1 focus:ring-[#D6A8E0]/30";
 const labelClass = "mb-2 block text-xs font-semibold tracking-tight";
 const sectionCardClass = "overflow-hidden rounded-xl border border-gray-200 bg-gray-50/90 p-5";
-const CHECKOUT_STICKY_FOOTER_HEIGHT = 136;
 
-function checkoutTunnelMinHeight() {
-  return `calc(var(--shop-viewport-height, 100svh) - ${HEADER_HEIGHT}px)`;
-}
-
-function checkoutStickyBottom(stickyAboveNav: number) {
-  return `calc(var(--shop-visual-viewport-bottom, 0px) + ${stickyAboveNav}px)`;
-}
-
-function checkoutBodyPaddingBottom(stickyAboveNav: number) {
-  return `calc(${CHECKOUT_STICKY_FOOTER_HEIGHT}px + var(--shop-visual-viewport-bottom, 0px) + env(safe-area-inset-bottom, 0px) + ${stickyAboveNav}px)`;
-}
+const CHECKOUT_FORM_ID = "checkout-tunnel-form";
 
 interface CartItem {
   id: string;
@@ -1243,12 +1234,10 @@ export default function CheckoutPage() {
       blockAffiliationMismatch={!isGuestCheckout}
     >
       <form
+        id={CHECKOUT_FORM_ID}
         onSubmit={handleSubmit}
         className="checkout-tunnel-form mx-auto min-h-[100svh] max-w-[430px] bg-white lg:max-w-6xl lg:px-6"
-        style={{
-          minHeight: checkoutTunnelMinHeight(),
-          paddingBottom: checkoutBodyPaddingBottom(stickyAboveNav),
-        }}
+        style={checkoutTunnelFormStyle(stickyAboveNav)}
       >
         <div className="px-4 py-4 lg:py-6">
           {paidNoticeVisible &&
@@ -1271,37 +1260,34 @@ export default function CheckoutPage() {
           )}
           {CheckoutMainSections}
         </div>
-
-        {/* Sticky Footer - 개인정보 동의 + [총 결제금액] 결제하기 */}
-        <div
-          className="fixed left-0 right-0 z-50 mx-auto max-w-[430px] border-t bg-white px-4 pt-4 lg:max-w-6xl"
-          style={{
-            borderColor: BORDER,
-            bottom: checkoutStickyBottom(stickyAboveNav),
-            paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
-          }}
-        >
-          <label className="mb-3 flex cursor-pointer items-start gap-2">
-            <input
-              type="checkbox"
-              checked={privacyAgreed}
-              onChange={(e) => setPrivacyAgreed(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[#D6A8E0]"
-            />
-            <span className="text-xs leading-tight" style={{ color: TEXT_MUTED }}>
-              개인정보 수집 및 이용에 동의합니다. (필수)
-            </span>
-          </label>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-xl py-4 text-base font-bold text-white transition-opacity disabled:opacity-60"
-            style={{ backgroundColor: submitting ? "#9CA3AF" : PRIMARY }}
-          >
-            {`${formatPrice(displayPayTotal)}원 결제하기`}
-          </button>
-        </div>
       </form>
+
+      <CheckoutStickyFooterPortal
+        stickyAboveNav={stickyAboveNav}
+        borderColor={BORDER}
+        wideOnDesktop
+      >
+        <label className="mb-3 flex cursor-pointer items-start gap-2">
+          <input
+            type="checkbox"
+            checked={privacyAgreed}
+            onChange={(e) => setPrivacyAgreed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#D6A8E0]"
+          />
+          <span className="text-xs leading-tight" style={{ color: TEXT_MUTED }}>
+            개인정보 수집 및 이용에 동의합니다. (필수)
+          </span>
+        </label>
+        <button
+          type="submit"
+          form={CHECKOUT_FORM_ID}
+          disabled={submitting}
+          className="w-full rounded-xl py-4 text-base font-bold text-white transition-opacity disabled:opacity-60"
+          style={{ backgroundColor: submitting ? "#9CA3AF" : PRIMARY }}
+        >
+          {`${formatPrice(displayPayTotal)}원 결제하기`}
+        </button>
+      </CheckoutStickyFooterPortal>
 
       {showPendingOffer && pendingOfferOrder ? (
         <CheckoutOrderGuidePendingOffer

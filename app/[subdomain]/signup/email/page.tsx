@@ -6,12 +6,14 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getStorefrontUrl } from "@/lib/app-url";
 import { sanitizeCallbackUrlAgainstLoginLoop } from "@/lib/shop-callback-url";
+import { useShopVisualViewportCssVars } from "@/lib/use-shop-visual-viewport-css-vars";
 
 /**
  * 이메일(아이디) + 비밀번호 회원가입
  * /{subdomain}/signup/email
  */
 export default function ShopEmailSignupPage() {
+  useShopVisualViewportCssVars();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -65,11 +67,11 @@ export default function ShopEmailSignupPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-white px-5 py-8 max-w-md mx-auto">
+    <div className="ios-standalone-page min-h-[100dvh] bg-white px-5 py-8 max-w-md mx-auto">
       <h1 className="text-xl font-bold text-slate-900">이메일 회원가입</h1>
       <p className="mt-2 text-sm text-slate-600">이메일을 아이디로 사용합니다.</p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+      <form onSubmit={handleSubmit} className="ios-keyboard-scroll-form mt-8 space-y-4">
         <div>
           <label className="block text-xs font-medium text-slate-700 mb-1">이메일</label>
           <input

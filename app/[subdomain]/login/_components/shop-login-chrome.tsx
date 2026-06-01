@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { getShopHomeHref } from "@/lib/shop-home-nav";
 import { resolveShopClientSlug } from "@/lib/resolve-shop-client-slug";
+import { useShopVisualViewportCssVars } from "@/lib/use-shop-visual-viewport-css-vars";
 
 type Props = {
   subdomain: string;
@@ -23,6 +24,7 @@ export function ShopLoginChrome({
   shopClientSlug,
   children,
 }: Props) {
+  useShopVisualViewportCssVars();
   const router = useRouter();
   const slug = useMemo(() => {
     const fromProp = shopClientSlug?.trim();
@@ -39,8 +41,8 @@ export function ShopLoginChrome({
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-b from-violet-50/90 via-fuchsia-50/35 to-slate-100/95">
-      <div className="mx-auto flex w-full max-w-md flex-col px-4 pb-14 pt-6 sm:pt-10">
+    <div className="ios-standalone-page min-h-[100dvh] bg-gradient-to-b from-violet-50/90 via-fuchsia-50/35 to-slate-100/95">
+      <div className="mx-auto flex w-full max-w-md flex-col px-4 pb-14 pt-6 sm:pt-10 ios-keyboard-scroll-form">
         <div className="mb-4 flex items-center justify-between">
           <button
             type="button"
