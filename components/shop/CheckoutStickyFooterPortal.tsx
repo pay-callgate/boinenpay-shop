@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { isIosTouchDevice } from "@/lib/ios-touch-device";
 import {
   CHECKOUT_STICKY_FOOTER_HEIGHT_FALLBACK,
   CHECKOUT_STICKY_FOOTER_HEIGHT_VAR,
@@ -20,8 +19,7 @@ type CheckoutStickyFooterPortalProps = {
 
 /**
  * 결제 터널 CTA: `<main overflow-y-auto>` 밖(document.body)에 포털.
- * iOS WebView에서 main 내부 fixed가 잘리는 버그 회피.
- * Android·PC: ResizeObserver·visualViewport 보정 미실행.
+ * iOS WebView fixed 잘림 회피 + CTA 실제 높이를 CSS 변수로 노출(키보드 여백 계산용).
  */
 export function CheckoutStickyFooterPortal({
   stickyAboveNav,
@@ -38,7 +36,7 @@ export function CheckoutStickyFooterPortal({
   }, []);
 
   useEffect(() => {
-    if (!mounted || !isIosTouchDevice()) return;
+    if (!mounted) return;
     const el = footerRef.current;
     if (!el) return;
 
