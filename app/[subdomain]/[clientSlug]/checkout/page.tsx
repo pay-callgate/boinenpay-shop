@@ -60,6 +60,7 @@ import {
   getSeoulTodayYmd,
   isDeliveryDateInPast,
 } from "@/lib/shop-delivery-date";
+import { CHECKOUT_PREPARE_REDIRECT_DELAY_MESSAGE } from "@/lib/checkout-prepare-fallback-message";
 
 /**
  * 주문서(Checkout) - 네이버 쇼핑 결제 프로세스 99% 일치
@@ -612,7 +613,7 @@ export default function CheckoutPage() {
 
     try {
       if (pendingOrderId && pendingPrepareSnapshot) {
-        await prepareForOrder(
+        const redirected = await prepareForOrder(
           {
             id: pendingOrderId,
             order_no: pendingPrepareSnapshot.orderNo,
@@ -629,6 +630,9 @@ export default function CheckoutPage() {
                 : ordererEmail || "",
           }
         );
+        if (!redirected) {
+          toast(CHECKOUT_PREPARE_REDIRECT_DELAY_MESSAGE, "info");
+        }
         return;
       }
 
@@ -733,10 +737,7 @@ export default function CheckoutPage() {
             : ordererEmail || "",
       });
       if (!redirected) {
-        toast(
-          "결제창을 열 수 없습니다. 아래에서 결제하기를 다시 시도해 주세요.",
-          "error"
-        );
+        toast(CHECKOUT_PREPARE_REDIRECT_DELAY_MESSAGE, "info");
       }
     } catch (e) {
       console.debug("[Order:Checkout] 예외", e);
@@ -1313,15 +1314,6 @@ export default function CheckoutPage() {
               onDismiss={() => setDismissedPaidNotice(true)}
             />
           ) : null}
-          {pendingOrderId && pendingPrepareSnapshot && (
-            <div
-              className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
-              role="status"
-            >
-              결제창을 불러오지 못했습니다. 주문번호 {pendingPrepareSnapshot.orderNo}. 아래{" "}
-              <strong>결제하기</strong>를 다시 눌러 주세요.
-            </div>
-          )}
           {CheckoutMainSections}
         </div>
       </form>

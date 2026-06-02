@@ -56,6 +56,7 @@ import {
   getSeoulTodayYmd,
   isDeliveryDateInPast,
 } from "@/lib/shop-delivery-date";
+import { CHECKOUT_PREPARE_REDIRECT_DELAY_MESSAGE } from "@/lib/checkout-prepare-fallback-message";
 
 /**
  * 비회원 전용 주문서 — 화환/꽃배달(우리부고) 입력 구성
@@ -582,7 +583,7 @@ export default function GuestOrderPage() {
 
     try {
       if (pendingOrderId && pendingPrepareSnapshot) {
-        await prepareForGuestOrder(
+        const redirected = await prepareForGuestOrder(
           {
             id: pendingOrderId,
             order_no: pendingPrepareSnapshot.orderNo,
@@ -596,6 +597,9 @@ export default function GuestOrderPage() {
             buyerEmail: em,
           }
         );
+        if (!redirected) {
+          toast(CHECKOUT_PREPARE_REDIRECT_DELAY_MESSAGE, "info");
+        }
         return;
       }
 
@@ -664,10 +668,7 @@ export default function GuestOrderPage() {
         buyerEmail: em,
       });
       if (!redirected) {
-        toast(
-          "결제창을 열 수 없습니다. 아래에서 결제하기를 다시 시도해 주세요.",
-          "error"
-        );
+        toast(CHECKOUT_PREPARE_REDIRECT_DELAY_MESSAGE, "info");
       }
     } catch {
       toast("네트워크 오류가 발생했습니다.", "error");
@@ -770,15 +771,6 @@ export default function GuestOrderPage() {
               onDismiss={() => setDismissedPaidNotice(true)}
             />
           ) : null}
-          {pendingOrderId && pendingPrepareSnapshot && (
-            <div
-              className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
-              role="status"
-            >
-              결제창을 불러오지 못했습니다. 주문번호 {pendingPrepareSnapshot.orderNo}. 아래{" "}
-              <strong>결제하기</strong>를 다시 눌러 주세요.
-            </div>
-          )}
           <header className="mb-5">
             <p className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: PRIMARY }}>
               비회원 주문
