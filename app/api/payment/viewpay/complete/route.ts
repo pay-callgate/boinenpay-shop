@@ -9,6 +9,8 @@ import {
   finalizeViewpayOrderPaid,
   isViewpayPaymentSucceeded,
 } from "@/lib/viewpay-order-completion";
+import { classifyViewpayPaymentFailure } from "@/lib/viewpay-payment-outcome";
+import { appendViewpayFailureCheckoutHints } from "@/lib/resolve-checkout-return-url";
 
 const LOG = "[Order:Complete]";
 
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, user_id, order_no, total_amount, payment_status, is_guest, guest_checkout_token"
+        "id, user_id, order_no, total_amount, payment_status, is_guest, guest_checkout_token, checkout_cart_item_ids"
       )
       .eq("id", orderId)
       .single();
@@ -119,8 +121,10 @@ export async function GET(request: NextRequest) {
         action: "payment_viewpay_complete_get_info_failed",
         data: { orderId, cgTid, error: String((err as Error).message) },
       });
+      const msg = (err as Error).message || "결제 정보 조회에 실패했습니다.";
+      const classification = classifyViewpayPaymentFailure({ message: msg, httpStatus: 400 });
       return NextResponse.json(
-        { success: false, message: (err as Error).message || "결제 정보 조회에 실패했습니다." },
+        appendViewpayFailureCheckoutHints(classification, order),
         { status: 400 }
       );
     }
@@ -131,7 +135,15 @@ export async function GET(request: NextRequest) {
         action: "payment_viewpay_complete_status_not_success",
         data: { orderId, cgTid, message: payOk.message },
       });
-      return NextResponse.json({ success: false, message: payOk.message }, { status: 400 });
+      const classification = classifyViewpayPaymentFailure({
+        paymentInfo,
+        message: payOk.message,
+        httpStatus: 400,
+      });
+      return NextResponse.json(
+        appendViewpayFailureCheckoutHints(classification, order),
+        { status: 400 }
+      );
     }
 
     try {
@@ -156,12 +168,18 @@ export async function GET(request: NextRequest) {
         action: "payment_viewpay_complete_finalize_failed",
         data: { orderId, cgTid, error: msg },
       });
-      return NextResponse.json({ success: false, message: msg }, { status: 500 });
+      const classification = classifyViewpayPaymentFailure({ message: msg, httpStatus: 500 });
+      return NextResponse.json(
+        appendViewpayFailureCheckoutHints(classification, order),
+        { status: 500 }
+      );
     }
   } catch (err) {
     logger.error(`${LOG} error`, { action: "payment_viewpay_complete_error", data: { error: String((err as Error).message) } });
+    const msg = (err as Error).message || "서버 오류가 발생했습니다.";
+    const classification = classifyViewpayPaymentFailure({ message: msg, httpStatus: 500 });
     return NextResponse.json(
-      { success: false, message: (err as Error).message || "서버 오류가 발생했습니다." },
+      { success: false, ...classification },
       { status: 500 }
     );
   }

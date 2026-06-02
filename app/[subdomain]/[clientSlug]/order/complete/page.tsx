@@ -25,6 +25,7 @@ import {
   collectViewpayPgReturnSnapshot,
   logViewpayPgReturnSnapshot,
 } from "@/lib/viewpay";
+import { resolveViewpayFailureRedirectPath } from "@/lib/resolve-checkout-return-url";
 
 /**
  * Phase E1: 주문 완료 페이지 (ViewPay returnUrl 리다이렉트 대상)
@@ -171,7 +172,7 @@ function getPaymentIdFromHash(): string {
   return getPaymentIdFromSearch(params);
 }
 
-type CompleteState = "idle" | "loading" | "success" | "error" | "no_payment_id";
+type CompleteState = "idle" | "loading" | "success" | "redirecting";
 
 const whiteCardClass = "mx-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-sm";
 
@@ -203,7 +204,6 @@ export default function OrderCompletePage() {
 
   const [state, setState] = useState<CompleteState>("idle");
   const [orderNo, setOrderNo] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [orderDetail, setOrderDetail] = useState<{
     order: OrderDetailOrder;
     items: OrderItemRow[];
@@ -291,6 +291,29 @@ export default function OrderCompletePage() {
     if (!hashChecked && !cgTidFromQuery) setHashChecked(true);
   }, [hashChecked, cgTidFromQuery]);
 
+  const redirectToPaymentOutcome = (payload: Record<string, unknown>, fallbackMessage?: string) => {
+    setState("redirecting");
+    const enriched: Record<string, unknown> = {
+      ...payload,
+      message:
+        (payload.message as string | undefined) ??
+        fallbackMessage ??
+        "결제가 완료되지 않았습니다.",
+    };
+    if (!enriched.outcome) {
+      enriched.outcome = "system_error";
+    }
+    const path = resolveViewpayFailureRedirectPath({
+      subdomain,
+      clientSlug,
+      orderId,
+      payload: enriched,
+      guestToken: guestToken || undefined,
+      guestSig: guestSig || undefined,
+    });
+    router.replace(path);
+  };
+
   const applyCompletePayload = (data: Record<string, unknown>) => {
     if (data?.success && data?.orderNo) {
       const nr = data.newrun as { success?: boolean; message?: string; skipped?: boolean } | undefined;
@@ -303,8 +326,7 @@ export default function OrderCompletePage() {
       setOrderNo(data.orderNo as string);
       setState("success");
     } else {
-      setState("error");
-      setErrorMessage((data?.message as string) ?? "결제 완료 처리에 실패했습니다.");
+      redirectToPaymentOutcome(data);
     }
   };
 
@@ -357,10 +379,10 @@ export default function OrderCompletePage() {
         } catch {
           // fall through
         }
-        const msg = err?.message ?? "결제 완료 확인 중 오류가 발생했습니다.";
-        setState("error");
-        setErrorMessage(msg);
-        toast(msg, "error");
+        redirectToPaymentOutcome(
+          { outcome: "system_error" },
+          err?.message ?? "결제 완료 확인 중 오류가 발생했습니다."
+        );
       });
     return () => {
       cancelled = true;
@@ -398,10 +420,7 @@ export default function OrderCompletePage() {
           return;
         }
         if (data?.status === "failed") {
-          setState("error");
-          setErrorMessage(
-            (data?.message as string) || "결제가 완료되지 않았습니다."
-          );
+          redirectToPaymentOutcome(data);
           return;
         }
       } catch {
@@ -412,8 +431,8 @@ export default function OrderCompletePage() {
         window.setTimeout(poll, SYNC_STATUS_POLL_MS);
         return;
       }
-      setState("no_payment_id");
-      setErrorMessage(
+      redirectToPaymentOutcome(
+        { outcome: "system_error", code: "TIMEOUT" },
         "결제 확인에 시간이 걸리고 있습니다. 잠시 후 주문 조회에서 상태를 확인해 주세요."
       );
     };
@@ -477,7 +496,7 @@ export default function OrderCompletePage() {
   };
 
   const content = () => {
-    if (state === "loading" || (state === "idle" && orderId && cgTid)) {
+    if (state === "loading" || state === "redirecting" || (state === "idle" && orderId && cgTid)) {
       return (
         <div className="flex flex-col items-center justify-center gap-4 py-12">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#D6A8E0] border-t-transparent" />
@@ -729,33 +748,6 @@ export default function OrderCompletePage() {
       );
     }
 
-    if (state === "error" || state === "no_payment_id") {
-      return (
-        <div className="flex flex-col items-center gap-6 py-8">
-          <p className="text-center font-medium text-[#333333]">
-            {errorMessage ?? "결제 완료 처리 중 문제가 발생했습니다."}
-          </p>
-          <div className="mt-2 flex w-full max-w-xs flex-col gap-3">
-            <button
-              type="button"
-              onClick={handleOrderList}
-              className="w-full rounded-xl py-3.5 font-medium text-white"
-              style={{ backgroundColor: PRIMARY }}
-            >
-              주문 내역
-            </button>
-            <button
-              type="button"
-              onClick={handleContinueShopping}
-              className="w-full rounded-xl border py-3.5 font-medium"
-              style={{ borderColor: PRIMARY, color: PRIMARY }}
-            >
-              쇼핑 계속하기
-            </button>
-          </div>
-        </div>
-      );
-    }
 
     if (!orderId) {
       return (
@@ -780,9 +772,8 @@ export default function OrderCompletePage() {
   const isSuccess = state === "success" && orderNo;
   const needsSingleCard =
     state === "loading" ||
+    state === "redirecting" ||
     (state === "idle" && orderId && cgTid) ||
-    state === "error" ||
-    state === "no_payment_id" ||
     !orderId;
 
   return (

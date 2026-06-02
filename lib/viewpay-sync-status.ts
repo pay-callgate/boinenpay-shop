@@ -4,6 +4,11 @@ import {
   syncViewpayOrderPayment,
   type ViewpayOrderRow,
 } from "@/lib/viewpay-payment-sync";
+import {
+  appendViewpayFailureCheckoutHints,
+  type ViewpayFailureWithCheckout,
+} from "@/lib/resolve-checkout-return-url";
+import { classifyViewpayPaymentFailure } from "@/lib/viewpay-payment-outcome";
 
 const ORDER_SELECT =
   "id, order_no, total_amount, payment_status, is_guest, guest_checkout_token, viewpay_merchant_order_no, user_id, client_id, updated_at, created_at, orderer_name, shipping_phone, shipping_name, guest_orderer_email, checkout_cart_item_ids";
@@ -171,6 +176,10 @@ export type ViewpaySyncStatusResult = {
   syncAttempted?: boolean;
   alreadyPaid?: boolean;
   newrun?: { success: boolean; message?: string; skipped?: boolean };
+  outcome?: ViewpayFailureWithCheckout["outcome"];
+  code?: string;
+  checkoutReturnPath?: ViewpayFailureWithCheckout["checkoutReturnPath"];
+  itemsQuery?: string;
 };
 
 export async function getViewpaySyncStatus(
@@ -219,6 +228,7 @@ export async function getViewpaySyncStatus(
   let syncAttempted = false;
   let syncCgTid = params.cgTid?.trim() || undefined;
   let newrun: ViewpaySyncStatusResult["newrun"];
+  let syncFailureHints: ViewpayFailureWithCheckout | null = null;
 
   if (paymentStatus !== "paid" && params.doSync) {
     syncAttempted = true;
@@ -231,8 +241,15 @@ export async function getViewpaySyncStatus(
       paymentStatus = "paid";
       syncCgTid = syncResult.cgTid;
       newrun = syncResult.newrun;
-    } else if (syncResult.action !== "viewpay_payment_sync_verify_failed") {
-      // pending 유지 — webhook 지연 등
+    } else if (syncResult.action === "viewpay_payment_sync_verify_failed") {
+      syncFailureHints = appendViewpayFailureCheckoutHints(
+        {
+          outcome: syncResult.outcome ?? "system_error",
+          code: syncResult.code,
+          message: syncResult.message,
+        },
+        order
+      );
     }
   }
 
@@ -253,15 +270,41 @@ export async function getViewpaySyncStatus(
   }
 
   if (paymentStatus === "failed" || paymentStatus === "cancelled") {
+    const classification = classifyViewpayPaymentFailure({
+      message: "결제가 완료되지 않았습니다.",
+    });
+    const hints = appendViewpayFailureCheckoutHints(classification, order);
     return {
       httpStatus: 200,
       body: {
-        success: true,
+        success: false,
         status: "failed",
         orderId: order.id,
         orderNo: order.order_no,
         syncAttempted,
-        message: "결제가 완료되지 않았습니다.",
+        message: hints.message,
+        outcome: hints.outcome,
+        code: hints.code,
+        checkoutReturnPath: hints.checkoutReturnPath,
+        ...(hints.itemsQuery ? { itemsQuery: hints.itemsQuery } : {}),
+      },
+    };
+  }
+
+  if (syncFailureHints) {
+    return {
+      httpStatus: 200,
+      body: {
+        success: false,
+        status: "failed",
+        orderId: order.id,
+        orderNo: order.order_no,
+        syncAttempted,
+        message: syncFailureHints.message,
+        outcome: syncFailureHints.outcome,
+        code: syncFailureHints.code,
+        checkoutReturnPath: syncFailureHints.checkoutReturnPath,
+        ...(syncFailureHints.itemsQuery ? { itemsQuery: syncFailureHints.itemsQuery } : {}),
       },
     };
   }

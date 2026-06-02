@@ -35,7 +35,7 @@ export async function runViewpayPreparePayment(
     returnUrl += `&guestToken=${encodeURIComponent(guestTok)}&sig=${encodeURIComponent(paySig)}`;
   }
 
-  let cancelUrl = `${origin}/${params.subdomain}/${params.clientSlug}/${params.cancelPath}?cancel=1`;
+  let cancelUrl = `${origin}/${params.subdomain}/${params.clientSlug}/${params.cancelPath}?error=user_cancel`;
   if (params.cancelPath === "guest-order" && params.itemsQuery?.trim()) {
     cancelUrl += `&items=${encodeURIComponent(params.itemsQuery.trim())}`;
   }

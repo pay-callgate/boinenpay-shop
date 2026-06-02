@@ -21,6 +21,7 @@ import {
   CheckoutOrderGuidePendingOffer,
 } from "@/components/shop/CheckoutOrderGuidePanel";
 import { runViewpayPreparePayment } from "@/lib/run-viewpay-prepare";
+import { useViewpayUserCancelToast } from "@/lib/use-viewpay-user-cancel-toast";
 import { extractPendingOrderFormSnapshot } from "@/lib/apply-pending-order-form";
 import { hasCheckoutCartMismatch } from "@/lib/checkout-cart-id-match";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
@@ -326,19 +327,10 @@ export default function GuestOrderPage() {
     loadCart();
   }, [clientId, selectedItemIds, sessionStatus]);
 
-  useEffect(() => {
-    const cancel = searchParams?.get("cancel");
-    if (cancel === "1") {
-      toast("결제가 취소되었습니다. 아래에서 다시 결제를 시도해 주세요.", "error");
-      setGuardReprobeKey((k) => k + 1);
-      setDismissedPendingOfferId(null);
-      if (typeof window !== "undefined") {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("cancel");
-        window.history.replaceState({}, "", url.pathname + url.search);
-      }
-    }
-  }, [searchParams]);
+  useViewpayUserCancelToast(() => {
+    setGuardReprobeKey((k) => k + 1);
+    setDismissedPendingOfferId(null);
+  });
 
   const formatPrice = (price: number) => new Intl.NumberFormat("ko-KR").format(price);
 

@@ -88,7 +88,7 @@ function ToastItem({ message, type }: ToastItem) {
   const isPastel = type === "success" || type === "info";
   return (
     <div
-      className="animate-toast-in max-w-[calc(100%-2rem)] rounded-xl px-5 py-3 text-sm font-medium shadow-lg"
+      className="animate-toast-in max-w-[calc(100%-2rem)] rounded-xl px-5 py-3 text-center text-sm font-medium leading-snug whitespace-pre-line break-keep shadow-lg [word-break:keep-all]"
       style={{
         backgroundColor: isPastel ? PRIMARY : "rgba(31, 41, 55, 0.95)",
         color: isPastel ? "#FFFFFF" : "#FFFFFF",

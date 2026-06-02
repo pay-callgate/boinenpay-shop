@@ -18,6 +18,7 @@ import {
   CheckoutOrderGuidePendingOffer,
 } from "@/components/shop/CheckoutOrderGuidePanel";
 import { runViewpayPreparePayment } from "@/lib/run-viewpay-prepare";
+import { useViewpayUserCancelToast } from "@/lib/use-viewpay-user-cancel-toast";
 import { extractPendingOrderFormSnapshot } from "@/lib/apply-pending-order-form";
 import { hasCheckoutCartMismatch } from "@/lib/checkout-cart-id-match";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
@@ -232,21 +233,11 @@ export default function CheckoutPage() {
   const addressSectionRef = useRef<HTMLDivElement>(null);
   const addressesLoadedRef = useRef(false);
 
-  // Phase D3: ViewPay 결제창에서 취소 후 cancelUrl로 돌아온 경우
-  useEffect(() => {
-    const cancel = searchParams?.get("cancel");
-    if (cancel === "1") {
-      console.debug("[Order:Checkout] ViewPay 결제 취소 후 cancelUrl 복귀");
-      toast("결제가 취소되었습니다. 주문은 유지됩니다. 아래에서 다시 결제하기를 시도하거나 마이페이지에서 주문을 확인하세요.", "error");
-      setGuardReprobeKey((k) => k + 1);
-      setDismissedPendingOfferId(null);
-      if (typeof window !== "undefined") {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("cancel");
-        window.history.replaceState({}, "", url.pathname + url.search);
-      }
-    }
-  }, [searchParams]);
+  useViewpayUserCancelToast(() => {
+    console.debug("[Order:Checkout] ViewPay 결제 취소 후 주문서 복귀");
+    setGuardReprobeKey((k) => k + 1);
+    setDismissedPendingOfferId(null);
+  });
 
   // 세션 또는 비회원(guest=1) 장바구니
   useEffect(() => {

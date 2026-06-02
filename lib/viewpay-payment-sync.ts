@@ -7,6 +7,10 @@ import {
   finalizeViewpayOrderPaid,
   verifyViewpayPaymentAgainstOrder,
 } from "@/lib/viewpay-order-completion";
+import {
+  classifyViewpayPaymentFailure,
+  type ViewpayPaymentOutcome,
+} from "@/lib/viewpay-payment-outcome";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const LOG = "[ViewPay:PaymentSync]";
@@ -33,7 +37,7 @@ export type ViewpayPaymentSyncResult =
       alreadyPaid?: boolean;
       newrun?: { success: boolean; message?: string; skipped?: boolean };
     }
-  | { ok: false; action: string; message: string };
+  | { ok: false; action: string; message: string; outcome?: ViewpayPaymentOutcome; code?: string };
 
 const ORDER_SELECT =
   "id, order_no, total_amount, payment_status, is_guest, guest_checkout_token, viewpay_merchant_order_no, user_id";
@@ -258,10 +262,16 @@ export async function syncViewpayOrderPayment(
       action: "viewpay_payment_sync_verify_failed",
       data: { source, orderId: order.id, cgTid, message: verified.message },
     });
+    const classification = classifyViewpayPaymentFailure({
+      paymentInfo,
+      message: verified.message,
+    });
     return {
       ok: false,
       action: "viewpay_payment_sync_verify_failed",
       message: verified.message,
+      outcome: classification.outcome,
+      code: classification.code,
     };
   }
 
