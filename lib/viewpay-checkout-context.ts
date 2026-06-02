@@ -2,6 +2,13 @@
 
 export type CheckoutGuardScenario = "paid" | "pending" | "none" | "no_identity";
 
+export type CheckoutResumeOrderPreview = {
+  primaryProductName: string;
+  thumbnailUrl: string | null;
+  lineCount: number;
+  displayTitle: string;
+};
+
 export type CheckoutResumeOrder = {
   id: string;
   orderNo: string;
@@ -14,6 +21,8 @@ export type CheckoutResumeOrder = {
   buyerEmail?: string;
   /** pending 주문 생성 시 cart_items.id 스냅샷 — 장바구니 불일치 경고용 */
   checkoutCartItemIds?: string[];
+  /** order_items + products 미리보기 (checkout-guard) */
+  preview?: CheckoutResumeOrderPreview;
 };
 
 export type CheckoutGuardApiResponse = {

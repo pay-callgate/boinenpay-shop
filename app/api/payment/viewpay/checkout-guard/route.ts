@@ -12,12 +12,14 @@ import {
 } from "@/lib/viewpay-sync-status";
 import { resolveCheckoutGuardScenario } from "@/lib/viewpay-checkout-guard-logic";
 import { VIEWPAY_CHECKOUT_GUARD_PENDING_PROBE_ENABLED } from "@/lib/viewpay-checkout-guard-config";
+import { fetchCheckoutResumeOrderPreview } from "@/lib/checkout-resume-order-preview";
 
 export const dynamic = "force-dynamic";
 
 const LOG = "[ViewPay:CheckoutGuard]";
 
-function buildResumeOrder(
+async function buildResumeOrder(
+  supabase: ReturnType<typeof createServerSupabase>,
   order: {
     id: string;
     order_no: string;
@@ -29,8 +31,9 @@ function buildResumeOrder(
     shipping_name?: string | null;
     guest_orderer_email?: string | null;
     checkout_cart_item_ids?: string[] | null;
-  }
-): CheckoutResumeOrder {
+  },
+  options?: { includePreview?: boolean }
+): Promise<CheckoutResumeOrder> {
   const guestToken = order.guest_checkout_token?.trim() ?? "";
   const buyerName =
     order.orderer_name?.trim() ||
@@ -56,6 +59,11 @@ function buildResumeOrder(
   if (order.is_guest && guestToken) {
     resume.guestCheckoutToken = guestToken;
     resume.paymentSignature = signGuestCheckout(order.id, guestToken);
+  }
+
+  if (options?.includePreview) {
+    const preview = await fetchCheckoutResumeOrderPreview(supabase, order.id);
+    if (preview) resume.preview = preview;
   }
 
   return resume;
@@ -123,7 +131,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         scenario: "paid",
         paymentStatus: "paid",
-        order: buildResumeOrder(order),
+        order: await buildResumeOrder(supabase, order, { includePreview: true }),
         completePath,
       } satisfies CheckoutGuardApiResponse);
     }
@@ -136,7 +144,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         scenario: "pending",
         paymentStatus: "pending",
-        order: buildResumeOrder(order),
+        order: await buildResumeOrder(supabase, order, { includePreview: true }),
       } satisfies CheckoutGuardApiResponse);
     }
 

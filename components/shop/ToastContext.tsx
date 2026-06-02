@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
+import { usePendingOrderModalOpen } from "@/lib/pending-order-modal-flag";
 
 const PRIMARY = "#D6A8E0";
 
@@ -68,13 +69,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 function ToastContainer({ items }: { items: ToastItem[] }) {
+  const pendingModalOpen = usePendingOrderModalOpen();
   if (items.length === 0) return null;
   return (
     <div
       className="pointer-events-none fixed left-0 right-0 z-[9999] flex flex-col items-center gap-2 px-4"
-      style={{
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
-      }}
+      style={
+        pendingModalOpen
+          ? {
+              top: "calc(env(safe-area-inset-top, 0px) + 72px)",
+              bottom: "auto",
+            }
+          : {
+              bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+            }
+      }
       aria-live="polite"
     >
       {items.map((item) => (

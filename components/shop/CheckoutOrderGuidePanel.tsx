@@ -1,21 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { CreditCard, Loader2, ShoppingBag } from "lucide-react";
 import {
   buildShopCartPath,
   buildShopHomePath,
   type CheckoutResumeOrder,
 } from "@/lib/viewpay-checkout-context";
+import { setPendingOrderModalOpen } from "@/lib/pending-order-modal-flag";
+import { PendingOrderInfoBox } from "@/components/shop/PendingOrderInfoBox";
 
 const PRIMARY = "#D6A8E0";
 const PRIMARY_LIGHT = "#F3E8F5";
 const TEXT = "#333333";
 const TEXT_MUTED = "#6B7280";
-
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat("ko-KR").format(price);
-}
 
 type GuideShellProps = {
   icon: React.ReactNode;
@@ -98,23 +96,7 @@ export function CheckoutOrderGuidePending({
       title="결제를 계속 진행하시겠습니까?"
       description="접수된 주문이 있습니다. 아래에서 결제를 이어가실 수 있어요."
     >
-      <div
-        className="rounded-xl border px-4 py-3 text-left text-sm"
-        style={{ borderColor: `${PRIMARY}55`, backgroundColor: PRIMARY_LIGHT }}
-      >
-        <p style={{ color: TEXT_MUTED }}>
-          주문번호{" "}
-          <span className="font-semibold" style={{ color: TEXT }}>
-            {order.orderNo}
-          </span>
-        </p>
-        <p className="mt-1" style={{ color: TEXT_MUTED }}>
-          결제 금액{" "}
-          <span className="text-base font-bold" style={{ color: TEXT }}>
-            {formatPrice(order.totalAmount)}원
-          </span>
-        </p>
-      </div>
+      <PendingOrderInfoBox order={order} />
 
       <button
         type="button"
@@ -208,10 +190,6 @@ type PendingOfferProps = {
   cartMismatch?: boolean;
   onLoadOrder: () => void;
   onDismiss: () => void;
-  /** ViewPay sync 이슈로 임시 비활성 — 재활성 시 아래 주석 해제
-   * resumeLoading?: boolean;
-   * onResumePayment: () => void;
-   */
 };
 
 /** 선택형 pending 패널 — overlay (강제 리다이렉트 없음) */
@@ -221,6 +199,11 @@ export function CheckoutOrderGuidePendingOffer({
   onLoadOrder,
   onDismiss,
 }: PendingOfferProps) {
+  useEffect(() => {
+    setPendingOrderModalOpen(true);
+    return () => setPendingOrderModalOpen(false);
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-[150] flex items-end justify-center bg-black/35 px-4 pb-6 sm:items-center"
@@ -253,20 +236,7 @@ export function CheckoutOrderGuidePendingOffer({
           </p>
         ) : null}
 
-        <div className="mt-4 rounded-xl bg-purple-50 px-4 py-4 text-left text-sm">
-          <p style={{ color: TEXT_MUTED }}>
-            주문번호{" "}
-            <span className="font-semibold" style={{ color: TEXT }}>
-              {order.orderNo}
-            </span>
-          </p>
-          <p className="mt-1" style={{ color: TEXT_MUTED }}>
-            결제 금액{" "}
-            <span className="text-base font-bold" style={{ color: TEXT }}>
-              {formatPrice(order.totalAmount)}원
-            </span>
-          </p>
-        </div>
+        <PendingOrderInfoBox order={order} className="mt-4" />
 
         <div className="mt-5 flex flex-col gap-2.5">
           <button
@@ -277,18 +247,6 @@ export function CheckoutOrderGuidePendingOffer({
           >
             주문 불러오기
           </button>
-          {/*
-          결제만 이어가기 — ViewPay returnUrl(cgTid) 미동기화 이슈로 임시 비활성
-          <button
-            type="button"
-            disabled={resumeLoading}
-            onClick={onResumePayment}
-            className="w-full rounded-xl border-2 bg-white py-3.5 text-sm font-bold disabled:opacity-60"
-            style={{ borderColor: PRIMARY, color: PRIMARY }}
-          >
-            {resumeLoading ? "결제창 연결 중…" : "결제만 이어가기"}
-          </button>
-          */}
           <button
             type="button"
             onClick={onDismiss}
