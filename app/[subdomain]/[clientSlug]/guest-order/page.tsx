@@ -795,10 +795,10 @@ export default function GuestOrderPage() {
             <h2 className="mb-4 text-base font-bold" style={{ color: TEXT }}>
               1. 주문상품
             </h2>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {items.length === 0 && pendingPrepareSnapshot ? (
                 <li
-                  className="rounded-lg border border-gray-200 bg-white p-3 text-sm"
+                  className="rounded-xl border border-gray-200 bg-white p-4 text-sm"
                   style={{ color: TEXT_MUTED }}
                 >
                   장바구니는 비어 있지만, 접수된 주문 금액({formatPrice(displayPayTotal)}원)으로 결제를
@@ -808,9 +808,9 @@ export default function GuestOrderPage() {
               {items.map((item) => (
                 <li
                   key={item.id}
-                  className="flex gap-2.5 rounded-lg border border-gray-200 bg-white p-3"
+                  className="flex gap-4 rounded-xl border border-gray-200 bg-white p-4"
                 >
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-20 sm:w-20">
+                  <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-20 sm:w-20">
                     {item.product.thumbnail_url ? (
                       <img
                         src={item.product.thumbnail_url}
@@ -821,22 +821,29 @@ export default function GuestOrderPage() {
                       <div className="h-full w-full bg-gray-200" />
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-snug" style={{ color: TEXT }}>
-                      {item.product.name}
-                    </p>
-                    <p className="mt-1 text-xs sm:text-sm" style={{ color: TEXT_MUTED }}>
-                      {formatPrice(getItemUnit(item))}원
-                    </p>
-                    <CheckoutLineQuantityControl
-                      quantity={item.quantity}
-                      maxQty={maxCartLineOrderQty(item.product, item.quantity)}
-                      disabled={submitting || updatingQtyId === item.id}
-                      onChange={(next) => void updateItemQuantity(item.id, next)}
-                    />
-                    <p className="mt-1 text-sm font-bold" style={{ color: TEXT }}>
-                      {formatPrice(getItemPrice(item))}원
-                    </p>
+                  <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-snug" style={{ color: TEXT }}>
+                        {item.product.name}
+                      </p>
+                      <p className="text-xs sm:text-sm" style={{ color: TEXT_MUTED }}>
+                        {formatPrice(getItemUnit(item))}원
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+                      <CheckoutLineQuantityControl
+                        quantity={item.quantity}
+                        maxQty={maxCartLineOrderQty(item.product, item.quantity)}
+                        disabled={submitting || updatingQtyId === item.id}
+                        onChange={(next) => void updateItemQuantity(item.id, next)}
+                      />
+                      <p
+                        className="ml-auto shrink-0 text-base font-bold tabular-nums sm:text-lg"
+                        style={{ color: TEXT }}
+                      >
+                        {formatPrice(getItemPrice(item))}원
+                      </p>
+                    </div>
                   </div>
                 </li>
               ))}
