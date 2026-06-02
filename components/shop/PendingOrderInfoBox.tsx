@@ -13,7 +13,7 @@ type PendingOrderInfoBoxProps = {
 };
 
 /**
- * 진행 중인 주문 — 상품 썸네일 + 상품명 + 주문번호 + 결제금액
+ * 진행 중인 주문 — 상품 썸네일 + 상품명 + 결제금액
  * (PendingOffer 모달 · CheckoutOrderGuidePending 공통)
  */
 export function PendingOrderInfoBox({ order, className = "" }: PendingOrderInfoBoxProps) {
@@ -49,10 +49,6 @@ export function PendingOrderInfoBox({ order, className = "" }: PendingOrderInfoB
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 font-semibold leading-snug text-gray-900 break-keep [word-break:keep-all]">
             {displayTitle}
-          </p>
-          <p className="mt-1.5 text-sm text-gray-600">
-            주문번호{" "}
-            <span className="font-semibold text-gray-800">{order.orderNo}</span>
           </p>
           <p className="mt-0.5 text-sm text-gray-600">
             결제 금액{" "}

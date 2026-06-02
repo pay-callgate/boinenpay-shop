@@ -187,7 +187,6 @@ export function CheckoutOrderGuideEmpty({
 
 type PendingOfferProps = {
   order: CheckoutResumeOrder;
-  cartMismatch?: boolean;
   onLoadOrder: () => void;
   onDismiss: () => void;
 };
@@ -195,7 +194,6 @@ type PendingOfferProps = {
 /** 선택형 pending 패널 — overlay (강제 리다이렉트 없음) */
 export function CheckoutOrderGuidePendingOffer({
   order,
-  cartMismatch = false,
   onLoadOrder,
   onDismiss,
 }: PendingOfferProps) {
@@ -223,18 +221,9 @@ export function CheckoutOrderGuidePendingOffer({
             진행 중인 주문이 있어요
           </h2>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
-            주문 정보를 불러오시겠습니까?
+            이전에 작성 중이던 주문 정보를 불러오시겠습니까?
           </p>
         </div>
-
-        {cartMismatch ? (
-          <p
-            className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-left text-xs leading-relaxed text-amber-950"
-            role="note"
-          >
-            주문 내용이 장바구니 상품과 다릅니다. 이어서 하시겠습니까?
-          </p>
-        ) : null}
 
         <PendingOrderInfoBox order={order} className="mt-4" />
 

@@ -720,7 +720,6 @@ export default function GuestOrderPage() {
         {showPendingOffer && pendingOfferOrder ? (
           <CheckoutOrderGuidePendingOffer
             order={pendingOfferOrder}
-            cartMismatch={pendingCartMismatch}
             onLoadOrder={() => void handleLoadPendingOrder()}
             onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
           />
@@ -1200,7 +1199,6 @@ export default function GuestOrderPage() {
       {showPendingOffer && pendingOfferOrder ? (
         <CheckoutOrderGuidePendingOffer
           order={pendingOfferOrder}
-          cartMismatch={pendingCartMismatch}
           onLoadOrder={() => void handleLoadPendingOrder()}
           onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
         />
