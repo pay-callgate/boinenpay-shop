@@ -450,6 +450,7 @@ export default function ProductDetailPage() {
           optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
           quantity,
           forceGuestCart: true,
+          buyNow: true,
         }),
       });
       if (res.ok) {
@@ -490,6 +491,7 @@ export default function ProductDetailPage() {
           productId: product.id,
           optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
           quantity,
+          buyNow: true,
         }),
       });
       if (res.ok) {

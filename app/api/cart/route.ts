@@ -10,6 +10,7 @@ import { CART_SESSION_COOKIE, CART_SESSION_MAX_AGE } from "@/lib/cart-session-co
  * T4-4: 장바구니 API
  * GET /api/cart?clientId=xxx  (&guestCart=1 이면 로그인 중에도 게스트 장바구니)
  * POST /api/cart  (body.forceGuestCart === true 이면 소속 검사 생략·게스트 카트)
+ * POST /api/cart  (body.buyNow === true 이면 바로구매: 게스트=cart 전량 clear 후 1건, 회원=해당 SKU quantity set)
  * - 로그인: user_id 기반
  * - 비회원: 쿠키 calllink_cart_sid + carts.session_id
  */
@@ -251,13 +252,15 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const body = await request.json();
-    const { clientId, productId, optionJson, quantity, forceGuestCart } = body;
+    const { clientId, productId, optionJson, quantity, forceGuestCart, buyNow } = body;
+    const qty = Math.max(1, Number(quantity) || 1);
 
     if (!clientId || !productId || !quantity) {
       return NextResponse.json({ error: "필수 항목이 누락되었습니다." }, { status: 400 });
     }
 
     const useGuestCart = forceGuestCart === true;
+    const isBuyNow = buyNow === true;
     const supabase = createServerSupabase();
 
     if (session?.user?.id && !useGuestCart) {
@@ -354,6 +357,39 @@ export async function POST(request: NextRequest) {
       cart = c;
     }
 
+    /** 바로구매(비회원): 과거 찌꺼기 제거 후 이번 상품 1건만 담기 */
+    if (isBuyNow && useGuestCart) {
+      const { error: clearErr } = await supabase
+        .from("cart_items")
+        .delete()
+        .eq("cart_id", cart!.id);
+      if (clearErr) {
+        return NextResponse.json({ error: "장바구니 초기화 실패" }, { status: 500 });
+      }
+
+      const { data: newItem, error: insertError } = await supabase
+        .from("cart_items")
+        .insert({
+          cart_id: cart!.id,
+          product_id: productId,
+          option_json: optionJson || null,
+          quantity: qty,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        return NextResponse.json({ error: "장바구니 추가 실패" }, { status: 500 });
+      }
+
+      const res = NextResponse.json({
+        cartItem: newItem,
+        message: "주문서로 이동합니다.",
+      });
+      if (sessionIdOut) appendCartCookie(res, sessionIdOut);
+      return res;
+    }
+
     const { data: existingItems } = await supabase
       .from("cart_items")
       .select("*")
@@ -365,10 +401,28 @@ export async function POST(request: NextRequest) {
       return JSON.stringify(item.option_json) === JSON.stringify(optionJson);
     });
 
+    /** 바로구매(회원): merge 금지 — 선택 수량으로 set */
+    if (isBuyNow && existingItem) {
+      const { data: updated, error: updateError } = await supabase
+        .from("cart_items")
+        .update({ quantity: qty })
+        .eq("id", existingItem.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        return NextResponse.json({ error: "장바구니 업데이트 실패" }, { status: 500 });
+      }
+
+      const res = NextResponse.json({ cartItem: updated, message: "주문서로 이동합니다." });
+      if (sessionIdOut) appendCartCookie(res, sessionIdOut);
+      return res;
+    }
+
     if (existingItem) {
       const { data: updated, error: updateError } = await supabase
         .from("cart_items")
-        .update({ quantity: existingItem.quantity + quantity })
+        .update({ quantity: existingItem.quantity + qty })
         .eq("id", existingItem.id)
         .select()
         .single();
@@ -388,7 +442,7 @@ export async function POST(request: NextRequest) {
         cart_id: cart!.id,
         product_id: productId,
         option_json: optionJson || null,
-        quantity,
+        quantity: qty,
       })
       .select()
       .single();
@@ -397,7 +451,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "장바구니 추가 실패" }, { status: 500 });
     }
 
-    const res = NextResponse.json({ cartItem: newItem, message: "장바구니에 추가되었습니다." });
+    const res = NextResponse.json({
+      cartItem: newItem,
+      message: isBuyNow ? "주문서로 이동합니다." : "장바구니에 추가되었습니다.",
+    });
     if (sessionIdOut) appendCartCookie(res, sessionIdOut);
     return res;
   } catch (err) {

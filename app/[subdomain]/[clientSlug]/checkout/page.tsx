@@ -25,7 +25,9 @@ import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checko
 import { toast } from "@/components/shop/ToastContext";
 import { AddressSelectModal, type Address } from "@/components/shop/AddressSelectModal";
 import { RibbonMessageSection } from "@/components/shop/RibbonMessageSection";
+import { CheckoutLineQuantityControl } from "@/components/shop/CheckoutLineQuantityControl";
 import { CheckoutPaymentMethodSegment } from "@/components/shop/CheckoutPaymentMethodSegment";
+import { maxCartLineOrderQty } from "@/lib/cart-line-quantity";
 import { openDaumPostcode } from "@/lib/daum-postcode";
 import {
   TIME_SLOTS,
@@ -204,6 +206,7 @@ export default function CheckoutPage() {
   const [guardReprobeKey, setGuardReprobeKey] = useState(0);
   const [dismissedPendingOfferId, setDismissedPendingOfferId] = useState<string | null>(null);
   const [dismissedPaidNotice, setDismissedPaidNotice] = useState(false);
+  const [updatingQtyId, setUpdatingQtyId] = useState<string | null>(null);
 
   const checkoutGuard = useViewpayCheckoutGuard({
     clientId,
@@ -362,6 +365,44 @@ export default function CheckoutPage() {
       ? finalTotal
       : pendingPrepareSnapshot?.totalAmount ?? finalTotal;
   // + deliveryFee (배송비 계산 비활성화)
+
+  const updateItemQuantity = async (itemId: string, newQuantity: number) => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item || newQuantity < 1) return;
+    const capped = Math.min(newQuantity, maxCartLineOrderQty(item.product, item.quantity));
+    if (capped < newQuantity) {
+      toast("주문 가능한 최대 수량입니다.", "default");
+    }
+    if (capped === item.quantity) return;
+
+    setUpdatingQtyId(itemId);
+    try {
+      const res = await shopFetch(`/api/cart/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: capped }),
+      });
+      if (!res.ok) {
+        toast("수량 변경에 실패했습니다.", "error");
+        return;
+      }
+      if (pendingOrderId || pendingPrepareSnapshot) {
+        setPendingOrderId(null);
+        setPendingPrepareSnapshot(null);
+        toast("수량이 변경되어 주문 정보가 초기화되었습니다.", "info");
+      }
+      setItems((prev) =>
+        prev.map((row) => (row.id === itemId ? { ...row, quantity: capped } : row))
+      );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("cart-updated"));
+      }
+    } catch {
+      toast("네트워크 오류가 발생했습니다.", "error");
+    } finally {
+      setUpdatingQtyId(null);
+    }
+  };
 
   const handleSelectAddress = (a: Address) => {
     setSelectedAddressId(a.id);
@@ -803,9 +844,15 @@ export default function CheckoutPage() {
                   </p>
                 )}
                 <p className="mt-1 text-xs sm:text-sm" style={{ color: TEXT_MUTED }}>
-                  {formatPrice(getItemUnit(item))}원 × {item.quantity}개
+                  {formatPrice(getItemUnit(item))}원
                 </p>
-                <p className="mt-0.5 text-sm font-bold" style={{ color: TEXT }}>
+                <CheckoutLineQuantityControl
+                  quantity={item.quantity}
+                  maxQty={maxCartLineOrderQty(item.product, item.quantity)}
+                  disabled={submitting || updatingQtyId === item.id}
+                  onChange={(next) => void updateItemQuantity(item.id, next)}
+                />
+                <p className="mt-1 text-sm font-bold" style={{ color: TEXT }}>
                   {formatPrice(getItemPrice(item))}원
                 </p>
               </div>

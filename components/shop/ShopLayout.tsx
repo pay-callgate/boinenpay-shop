@@ -131,14 +131,20 @@ function SmartHeader({
       setCartCount(0);
       return;
     }
+    // 비회원: 뱃지 미노출 — API 호출 생략
+    if (sessionStatus === "unauthenticated") {
+      setCartCount(0);
+      return;
+    }
+    // 세션 확인 전: 0→N 깜빡임 방지 — fetch skip
+    if (sessionStatus === "loading") {
+      return;
+    }
     const reqId = ++cartCountFetchGenRef.current;
     const useGuestCart =
       pathname.includes("/guest-order") ||
       (pathname.includes("/checkout") && searchParams.get("guest") === "1");
-    const itemsParam = searchParams.get("items")?.trim();
-    const onlyIdsPart =
-      itemsParam && itemsParam.length > 0 ? `&onlyIds=${encodeURIComponent(itemsParam)}` : "";
-    const url = `/api/cart?clientId=${encodeURIComponent(client.id)}&countOnly=1${useGuestCart ? "&guestCart=1" : ""}${onlyIdsPart}`;
+    const url = `/api/cart?clientId=${encodeURIComponent(client.id)}&countOnly=1${useGuestCart ? "&guestCart=1" : ""}`;
     fetch(url, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : { count: 0 }))
       .then((data) => {
@@ -150,9 +156,9 @@ function SmartHeader({
         if (reqId !== cartCountFetchGenRef.current) return;
         setCartCount(0);
       });
-  }, [client?.id, pathname, searchParams]);
+  }, [client?.id, pathname, searchParams, sessionStatus]);
 
-  // 로그인/로그아웃 전환 시 회원 장바구니 ↔ 게스트 장바구니 기준이 바뀌므로 즉시 재조회
+  // 로그인/로그아웃 전환 시 회원 장바구니 기준 재조회 (비회원·loading 은 skip)
   useEffect(() => {
     refreshCartCount();
   }, [refreshCartCount, sessionStatus]);
@@ -248,7 +254,7 @@ function SmartHeader({
             aria-label="장바구니"
           >
             <ShoppingBag strokeWidth={1.5} className="h-5 w-5" />
-            {cartCount > 0 && (
+            {sessionStatus === "authenticated" && cartCount > 0 && (
               <span
                 className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
                 style={{ backgroundColor: PRIMARY }}
