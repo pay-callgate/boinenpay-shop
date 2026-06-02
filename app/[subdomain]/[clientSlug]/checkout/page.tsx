@@ -18,9 +18,7 @@ import {
   CheckoutOrderGuidePendingOffer,
 } from "@/components/shop/CheckoutOrderGuidePanel";
 import { runViewpayPreparePayment } from "@/lib/run-viewpay-prepare";
-import { useViewpayUserCancelToast } from "@/lib/use-viewpay-user-cancel-toast";
 import { extractPendingOrderFormSnapshot } from "@/lib/apply-pending-order-form";
-import { hasCheckoutCartMismatch } from "@/lib/checkout-cart-id-match";
 import { isShopPaymentTunnelPath } from "@/lib/shop-payment-tunnel";
 import { checkoutFieldFocusScroll, checkoutInputEnterGoNext } from "@/lib/checkout-form-ux";
 import { toast } from "@/components/shop/ToastContext";
@@ -223,21 +221,21 @@ export default function CheckoutPage() {
   const showPendingOffer =
     Boolean(pendingOfferOrder) &&
     pendingOfferOrder!.id !== dismissedPendingOfferId;
-  const pendingCartMismatch = pendingOfferOrder
-    ? hasCheckoutCartMismatch(
-        items.map((i) => i.id),
-        pendingOfferOrder.checkoutCartItemIds
-      )
-    : false;
+  const isUserCancel = searchParams?.get("error") === "user_cancel";
 
   const addressSectionRef = useRef<HTMLDivElement>(null);
   const addressesLoadedRef = useRef(false);
 
-  useViewpayUserCancelToast(() => {
-    console.debug("[Order:Checkout] ViewPay 결제 취소 후 주문서 복귀");
-    setGuardReprobeKey((k) => k + 1);
-    setDismissedPendingOfferId(null);
-  });
+  useEffect(() => {
+    if (!showPendingOffer || !isUserCancel || typeof window === "undefined") {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams?.toString() ?? "");
+    nextParams.delete("error");
+    const nextQuery = nextParams.toString();
+    const nextUrl = nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname;
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }, [isUserCancel, searchParams, showPendingOffer]);
 
   // 세션 또는 비회원(guest=1) 장바구니
   useEffect(() => {
@@ -771,6 +769,7 @@ export default function CheckoutPage() {
         {showPendingOffer && pendingOfferOrder ? (
           <CheckoutOrderGuidePendingOffer
             order={pendingOfferOrder}
+            isUserCancel={isUserCancel}
             onLoadOrder={() => void handleLoadPendingOrder()}
             onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
           />
@@ -1337,6 +1336,7 @@ export default function CheckoutPage() {
       {showPendingOffer && pendingOfferOrder ? (
         <CheckoutOrderGuidePendingOffer
           order={pendingOfferOrder}
+          isUserCancel={isUserCancel}
           onLoadOrder={() => void handleLoadPendingOrder()}
           onDismiss={() => setDismissedPendingOfferId(pendingOfferOrder.id)}
         />

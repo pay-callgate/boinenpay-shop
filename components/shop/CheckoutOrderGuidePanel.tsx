@@ -187,6 +187,7 @@ export function CheckoutOrderGuideEmpty({
 
 type PendingOfferProps = {
   order: CheckoutResumeOrder;
+  isUserCancel?: boolean;
   onLoadOrder: () => void;
   onDismiss: () => void;
 };
@@ -194,6 +195,7 @@ type PendingOfferProps = {
 /** 선택형 pending 패널 — overlay (강제 리다이렉트 없음) */
 export function CheckoutOrderGuidePendingOffer({
   order,
+  isUserCancel = false,
   onLoadOrder,
   onDismiss,
 }: PendingOfferProps) {
@@ -218,10 +220,12 @@ export function CheckoutOrderGuidePendingOffer({
             <CreditCard className="h-7 w-7" style={{ color: PRIMARY }} strokeWidth={2} />
           </div>
           <h2 id="pending-offer-title" className="text-lg font-bold" style={{ color: TEXT }}>
-            진행 중인 주문이 있어요
+            {isUserCancel ? "결제를 취소하셨습니다" : "진행 중인 주문이 있어요"}
           </h2>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
-            이전에 작성 중이던 주문 정보를 불러오시겠습니까?
+            {isUserCancel
+              ? "이전에 작성 중이던 주문 정보가 있습니다. 해당 주문을 이어서 진행하시겠습니까?"
+              : "주문 정보를 불러오시겠습니까?"}
           </p>
         </div>
 
