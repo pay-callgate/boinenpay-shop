@@ -7,5 +7,8 @@ node_modules
 /logs
 /dev-runtime
 
+# Next.js 자동 생성 파일
+next-env.d.ts
+
 # TypeScript 증분 빌드 캐시 (저장소에 포함하지 않음)
 *.tsbuildinfo
