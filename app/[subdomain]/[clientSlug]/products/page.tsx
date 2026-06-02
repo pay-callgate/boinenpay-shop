@@ -13,6 +13,7 @@ import { useUserClient } from "@/hooks/useUserClient";
 import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
+import { useAddToCartWithDuplicateCheck } from "@/lib/use-add-to-cart-with-duplicate-check";
 import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
 import { isShopProductEffectivelySoldOut } from "@/lib/shop-product-visibility";
 
@@ -75,7 +76,6 @@ export default function ProductListPage() {
   const [offset, setOffset] = useState(0);
   const limit = 20;
   const [wishlistProductIds, setWishlistProductIds] = useState<Set<string>>(new Set());
-  const [addingCartId, setAddingCartId] = useState<string | null>(null);
   const [addingWishlistId, setAddingWishlistId] = useState<string | null>(null);
 
   const clientId = template?.client?.id ?? null;
@@ -109,6 +109,24 @@ export default function ProductListPage() {
     }
     return true;
   }, [clientId, sessionStatus, userClientLoading, userClients]);
+
+  const { requestAddToCart, addingProductId, CartDuplicateModal } =
+    useAddToCartWithDuplicateCheck({
+      subdomain,
+      clientSlug,
+      guard: () => {
+        if (!template?.orderAllowed) {
+          toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+          return false;
+        }
+        if (!clientId) {
+          toast("거래처 정보를 불러올 수 없습니다.");
+          return false;
+        }
+        if (sessionStatus === "unauthenticated") return true;
+        return tryMallPurchaseAction();
+      },
+    });
 
   // 관심상품 목록 조회 (아이콘 채움 표시용) — 비로그인 401 시 shopFetch 전역 세션 만료 처리 방지
   useEffect(() => {
@@ -154,35 +172,12 @@ export default function ProductListPage() {
   );
 
   const handleAddToCart = useCallback(
-    async (e: React.MouseEvent, productId: string) => {
+    (e: React.MouseEvent, productId: string) => {
       e.stopPropagation();
-      if (!template?.orderAllowed) {
-        toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
-        return;
-      }
-      if (!tryMallPurchaseAction()) return;
       if (!clientId) return;
-      setAddingCartId(productId);
-      try {
-        const res = await shopFetch("/api/cart", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientId, productId, quantity: 1 }),
-        });
-        if (res.ok) {
-          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
-          toast("장바구니에 추가되었습니다.", "success");
-        } else {
-          const err = await res.json();
-          toast(err?.error || "장바구니 담기에 실패했습니다.", "error");
-        }
-      } catch {
-        toast("네트워크 오류가 발생했습니다.", "error");
-      } finally {
-        setAddingCartId(null);
-      }
+      void requestAddToCart({ clientId, productId, quantity: 1 });
     },
-    [template?.orderAllowed, tryMallPurchaseAction, clientId]
+    [clientId, requestAddToCart]
   );
 
   // 카테고리 목록만 조회 — PLP 필터는 URL(`?category=`)을 단일 소스로 사용
@@ -576,7 +571,7 @@ export default function ProductListPage() {
                         <button
                           type="button"
                           onClick={(e) => handleAddToCart(e, product.id)}
-                          disabled={isSoldOut || !!addingCartId}
+                          disabled={isSoldOut || addingProductId === product.id}
                           aria-label="장바구니 담기"
                           style={{
                             display: "flex",
@@ -588,7 +583,7 @@ export default function ProductListPage() {
                             backgroundColor: "rgba(255,255,255,0.95)",
                             border: "none",
                             boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
-                            cursor: isSoldOut || addingCartId ? "not-allowed" : "pointer",
+                            cursor: isSoldOut || addingProductId === product.id ? "not-allowed" : "pointer",
                           }}
                         >
                           <ShoppingBag
@@ -667,6 +662,8 @@ export default function ProductListPage() {
           </div>
         )}
       </div>
+
+      <CartDuplicateModal />
 
       <ShopPurchaseBlockModal
         isOpen={purchaseBlockOpen}

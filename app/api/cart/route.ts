@@ -4,7 +4,15 @@ import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { userBelongsToClient } from "@/lib/mypage-client-access";
 import { randomUUID } from "crypto";
-import { CART_SESSION_COOKIE, CART_SESSION_MAX_AGE } from "@/lib/cart-session-cookie";
+import {
+  CART_SESSION_COOKIE,
+  GUEST_CART_SESSION_MAX_AGE,
+} from "@/lib/cart-session-cookie";
+import { findMatchingCartItem } from "@/lib/cart-item-option-match";
+import {
+  purgeStaleGuestCartItems,
+  touchGuestCartActivity,
+} from "@/lib/guest-cart-stale";
 
 /**
  * T4-4: 장바구니 API
@@ -15,14 +23,21 @@ import { CART_SESSION_COOKIE, CART_SESSION_MAX_AGE } from "@/lib/cart-session-co
  * - 비회원: 쿠키 calllink_cart_sid + carts.session_id
  */
 
-function appendCartCookie(res: NextResponse, sessionId: string) {
+function appendGuestCartCookie(res: NextResponse, sessionId: string) {
   res.cookies.set(CART_SESSION_COOKIE, sessionId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: CART_SESSION_MAX_AGE,
+    maxAge: GUEST_CART_SESSION_MAX_AGE,
   });
+}
+
+async function ensureGuestCartFresh(
+  supabase: ReturnType<typeof createServerSupabase>,
+  cart: { id: string; updated_at: string }
+) {
+  await purgeStaleGuestCartItems(supabase, cart.id, cart.updated_at);
 }
 
 /** 장바구니 상품 + 카테고리(리본 경조사어 기본값용) */
@@ -168,13 +183,14 @@ export async function GET(request: NextRequest) {
     if (countOnly) {
       const { data: cart } = await supabase
         .from("carts")
-        .select("id")
+        .select("id, updated_at")
         .eq("session_id", sessionId)
         .eq("client_id", clientId)
         .maybeSingle();
 
       let cnt = 0;
       if (cart) {
+        await ensureGuestCartFresh(supabase, cart);
         let countQuery = supabase
           .from("cart_items")
           .select("*", { count: "exact", head: true })
@@ -186,13 +202,13 @@ export async function GET(request: NextRequest) {
         if (!countError) cnt = count ?? 0;
       }
       const r = NextResponse.json({ count: cnt });
-      appendCartCookie(r, sessionId);
+      appendGuestCartCookie(r, sessionId);
       return r;
     }
 
     let { data: cart, error: cartError } = await supabase
       .from("carts")
-      .select("id")
+      .select("id, updated_at")
       .eq("session_id", sessionId)
       .eq("client_id", clientId)
       .maybeSingle();
@@ -209,7 +225,7 @@ export async function GET(request: NextRequest) {
           client_id: clientId,
           user_id: null,
         })
-        .select("id")
+        .select("id, updated_at")
         .single();
 
       if (createError) {
@@ -217,6 +233,8 @@ export async function GET(request: NextRequest) {
       }
 
       cart = newCart;
+    } else {
+      await ensureGuestCartFresh(supabase, cart);
     }
 
     const { data: items, error: itemsError } = await supabase
@@ -240,7 +258,7 @@ export async function GET(request: NextRequest) {
       cart: { id: cart!.id },
       items: items || [],
     });
-    appendCartCookie(json, sessionId);
+    appendGuestCartCookie(json, sessionId);
     return json;
   } catch (err) {
     console.error("Cart API error:", err);
@@ -332,7 +350,7 @@ export async function POST(request: NextRequest) {
 
       let { data: c } = await supabase
         .from("carts")
-        .select("*")
+        .select("id, updated_at")
         .eq("session_id", sessionId)
         .eq("client_id", clientId)
         .maybeSingle();
@@ -345,7 +363,7 @@ export async function POST(request: NextRequest) {
             client_id: clientId,
             user_id: null,
           })
-          .select()
+          .select("id, updated_at")
           .single();
 
         if (createError) {
@@ -353,6 +371,8 @@ export async function POST(request: NextRequest) {
         }
 
         c = newCart;
+      } else {
+        await ensureGuestCartFresh(supabase, c);
       }
       cart = c;
     }
@@ -382,11 +402,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "장바구니 추가 실패" }, { status: 500 });
       }
 
+      await touchGuestCartActivity(supabase, cart!.id);
+
       const res = NextResponse.json({
         cartItem: newItem,
         message: "주문서로 이동합니다.",
       });
-      if (sessionIdOut) appendCartCookie(res, sessionIdOut);
+      if (sessionIdOut) appendGuestCartCookie(res, sessionIdOut);
       return res;
     }
 
@@ -396,10 +418,7 @@ export async function POST(request: NextRequest) {
       .eq("cart_id", cart!.id)
       .eq("product_id", productId);
 
-    const existingItem = (existingItems || []).find((item: { option_json: object | null }) => {
-      if (!optionJson && !item.option_json) return true;
-      return JSON.stringify(item.option_json) === JSON.stringify(optionJson);
-    });
+    const existingItem = findMatchingCartItem(existingItems, optionJson ?? null);
 
     /** 바로구매(회원): merge 금지 — 선택 수량으로 set */
     if (isBuyNow && existingItem) {
@@ -414,8 +433,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "장바구니 업데이트 실패" }, { status: 500 });
       }
 
+      if (sessionIdOut) await touchGuestCartActivity(supabase, cart!.id);
+
       const res = NextResponse.json({ cartItem: updated, message: "주문서로 이동합니다." });
-      if (sessionIdOut) appendCartCookie(res, sessionIdOut);
+      if (sessionIdOut) appendGuestCartCookie(res, sessionIdOut);
       return res;
     }
 
@@ -431,8 +452,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "장바구니 업데이트 실패" }, { status: 500 });
       }
 
+      if (sessionIdOut) await touchGuestCartActivity(supabase, cart!.id);
+
       const res = NextResponse.json({ cartItem: updated, message: "장바구니에 추가되었습니다." });
-      if (sessionIdOut) appendCartCookie(res, sessionIdOut);
+      if (sessionIdOut) appendGuestCartCookie(res, sessionIdOut);
       return res;
     }
 
@@ -451,11 +474,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "장바구니 추가 실패" }, { status: 500 });
     }
 
+    if (sessionIdOut) await touchGuestCartActivity(supabase, cart!.id);
+
     const res = NextResponse.json({
       cartItem: newItem,
       message: isBuyNow ? "주문서로 이동합니다." : "장바구니에 추가되었습니다.",
     });
-    if (sessionIdOut) appendCartCookie(res, sessionIdOut);
+    if (sessionIdOut) appendGuestCartCookie(res, sessionIdOut);
     return res;
   } catch (err) {
     console.error("Cart POST API error:", err);

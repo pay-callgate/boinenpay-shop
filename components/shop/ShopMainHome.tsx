@@ -18,6 +18,7 @@ import {
 } from "./ShopPurchaseBlockModal";
 import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
 import { isShopProductEffectivelySoldOut } from "@/lib/shop-product-visibility";
+import { useAddToCartWithDuplicateCheck } from "@/lib/use-add-to-cart-with-duplicate-check";
 
 const PRIMARY = "#D6A8E0";
 
@@ -222,9 +223,26 @@ function ShopMainHomeWithCategoryUrl({
     return true;
   }, [clientId, sessionStatus, userClientLoading, userClients]);
 
+  const { requestAddToCart, addingProductId, CartDuplicateModal } =
+    useAddToCartWithDuplicateCheck({
+      subdomain,
+      clientSlug: slugForPath,
+      guard: () => {
+        if (!shop?.orderAllowed) {
+          toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+          return false;
+        }
+        if (!clientId) {
+          toast("거래처 정보를 불러올 수 없습니다.");
+          return false;
+        }
+        if (sessionStatus === "unauthenticated") return true;
+        return tryMallPurchaseAction();
+      },
+    });
+
   const [wishlistProductIds, setWishlistProductIds] = useState<Set<string>>(new Set());
   const [wishlistItemIdsByProductId, setWishlistItemIdsByProductId] = useState<Record<string, string>>({});
-  const [addingCartId, setAddingCartId] = useState<string | null>(null);
   const [addingWishlistId, setAddingWishlistId] = useState<string | null>(null);
 
   // 리프 노드만 노출: 부모 카테고리는 숨기고, 하위 카테고리 + 자식 없는 1차만 표시
@@ -404,32 +422,10 @@ function ShopMainHomeWithCategoryUrl({
     (e: React.MouseEvent, productId: string) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!shop?.orderAllowed) {
-        toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
-        return;
-      }
-      if (!tryMallPurchaseAction()) return;
       if (!clientId) return;
-      setAddingCartId(productId);
-      shopFetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, productId, quantity: 1 }),
-      })
-        .then((res) => {
-          if (res.ok) {
-            if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
-            toast("장바구니에 추가되었습니다.", "success");
-          } else {
-            return res.json().then((err: { error?: string }) => {
-              toast(err?.error || "장바구니 담기에 실패했습니다.", "error");
-            });
-          }
-        })
-        .catch(() => toast("네트워크 오류가 발생했습니다.", "error"))
-        .finally(() => setAddingCartId(null));
+      void requestAddToCart({ clientId, productId, quantity: 1 });
     },
-    [shop?.orderAllowed, tryMallPurchaseAction, clientId]
+    [clientId, requestAddToCart]
   );
 
   if (!shop) return null;
@@ -649,7 +645,7 @@ function ShopMainHomeWithCategoryUrl({
                           <button
                             type="button"
                             onClick={(e) => handleAddToCart(e, product.id)}
-                            disabled={isSoldOut || !!addingCartId}
+                            disabled={isSoldOut || addingProductId === product.id}
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                             aria-label="장바구니 담기"
                           >
@@ -694,6 +690,8 @@ function ShopMainHomeWithCategoryUrl({
       )}
 
       <ShopBusinessInfoAccordion />
+
+      <CartDuplicateModal />
 
       <ShopPurchaseBlockModal
         isOpen={purchaseBlockOpen}

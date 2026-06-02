@@ -9,6 +9,7 @@ import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import type { ShopPartner, ShopClient } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
+import { useAddToCartWithDuplicateCheck } from "@/lib/use-add-to-cart-with-duplicate-check";
 
 /**
  * T6-5: 관심상품(Wishlist)
@@ -62,6 +63,30 @@ export default function WishlistPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const base = `/${subdomain}/${clientSlug}`;
+
+  const resolveCartClientId = useCallback(() => {
+    const cookieId = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("client_source_id="))
+      ?.split("=")[1];
+    return client?.id ?? cookieId ?? null;
+  }, [client?.id]);
+
+  const { requestAddToCart, CartDuplicateModal } = useAddToCartWithDuplicateCheck({
+    subdomain,
+    clientSlug,
+    guard: () => {
+      if (!template?.orderAllowed) {
+        toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
+        return false;
+      }
+      if (!resolveCartClientId()) {
+        toast("거래처 정보를 찾을 수 없습니다.");
+        return false;
+      }
+      return true;
+    },
+  });
 
   const refetchWishlist = useCallback(() => {
     if (!client?.id) return;
@@ -138,35 +163,10 @@ export default function WishlistPage() {
     }
   };
 
-  const handleAddToCart = async (productId: string) => {
-    if (!template?.orderAllowed) {
-      toast("마스터 템플릿 미리보기 상태에서는 주문 및 장바구니 담기가 불가능합니다.");
-      return;
-    }
-    const clientIdCookie = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("client_source_id="))
-      ?.split("=")[1];
-    if (!clientIdCookie) {
-      toast("거래처 정보를 찾을 수 없습니다.");
-      return;
-    }
-    try {
-      const res = await shopFetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: clientIdCookie, productId, quantity: 1 }),
-      });
-      if (res.ok) {
-        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
-        toast("장바구니에 추가되었습니다.", "success");
-      } else {
-        const err = await res.json();
-        toast(err.error || "장바구니 추가에 실패했습니다.", "error");
-      }
-    } catch {
-      toast("네트워크 오류가 발생했습니다.", "error");
-    }
+  const handleAddToCart = (productId: string) => {
+    const cartClientId = resolveCartClientId();
+    if (!cartClientId) return;
+    void requestAddToCart({ clientId: cartClientId, productId, quantity: 1 });
   };
 
   const handleOrderNow = async (productId: string) => {
@@ -441,6 +441,7 @@ export default function WishlistPage() {
       shopClientId={client?.id}
       shopClientName={client?.name ?? undefined}
     >
+      <CartDuplicateModal />
       {content}
     </OrderGuard>
   );

@@ -15,6 +15,7 @@ import { useShopTemplate } from "@/components/shop/ShopTemplateContext";
 import { BOTTOM_NAV_HEIGHT } from "@/components/shop/ShopLayout";
 import { shopFetch } from "@/lib/shop-fetch";
 import { toast } from "@/components/shop/ToastContext";
+import { useAddToCartWithDuplicateCheck } from "@/lib/use-add-to-cart-with-duplicate-check";
 import { addRecentProduct } from "@/lib/recent-products";
 import { getShopRelativeReturnPath } from "@/lib/shop-callback-url";
 import { isShopProductEffectivelySoldOut } from "@/lib/shop-product-visibility";
@@ -400,35 +401,28 @@ export default function ProductDetailPage() {
     return true;
   };
 
-  const addToCart = async () => {
-    if (!product) return;
-    if (!canGuestShop()) return;
-    if (sessionStatus === "authenticated" && !tryPurchaseOrWishlistAction()) return;
-    setAddingToCart(true);
-    try {
-      const res = await shopFetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId,
-          productId: product.id,
-          optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
-          quantity,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart-updated"));
-        toast(data.message || "장바구니에 추가되었습니다.", "success");
-      } else {
-        const err = await res.json();
-        toast(err.error || "장바구니 추가에 실패했습니다.", "error");
-      }
-    } catch {
-      toast("네트워크 오류가 발생했습니다.", "error");
-    } finally {
-      setAddingToCart(false);
-    }
+  const {
+    requestAddToCart,
+    isAdding: cartDuplicateAdding,
+    CartDuplicateModal,
+  } = useAddToCartWithDuplicateCheck({
+    subdomain,
+    clientSlug,
+    guard: () => {
+      if (!canGuestShop()) return false;
+      if (sessionStatus === "authenticated" && !tryPurchaseOrWishlistAction()) return false;
+      return true;
+    },
+  });
+
+  const addToCart = () => {
+    if (!product || !clientId) return;
+    void requestAddToCart({
+      clientId,
+      productId: product.id,
+      quantity,
+      optionJson: Object.keys(selectedOptions).length > 0 ? selectedOptions : null,
+    });
   };
 
   const goToGuestCheckout = async () => {
@@ -833,7 +827,7 @@ export default function ProductDetailPage() {
             </button>
             <button
               type="button"
-              disabled={isSoldOut || addingToCart}
+              disabled={isSoldOut || addingToCart || cartDuplicateAdding}
               onClick={addToCart}
               className="flex items-center justify-center border-r border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:opacity-90 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
               aria-label="장바구니 담기"
@@ -891,6 +885,8 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      <CartDuplicateModal />
 
       {showWishlistModal && (
         <div
