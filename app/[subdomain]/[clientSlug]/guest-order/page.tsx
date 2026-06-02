@@ -373,7 +373,6 @@ export default function GuestOrderPage() {
       if (pendingOrderId || pendingPrepareSnapshot) {
         setPendingOrderId(null);
         setPendingPrepareSnapshot(null);
-        toast("수량이 변경되어 주문 정보가 초기화되었습니다.", "info");
       }
       setItems((prev) =>
         prev.map((row) => (row.id === itemId ? { ...row, quantity: capped } : row))
