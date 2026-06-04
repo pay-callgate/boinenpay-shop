@@ -14,7 +14,9 @@
     "upsert-neuron-products": "npx tsx scripts/upsert-neuron-products.ts",
     "upsert-neuron-products:apply": "npx tsx scripts/upsert-neuron-products.ts --apply",
     "generate-prod-sql-dump": "npx tsx scripts/generate-prod-sql-dump.ts",
-    "sync-uribugo-storage-assets": "npx tsx scripts/sync-uribugo-storage-assets.ts"
+    "generate-clients-sql-dump": "npx tsx scripts/generate-clients-sql-dump.ts",
+    "sync-uribugo-storage-assets": "npx tsx scripts/sync-uribugo-storage-assets.ts",
+    "sync-partner-client-assets": "npx tsx scripts/sync-partner-client-assets.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
