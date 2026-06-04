@@ -1,0 +1,97 @@
+-- =====================================================
+-- Migration: orders.shipping_address 화훼 메타 인라인 오염 클렌징 (1회성)
+-- Date: 2026-06-04
+-- Purpose: shipping_address 에 [배달 희망]/[주문자]/[리본 문구] 등이
+--          한 줄로 붙어 저장된 레거시 데이터를 물리 주소·shipping_detail 로 분리
+-- =====================================================
+--
+-- [적용 전 필수] 아래 PREVIEW 로 대상 건수·샘플 확인
+--
+-- PREVIEW:
+-- SELECT order_no,
+--        left(shipping_address, 80) AS addr_before,
+--        left(
+--          trim(regexp_replace(
+--            shipping_address,
+--            '\s*\[(?:배달 희망|주문자|보내는 분(?:\([^)]*\))?|리본 문구|카드 문구)\].*$',
+--            '',
+--            'n'
+--          )),
+--          80
+--        ) AS addr_after
+-- FROM orders
+-- WHERE shipping_address ~ '\[(?:배달 희망|주문자|보내는 분|리본 문구|카드 문구)\]'
+-- ORDER BY created_at DESC
+-- LIMIT 50;
+
+BEGIN;
+
+WITH polluted AS (
+  SELECT
+    id,
+    shipping_address AS addr_raw,
+    coalesce(shipping_detail, '') AS det_raw,
+    trim(
+      regexp_replace(
+        shipping_address,
+        '\s*\[(?:배달 희망|주문자|보내는 분(?:\([^)]*\))?|리본 문구|카드 문구)\].*$',
+        '',
+        'n'
+      )
+    ) AS addr_clean,
+    trim(
+      substring(
+        shipping_address
+        FROM '\s*(\[(?:배달 희망|주문자|보내는 분(?:\([^)]*\))?|리본 문구|카드 문구)\].*)$'
+      )
+    ) AS meta_extracted
+  FROM orders
+  WHERE shipping_address ~ '\[(?:배달 희망|주문자|보내는 분|리본 문구|카드 문구)\]'
+),
+normalized AS (
+  SELECT
+    id,
+    trim(
+      regexp_replace(
+        coalesce(nullif(addr_clean, ''), addr_raw),
+        '\s+[—–-]{2,}\s*$',
+        '',
+        'n'
+      )
+    ) AS new_address,
+    CASE
+      WHEN meta_extracted IS NULL OR meta_extracted = '' THEN NULL
+      ELSE trim(regexp_replace(meta_extracted, ' \[', E'\n[', 'g'))
+    END AS meta_block,
+    det_raw
+  FROM polluted
+  WHERE length(
+    trim(
+      regexp_replace(
+        coalesce(nullif(addr_clean, ''), addr_raw),
+        '\s+[—–-]{2,}\s*$',
+        '',
+        'n'
+      )
+    )
+  ) > 0
+)
+UPDATE orders o
+SET
+  shipping_address = n.new_address,
+  shipping_detail = CASE
+    WHEN trim(n.det_raw) = '' THEN n.meta_block
+    WHEN n.meta_block IS NOT NULL AND n.det_raw NOT LIKE '%[배달 희망]%' THEN
+      trim(n.det_raw) || E'\n\n' || n.meta_block
+    ELSE trim(n.det_raw)
+  END,
+  updated_at = now()
+FROM normalized n
+WHERE o.id = n.id;
+
+COMMIT;
+
+-- 검증:
+-- SELECT order_no, shipping_address, left(shipping_detail, 120)
+-- FROM orders
+-- WHERE order_no IN ('ORD202606015FF92', 'ORD202605297016F');

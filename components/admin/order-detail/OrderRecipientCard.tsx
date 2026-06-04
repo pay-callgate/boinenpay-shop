@@ -1,7 +1,7 @@
 "use client";
 
 import { Copy, MapPin } from "lucide-react";
-import { stripFloristShippingDetailMeta } from "@/lib/checkout-florist-fields";
+import { formatPhysicalShippingAddressWithPostcode } from "@/lib/checkout-florist-fields";
 import {
   buildKakaoMapSearchHref,
   buildKakaoMapSearchQuery,
@@ -32,11 +32,11 @@ export function OrderRecipientCard({
   address,
   addressDetail,
 }: Props) {
-  const cleanAddress = stripFloristShippingDetailMeta(address) || (address ?? "").trim();
-  const cleanDetail = stripFloristShippingDetailMeta(addressDetail) || (addressDetail ?? "").trim();
-  const fullAddress = [postcode ? `[${postcode}]` : "", cleanAddress, cleanDetail]
-    .filter(Boolean)
-    .join(" ");
+  const fullAddress = formatPhysicalShippingAddressWithPostcode(
+    postcode,
+    address,
+    addressDetail
+  );
 
   const mapSearchQuery = buildKakaoMapSearchQuery({
     postcode,

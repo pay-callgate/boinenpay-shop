@@ -14,7 +14,7 @@ import {
 } from "@/lib/product-pricing";
 import { floristFieldsFromOrderBody } from "@/lib/orders/florist-order-payload";
 import { getUnreadNotifyOrderIdsForPartnerUser } from "@/lib/order-partner-notify-events";
-import { SHIPPING_ADDRESS_UNSPECIFIED } from "@/lib/checkout-florist-fields";
+import { sanitizeShippingAddressForStorage } from "@/lib/checkout-florist-fields";
 
 /**
  * T4-5 & T5-1: 주문 API
@@ -200,10 +200,6 @@ function normalizeOrderPostcode(raw: unknown): string {
   return s.length > 10 ? s.slice(0, 10) : s;
 }
 
-function normalizeShippingAddress(raw: unknown): string {
-  const s = String(raw ?? "").trim();
-  return s || SHIPPING_ADDRESS_UNSPECIFIED;
-}
 
 /** 미결제 재주문 멱등: orders에 저장된 예약 cart_item id 집합과 요청 집합이 동일한지 */
 function checkoutCartItemIdsEqual(
@@ -539,7 +535,7 @@ export async function POST(request: NextRequest) {
         shipping_name: shippingName,
         shipping_phone: shippingPhone,
         shipping_postcode: normalizeOrderPostcode(shippingPostcode),
-        shipping_address: normalizeShippingAddress(shippingAddress),
+        shipping_address: sanitizeShippingAddressForStorage(shippingAddress),
         shipping_detail: shippingDetail || null,
         is_guest: isGuestFlow,
         guest_checkout_token: guestCheckoutToken,

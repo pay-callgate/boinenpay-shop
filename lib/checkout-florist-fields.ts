@@ -69,6 +69,20 @@ export const VENUE_DETAIL_DEFAULT_NOTICE =
 /** 배달지 주소 미입력 시 DB·API 기본값 */
 export const SHIPPING_ADDRESS_UNSPECIFIED = "배달지 주소 미입력";
 
+/** 화훼 내부 메타 태그 — 줄/인라인 공통 */
+const FLORIST_META_TAG_PATTERN =
+  "(?:배달 희망|주문자|보내는 분(?:\\([^)]*\\))?|리본 문구|카드 문구)";
+
+const FLORIST_META_INLINE_RE = new RegExp(
+  `\\s*\\[${FLORIST_META_TAG_PATTERN}\\]`,
+  "u"
+);
+
+const FLORIST_META_LINE_START_RE = new RegExp(
+  `^\\s*\\[${FLORIST_META_TAG_PATTERN}\\]`,
+  "u"
+);
+
 /** shipping_detail 텍스트 — 뉴런/내부 이력용 블록 */
 export function buildFloristShippingDetailText(parts: {
   venueDetail: string;
@@ -97,6 +111,43 @@ export function buildFloristShippingDetailText(parts: {
   return lines.join("\n");
 }
 
+function isFloristMetaLine(line: string): boolean {
+  return FLORIST_META_LINE_START_RE.test(line.trim());
+}
+
+/** 장소 상세 안내 문구(기본 placeholder) — 물리 주소·지도 검색에서 제외 */
+function isNonPhysicalVenueLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return true;
+  if (t.startsWith("예:")) return true;
+  if (/전달해\s*주세요|부고장|청첩장/u.test(t)) return true;
+  return false;
+}
+
+function trimPhysicalAddressTail(s: string): string {
+  return s
+    .replace(/\s+[—–]\s*$/u, "")
+    .replace(/\s*--\s*$/u, "")
+    .replace(/\s+[—–-]{2,}\s*$/u, "")
+    .trim();
+}
+
+/**
+ * 한 줄에 주소와 `[배달 희망]` 등이 공백으로 이어진 레거시/오염 데이터 제거
+ */
+export function stripFloristInlineMeta(text: string | null | undefined): string {
+  if (text == null || text.trim() === "") return "";
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const trimmedLines = lines.map((line) => {
+    const idx = line.search(FLORIST_META_INLINE_RE);
+    return idx >= 0 ? line.slice(0, idx).trim() : line.trim();
+  });
+  const kept = trimmedLines.filter(
+    (line) => line && !/^[\u2014\u2013–—\-\s]+$/u.test(line)
+  );
+  return trimPhysicalAddressTail(kept.join("\n"));
+}
+
 /**
  * shipping_detail에 붙은 `[배달 희망]` 등 내부 이력용 블록은 수령인 카드 등 UI에서는 숨김.
  * 본문은 `buildFloristShippingDetailText`와 동일한 줄 순서를 가정한다.
@@ -104,24 +155,11 @@ export function buildFloristShippingDetailText(parts: {
 export function stripFloristShippingDetailMeta(detail: string | null | undefined): string {
   if (detail == null || detail.trim() === "") return "";
   const lines = detail.replace(/\r\n/g, "\n").split("\n");
-  const metaIdx = lines.findIndex((line) => {
-    const t = line.trim();
-    return (
-      t.startsWith("[배달 희망]") ||
-      t.startsWith("[주문자]") ||
-      t.startsWith("[보내는 분") ||
-      t.startsWith("[리본 문구]") ||
-      t.startsWith("[카드 문구]")
-    );
-  });
+  const metaIdx = lines.findIndex((line) => isFloristMetaLine(line));
   const head = metaIdx >= 0 ? lines.slice(0, metaIdx) : lines;
   const cleanedLines = head
-    .map((line) => line.trim())
-    .filter((line) => {
-      if (line === "") return false;
-      if (/^[\u2014\u2013–—\-\s]+$/u.test(line)) return false;
-      return true;
-    });
+    .map((line) => stripFloristInlineMeta(line))
+    .filter((line) => line && !/^[\u2014\u2013–—\-\s]+$/u.test(line));
   return cleanedLines.join("\n").trim();
 }
 
@@ -129,23 +167,86 @@ export function stripFloristShippingDetailMeta(detail: string | null | undefined
  * `shipping_address`에 실수로 이어 붙은 화훼 메타(`[배달 희망]` 등) 제거
  */
 export function stripFloristMetaSuffixFromAddressLine(addr: string): string {
-  let s = addr.trim();
-  const markers = [
-    " — [",
-    " —[",
-    "— [",
-    "—[",
-    " [배달 희망]",
-    " [주문자]",
-    " [보내는 분",
-    " [리본 문구]",
-    " [카드 문구]",
-  ];
-  for (const m of markers) {
-    const i = s.indexOf(m);
-    if (i >= 0) s = s.slice(0, i).trim();
+  return trimPhysicalAddressTail(stripFloristInlineMeta(addr.trim()));
+}
+
+/**
+ * 물리 주소(도로명·장소 상세)만 — 메타 블록·인라인 태그·placeholder 제거
+ */
+export function formatPhysicalShippingAddressForDisplay(
+  shippingAddress: string | null | undefined,
+  shippingDetail: string | null | undefined
+): string {
+  const addr = stripFloristMetaSuffixFromAddressLine(
+    stripFloristShippingDetailMeta(String(shippingAddress ?? ""))
+  );
+  const detRaw = stripFloristMetaSuffixFromAddressLine(
+    stripFloristShippingDetailMeta(shippingDetail)
+  );
+  const detOneLine = detRaw
+    .replace(/\r?\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !isNonPhysicalVenueLine(line))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return [addr, detOneLine].filter(Boolean).join(" ").trim();
+}
+
+/**
+ * 어드민·목록용 — 우편번호 + 물리 주소
+ */
+export function formatPhysicalShippingAddressWithPostcode(
+  postcode: string | null | undefined,
+  shippingAddress: string | null | undefined,
+  shippingDetail: string | null | undefined
+): string {
+  const pc = postcode?.trim();
+  const body = formatPhysicalShippingAddressForDisplay(
+    shippingAddress,
+    shippingDetail
+  );
+  if (pc && body) return `[${pc}] ${body}`;
+  if (pc) return `[${pc}]`;
+  return body;
+}
+
+/**
+ * POST /api/orders 저장용 — shipping_address 에 메타가 섞이지 않도록 정제
+ */
+export function sanitizeShippingAddressForStorage(raw: unknown): string {
+  const cleaned = stripFloristMetaSuffixFromAddressLine(
+    stripFloristShippingDetailMeta(String(raw ?? "").trim())
+  );
+  return cleaned || SHIPPING_ADDRESS_UNSPECIFIED;
+}
+
+/**
+ * 오염된 shipping_address 에서 물리 주소와 인라인 메타 블록 분리 (DB 클렌징·마이그레이션 참고)
+ */
+export function splitPollutedFloristShippingAddress(raw: string): {
+  physicalAddress: string;
+  extractedMeta: string | null;
+} {
+  const text = raw.replace(/\r\n/g, "\n").trim();
+  if (!text) return { physicalAddress: "", extractedMeta: null };
+
+  const inlineIdx = text.search(FLORIST_META_INLINE_RE);
+  if (inlineIdx < 0) {
+    return {
+      physicalAddress: stripFloristMetaSuffixFromAddressLine(text),
+      extractedMeta: null,
+    };
   }
-  return s.replace(/\s+[—–]$/u, "").trim();
+
+  const physicalAddress = trimPhysicalAddressTail(text.slice(0, inlineIdx).trim());
+  let meta = text.slice(inlineIdx).trim();
+  meta = meta.replace(/\s+\[/g, "\n[");
+  return {
+    physicalAddress,
+    extractedMeta: meta || null,
+  };
 }
 
 /**
@@ -155,10 +256,7 @@ export function formatFloristShippingAddressForCustomerUI(
   shippingAddress: string | null | undefined,
   shippingDetail: string | null | undefined
 ): string {
-  const addr = stripFloristMetaSuffixFromAddressLine(String(shippingAddress ?? ""));
-  const det = stripFloristShippingDetailMeta(shippingDetail);
-  const detOneLine = det.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
-  return [addr, detOneLine].filter(Boolean).join(" ").trim();
+  return formatPhysicalShippingAddressForDisplay(shippingAddress, shippingDetail);
 }
 
 /** `shipping_detail` 내부 `[배달 희망]` 등 메타 — 컬럼 미저장(레거시) 주문 UI 복원용 */

@@ -11,7 +11,7 @@ import {
   type NewrunSubmitListFilter,
 } from "@/lib/newrun/admin-order-newrun-summary";
 import { toDesiredDeliveryYmd } from "@/lib/admin-florist-order-display";
-import { stripFloristShippingDetailMeta } from "@/lib/checkout-florist-fields";
+import { formatPhysicalShippingAddressWithPostcode } from "@/lib/checkout-florist-fields";
 import { ADMIN_ORDER_NOTIFY_POLL_MS } from "@/lib/admin-order-notify-poll";
 
 /**
@@ -201,12 +201,12 @@ function formatAssocDispatchListLabel(order: Order): string {
 }
 
 function orderListAddressLine(order: Order): string {
-  const pc = order.shipping_postcode?.trim();
-  const addr = order.shipping_address?.trim() ?? "";
-  const det = stripFloristShippingDetailMeta(order.shipping_detail ?? null);
-  const head = pc ? `[${pc}] ${addr}` : addr;
-  if (det) return `${head} ${det}`.trim();
-  return head.trim() || "—";
+  const line = formatPhysicalShippingAddressWithPostcode(
+    order.shipping_postcode,
+    order.shipping_address,
+    order.shipping_detail
+  );
+  return line.trim() || "—";
 }
 
 function orderListFirstProductName(order: Order): string {
