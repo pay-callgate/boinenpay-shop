@@ -9,7 +9,6 @@ export interface UserClientRow {
   user_id: string;
   client_id: string;
   role: UserClientRole;
-  status?: string;
   created_at?: string;
   updated_at?: string;
 }

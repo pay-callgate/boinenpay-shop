@@ -27,7 +27,6 @@ COMMENT ON TABLE public.user_clients IS '사용자와 거래처 1:1 매핑. clie
 COMMENT ON COLUMN public.user_clients.user_id IS '사용자 PK (1:1)';
 COMMENT ON COLUMN public.user_clients.client_id IS '소속 거래처 FK';
 COMMENT ON COLUMN public.user_clients.role IS '역할: member, admin';
-COMMENT ON COLUMN public.user_clients.status IS '승인 상태: PENDING, APPROVED';
 COMMENT ON COLUMN public.user_clients.created_at IS '매핑 생성일시';
 COMMENT ON COLUMN public.user_clients.updated_at IS '수정일시';
 

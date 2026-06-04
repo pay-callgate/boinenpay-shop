@@ -68,8 +68,9 @@ async function main() {
   writeFileSync(schemaPath, schemaSql, "utf8");
   console.log(`✓ ${schemaPath}`);
 
-  const { sql: seedSql, summary } = await generateUribugoSeedSql({
+  const { sql: seedSql, summary, storageObjects } = await generateUribugoSeedSql({
     partnerSubdomain: PARTNER_SUBDOMAIN,
+    targetSupabaseUrl: process.env.MIGRATION_TARGET_SUPABASE_URL?.trim() || null,
   });
   const seedPath = join(OUT_DIR, "02_uribugo_seed_data.sql");
   writeFileSync(seedPath, seedSql, "utf8");
@@ -77,6 +78,15 @@ async function main() {
 
   console.log("\n--- seed summary ---");
   for (const line of summary) console.log(`  ${line}`);
+  if (storageObjects.length) {
+    console.log("\n--- storage (SQL URL만 저장됨, 파일은 sync-uribugo-storage-assets 실행) ---");
+    for (const obj of storageObjects.slice(0, 5)) {
+      console.log(`  ${obj.bucket}/${obj.path}`);
+    }
+    if (storageObjects.length > 5) {
+      console.log(`  ... 외 ${storageObjects.length - 5}건`);
+    }
+  }
 }
 
 main().catch((err) => {

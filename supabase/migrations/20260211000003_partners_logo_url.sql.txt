@@ -1,0 +1,10 @@
+-- =====================================================
+-- Migration: partners.logo_url (파트너 CI 로고)
+-- Date: 2026-02-11
+-- Purpose: 파트너 설정·쇼핑몰 헤더 로고 URL 저장
+-- =====================================================
+
+ALTER TABLE public.partners
+  ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);
+
+COMMENT ON COLUMN public.partners.logo_url IS '파트너사 브랜드 로고(CI) 이미지 URL';

@@ -22,7 +22,76 @@ export function loadMigrationSql(repoRoot: string): string {
     parts.push("");
   }
 
-  return parts.join("\n");
+  return sanitizeMigrationSql(parts.join("\n"));
+}
+
+/**
+ * COMMENT ON COLUMN 이 CREATE/ALTER 로 정의되지 않은 컬럼을 가리키면 제거 (신규 DB 부트스트랩 실패 방지)
+ */
+export function sanitizeMigrationSql(sql: string): string {
+  const tableColumns = collectTableColumns(sql);
+  const lines = sql.split("\n");
+  const kept: string[] = [];
+
+  for (const line of lines) {
+    const commentMatch = line.match(
+      /^\s*COMMENT ON COLUMN (?:public\.)?(\w+)\.(\w+)\s/i
+    );
+    if (commentMatch) {
+      const table = commentMatch[1].toLowerCase();
+      const column = commentMatch[2].toLowerCase();
+      const defined = tableColumns.get(table)?.has(column);
+      if (!defined) {
+        kept.push(
+          `-- [SANITIZED] removed orphan COMMENT ON COLUMN ${table}.${column} (column not in CREATE/ALTER)`
+        );
+        continue;
+      }
+    }
+    kept.push(line);
+  }
+
+  return kept.join("\n");
+}
+
+function collectTableColumns(sql: string): Map<string, Set<string>> {
+  const tableColumns = new Map<string, Set<string>>();
+
+  const addColumn = (table: string, column: string) => {
+    const key = table.toLowerCase();
+    const col = column.toLowerCase();
+    if (!tableColumns.has(key)) tableColumns.set(key, new Set());
+    tableColumns.get(key)!.add(col);
+  };
+
+  const createTableRe =
+    /CREATE TABLE (?:IF NOT EXISTS )?(?:public\.)?(\w+)\s*\(([\s\S]*?)\);/gi;
+  for (const match of sql.matchAll(createTableRe)) {
+    const table = match[1];
+    for (const line of match[2].split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("--")) continue;
+      const colMatch = trimmed.match(/^(\w+)\s+/);
+      if (!colMatch) continue;
+      const token = colMatch[1].toUpperCase();
+      if (["CONSTRAINT", "PRIMARY", "UNIQUE", "CHECK", "FOREIGN"].includes(token)) {
+        continue;
+      }
+      addColumn(table, colMatch[1]);
+    }
+  }
+
+  const alterBlockRe =
+    /ALTER TABLE (?:IF EXISTS )?(?:ONLY )?(?:public\.)?(\w+)\s+([\s\S]*?);/gi;
+  for (const match of sql.matchAll(alterBlockRe)) {
+    const table = match[1];
+    const body = match[2];
+    for (const addMatch of body.matchAll(/ADD COLUMN (?:IF NOT EXISTS )?(\w+)/gi)) {
+      addColumn(table, addMatch[1]);
+    }
+  }
+
+  return tableColumns;
 }
 
 export async function dumpLiveDbExtras(client: pg.Client): Promise<string> {

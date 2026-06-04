@@ -2,6 +2,10 @@
 
 import { Copy, MapPin } from "lucide-react";
 import { stripFloristShippingDetailMeta } from "@/lib/checkout-florist-fields";
+import {
+  buildKakaoMapSearchHref,
+  buildKakaoMapSearchQuery,
+} from "@/lib/kakao-map-search-url";
 
 type Props = {
   name: string;
@@ -34,16 +38,12 @@ export function OrderRecipientCard({
     .filter(Boolean)
     .join(" ");
 
-  /** 카카오맵 `/link/search`용 — 우편번호만 앞에 붙이면 검색 결과가 없는 경우가 많아 주소·상세만 전달 */
-  const mapSearchQuery = [cleanAddress, cleanDetail]
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^\[\d{5,6}\]\s*/u, "")
-    .replace(/^\d{5,6}(?:-\d{3})?\s+/u, "");
-
-  const mapHref = `https://map.kakao.com/link/search/${encodeURIComponent(mapSearchQuery)}`;
+  const mapSearchQuery = buildKakaoMapSearchQuery({
+    postcode,
+    address,
+    addressDetail,
+  });
+  const mapHref = buildKakaoMapSearchHref(mapSearchQuery);
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm [@media(min-width:768px)_and_(max-height:860px)]:p-4">
@@ -82,7 +82,7 @@ export function OrderRecipientCard({
             </p>
             {fullAddress ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                {mapSearchQuery ? (
+                {mapHref ? (
                   <a
                     href={mapHref}
                     target="_blank"

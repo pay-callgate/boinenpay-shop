@@ -6,6 +6,11 @@ import {
   type NeuronProductSpec,
 } from "@/lib/neuron-product-catalog";
 import {
+  collectStorageObjectsFromUrls,
+  rewriteSupabasePublicUrl,
+  type ParsedStorageObject,
+} from "@/lib/prod-storage-url";
+import {
   deterministicCategoryId,
   deterministicProductId,
   sqlBoolean,
@@ -14,6 +19,31 @@ import {
   sqlString,
   sqlTimestamptz,
 } from "@/lib/prod-sql-format";
+
+const PARTNER_SEED_COLUMNS = [
+  "id",
+  "subdomain",
+  "business_registration_number",
+  "company_name",
+  "representative",
+  "postcode",
+  "address",
+  "business_type",
+  "contact",
+  "fax",
+  "business_category",
+  "email",
+  "trade_categories",
+  "verification_status",
+  "verified_at",
+  "created_at",
+  "updated_at",
+  "franchise_name",
+  "corporate_registration_number",
+  "representative_dob",
+  "owner_id",
+  "logo_url",
+] as const;
 
 const CATEGORY_NAME_FILTER = ["축하화환", "근조화환"] as const;
 const DEFAULT_DELIVERY_METHODS = ["same_day", "quick"];
@@ -55,7 +85,19 @@ function inferCategoryName(spec: NeuronProductSpec): "축하화환" | "근조화
   return inferCategorySlug(spec) === "chukha-wreath" ? "축하화환" : "근조화환";
 }
 
-function mergeProductRow(spec: NeuronProductSpec, db: DbProductRow | null, partnerId: string) {
+function rewriteUrl(
+  url: string | null | undefined,
+  targetSupabaseUrl?: string | null
+): string | null {
+  return rewriteSupabasePublicUrl(url, targetSupabaseUrl);
+}
+
+function mergeProductRow(
+  spec: NeuronProductSpec,
+  db: DbProductRow | null,
+  partnerId: string,
+  targetSupabaseUrl?: string | null
+) {
   const draft = buildNeuronProductDraft(spec);
   const id = db?.id ? String(db.id) : deterministicProductId(spec.neuronCode);
 
@@ -66,7 +108,10 @@ function mergeProductRow(spec: NeuronProductSpec, db: DbProductRow | null, partn
     slug: db?.slug ? String(db.slug) : spec.slug ?? `neuron-${spec.neuronCode}`,
     short_description: db?.short_description ? String(db.short_description) : spec.menuName,
     description_html: db?.description_html ?? null,
-    thumbnail_url: db?.thumbnail_url ?? null,
+    thumbnail_url: rewriteUrl(
+      db?.thumbnail_url ? String(db.thumbnail_url) : null,
+      targetSupabaseUrl
+    ),
     base_price: spec.consumerPrice,
     sale_price: spec.consumerPrice,
     member_price: db?.member_price ?? null,
@@ -161,11 +206,23 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;`;
 }
 
-function partnerInsertSql(row: DbPartnerRow): string {
-  const cols = Object.keys(row).filter((k) => row[k] !== undefined);
+function partnerInsertSql(row: DbPartnerRow, targetSupabaseUrl?: string | null): string {
+  const normalized: Record<string, unknown> = { ...row };
+  if (normalized.logo_url != null) {
+    normalized.logo_url = rewriteUrl(String(normalized.logo_url), targetSupabaseUrl);
+  }
+  if (
+    normalized.trade_categories === "" ||
+    normalized.trade_categories == null
+  ) {
+    normalized.trade_categories = null;
+  }
+
+  const cols = PARTNER_SEED_COLUMNS.filter((k) => normalized[k] !== undefined);
   const vals = cols.map((k) => {
-    const v = row[k];
+    const v = normalized[k];
     if (v == null) return "NULL";
+    if (k === "trade_categories") return sqlJsonb(v);
     if (typeof v === "boolean") return sqlBoolean(v);
     if (typeof v === "number") return sqlNumber(v);
     if (v instanceof Date) return sqlTimestamptz(v);
@@ -173,12 +230,15 @@ function partnerInsertSql(row: DbPartnerRow): string {
   });
   return `INSERT INTO public.partners (${cols.join(", ")})
 VALUES (${vals.join(", ")})
-ON CONFLICT (id) DO NOTHING;`;
+ON CONFLICT (id) DO UPDATE SET
+  logo_url = EXCLUDED.logo_url,
+  updated_at = EXCLUDED.updated_at;`;
 }
 
 export async function generateUribugoSeedSql(opts: {
   partnerSubdomain: string;
-}): Promise<{ sql: string; summary: string[] }> {
+  targetSupabaseUrl?: string | null;
+}): Promise<{ sql: string; summary: string[]; storageObjects: ParsedStorageObject[] }> {
   const summary: string[] = [];
   const supabase = createServerSupabase();
 
@@ -224,7 +284,7 @@ export async function generateUribugoSeedSql(opts: {
 
   const productRows = matchedSpecs.map(({ spec, db }) => ({
     spec,
-    row: mergeProductRow(spec, db, partnerId),
+    row: mergeProductRow(spec, db, partnerId, opts.targetSupabaseUrl),
   }));
   const productIds = productRows.map((p) => p.row.id);
 
@@ -306,16 +366,31 @@ export async function generateUribugoSeedSql(opts: {
     dbImages = images ?? [];
   }
 
+  const imageUrls: string[] = [];
+
+  if (partner.logo_url) {
+    imageUrls.push(String(partner.logo_url));
+  }
+  for (const { row } of productRows) {
+    if (row.thumbnail_url) imageUrls.push(String(row.thumbnail_url));
+  }
+
   const parts: string[] = [
     "-- =============================================================================",
     "-- CallLink ShoppingMaster — 우리부고(Uribugo) 운영 Seed",
     "-- 트랜잭션(orders/carts 등) · 스펙 외 테스트 상품 제외",
     `-- 생성 시각: ${new Date().toISOString()}`,
+    opts.targetSupabaseUrl
+      ? `-- Storage URL 대상: ${opts.targetSupabaseUrl}`
+      : "-- Storage URL: 소스 프로젝트 그대로 (MIGRATION_TARGET_SUPABASE_URL 미설정)",
     "-- =============================================================================",
     "BEGIN;",
     "",
+    "-- seed prerequisites (구버전 01_schema 적용 후에도 안전)",
+    "ALTER TABLE public.partners ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);",
+    "",
     "-- partners (wooribugo)",
-    partnerInsertSql(partner as DbPartnerRow),
+    partnerInsertSql(partner as DbPartnerRow, opts.targetSupabaseUrl),
     "",
     "-- product_categories",
   ];
@@ -345,12 +420,14 @@ ON CONFLICT (product_id, category_id) DO NOTHING;`
   if (dbImages.length) {
     parts.push("-- product_images (스펙 상품에 한정)");
     for (const img of dbImages) {
+      const url = rewriteUrl(String(img.url), opts.targetSupabaseUrl);
+      imageUrls.push(url ?? String(img.url));
       parts.push(
         `INSERT INTO public.product_images (id, product_id, url, sort_order, created_at, updated_at)
 VALUES (
   ${sqlString(String(img.id))},
   ${sqlString(String(img.product_id))},
-  ${sqlString(String(img.url))},
+  ${url ? sqlString(url) : "NULL"},
   ${sqlNumber(Number(img.sort_order))},
   ${sqlTimestamptz(String(img.created_at))},
   ${sqlTimestamptz(String(img.updated_at))}
@@ -361,6 +438,8 @@ ON CONFLICT (id) DO NOTHING;`
     parts.push("");
   }
 
+  const storageObjects = collectStorageObjectsFromUrls(imageUrls);
+
   parts.push("COMMIT;", "");
   parts.push("-- 검증:");
   parts.push(`-- SELECT count(*) FROM products WHERE partner_id = '${partnerId}';`);
@@ -368,6 +447,7 @@ ON CONFLICT (id) DO NOTHING;`
   summary.push(`categories: ${categoryRows.length}건`);
   summary.push(`mappings: ${mappingRows.length}건`);
   summary.push(`images: ${dbImages.length}건`);
+  summary.push(`storage objects: ${storageObjects.length}건`);
 
-  return { sql: parts.join("\n"), summary };
+  return { sql: parts.join("\n"), summary, storageObjects };
 }
