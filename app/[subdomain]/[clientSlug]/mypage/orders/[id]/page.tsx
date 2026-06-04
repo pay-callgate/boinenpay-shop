@@ -636,10 +636,10 @@ export default function MyOrderDetailPage() {
               <p style={{ margin: "0 0 12px", fontWeight: 600 }}>
                 📞 고객센터:{" "}
                 <a
-                  href="tel:1661-1897"
+                  href="tel:1666-5382"
                   style={{ color: "#7C3AED", textDecoration: "underline", fontWeight: 700 }}
                 >
-                  1661-1897
+                  1666-5382
                 </a>
               </p>
               <ul

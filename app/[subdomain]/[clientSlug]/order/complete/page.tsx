@@ -738,7 +738,7 @@ export default function OrderCompletePage() {
             </button>
           </div>
           <footer className="mt-4 flex flex-col items-center justify-center border-t border-gray-100 pb-6 pt-5 text-center">
-            <p className="mb-1 text-lg font-bold text-gray-800">고객센터 1661-1897</p>
+            <p className="mb-1 text-lg font-bold text-gray-800">고객센터 1666-5382</p>
             <p className="mb-4 text-xs text-gray-500">운영시간 : 평일 08:30 ~ 19:00</p>
             <p className="text-[10px] uppercase tracking-wider text-gray-400">
               Copyright © {footerCopyrightOwner}. All rights reserved.
