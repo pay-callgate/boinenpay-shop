@@ -7,6 +7,7 @@ import {
   parseAdminAlimtalkListStatus,
 } from "@/lib/admin-alimtalk-messages-fetch";
 import {
+  ADMIN_ALIMTALK_UNIT_WON,
   summarizeAlimtalkChannelTotals,
   summarizeAlimtalkSettlement,
 } from "@/lib/admin-alimtalk-messages";
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
         summary: {
           totalSuccessCount,
           totalFailCount,
-          unitWon: 4,
+          unitWon: ADMIN_ALIMTALK_UNIT_WON,
           estimatedSettlementWon,
           kakaoSuccess: channelTotals.kakaoSuccess,
           kakaoFail: channelTotals.kakaoFail,

@@ -12,6 +12,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AlimtalkHistoryDetailModal } from "@/components/admin/AlimtalkHistoryDetailModal";
 import {
+  ADMIN_ALIMTALK_UNIT_WON,
   type AdminAlimtalkHistoryStatus,
   type AdminAlimtalkMessageRow,
 } from "@/lib/admin-alimtalk-messages";
@@ -140,7 +141,7 @@ export default function AdminAlimtalkMessagesPage() {
     totalSuccessCount: 0,
     totalFailCount: 0,
     estimatedSettlementWon: 0,
-    unitWon: 4,
+    unitWon: ADMIN_ALIMTALK_UNIT_WON,
     kakaoSuccess: 0,
     kakaoFail: 0,
     smsSuccess: 0,
@@ -179,7 +180,7 @@ export default function AdminAlimtalkMessagesPage() {
           totalSuccessCount: json.data.summary.totalSuccessCount ?? 0,
           totalFailCount: json.data.summary.totalFailCount ?? 0,
           estimatedSettlementWon: json.data.summary.estimatedSettlementWon ?? 0,
-          unitWon: json.data.summary.unitWon ?? 4,
+          unitWon: json.data.summary.unitWon ?? ADMIN_ALIMTALK_UNIT_WON,
           kakaoSuccess: json.data.summary.kakaoSuccess ?? 0,
           kakaoFail: json.data.summary.kakaoFail ?? 0,
           smsSuccess: json.data.summary.smsSuccess ?? 0,
@@ -309,7 +310,7 @@ export default function AdminAlimtalkMessagesPage() {
           titleIcon={MessageSquare}
           description={
             <span className="break-keep [word-break:keep-all]">
-              알림톡 발송 내역을 검색과 필터로 빠르게 찾고, 발송 건별 상세 내역과 예상 정산 금액(건당 4원)을 확인합니다.
+              알림톡 발송 내역을 검색과 필터로 빠르게 찾고, 발송 건별 상세 내역과 예상 정산 금액(건당 {ADMIN_ALIMTALK_UNIT_WON}원)을 확인합니다.
             </span>
           }
         />

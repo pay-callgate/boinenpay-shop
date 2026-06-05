@@ -56,7 +56,7 @@ export interface AdminAlimtalkMessageRow {
   smsFailCount: number;
 }
 
-export const ADMIN_ALIMTALK_UNIT_WON = 4;
+export const ADMIN_ALIMTALK_UNIT_WON = 5;
 
 /** 단건/대량 발송 API가 적재하는 행 — 목록·export select 컬럼과 동일하게 유지 */
 export interface LinkKakaoNotificationDbRow {
