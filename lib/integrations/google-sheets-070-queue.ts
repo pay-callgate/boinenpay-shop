@@ -1,6 +1,9 @@
 import { google } from "googleapis";
+import type { Call070QueueKind } from "@/lib/clients/call-070-queue-kind";
 
 export type Append070QueueRowInput = {
+  /** 신규 연동 vs 정보 변경 */
+  requestKind?: Call070QueueKind;
   /** 표시용 접수 시각 (예: KST yyyy-MM-dd HH:mm:ss) */
   requestedAtKst: string;
   clientId: string;
@@ -18,10 +21,16 @@ export type Append070QueueRowInput = {
 /** GAS CONFIG와 동일: A~M 데이터, N=진행상태, O=완료일자(빈 값)
  * 시트 열: … G=업종, H=플랫폼/구분 드롭(서버에서 윗행 복사), I=관리자명 … N=진행상태(윗행 복사), O=완료일자 */
 export function build070QueueRowValues(input: Append070QueueRowInput): string[] {
+  const isUpdate = input.requestKind === "update";
+  const progressDefault = isUpdate ? "변경 요청" : "연동 대기";
+  const requestedAt = isUpdate
+    ? `${input.requestedAtKst} [정보변경]`
+    : input.requestedAtKst;
+
   return [
-    input.requestedAtKst,
+    requestedAt,
     input.clientId,
-    input.clientName,
+    isUpdate ? `[변경] ${input.clientName}` : input.clientName,
     input.call070Number,
     input.greetingMessage,
     input.call070Number,
@@ -32,7 +41,7 @@ export function build070QueueRowValues(input: Append070QueueRowInput): string[] 
     input.adminPhone,
     input.serviceUrl,
     input.smsTextTemplate,
-    "연동 대기", // N — append 시 윗행 복사로 덮어씀(템플릿·맨 위 행 없을 때 유지)
+    progressDefault, // N — update 시 '변경 요청', 신규는 윗행 복사로 덮어씀
     "", // O
   ];
 }
@@ -221,7 +230,11 @@ export async function append070QueueRow(
 
   const values = build070QueueRowValues(input);
   values[COL_IDX_H] = copyH;
-  values[COL_IDX_N] = copyN || values[COL_IDX_N];
+  if (input.requestKind === "update") {
+    values[COL_IDX_N] = "변경 요청";
+  } else {
+    values[COL_IDX_N] = copyN || values[COL_IDX_N];
+  }
 
   console.info("[google-sheets-070] H/N from row above or template", {
     source: hnSource,

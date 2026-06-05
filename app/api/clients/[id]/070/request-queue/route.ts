@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getStorefrontUrl } from "@/lib/app-url";
+import { resolveCall070QueueKind } from "@/lib/clients/call-070-queue-kind";
 import { upsertClientCall070Config } from "@/lib/clients/upsert-call-070-config";
 import { append070QueueRow, parseSheetAppendedRow } from "@/lib/integrations/google-sheets-070-queue";
 import { postSlack070QueueNotification } from "@/lib/integrations/slack-070-queue";
@@ -10,6 +11,9 @@ import { postSlack070QueueNotification } from "@/lib/integrations/slack-070-queu
 /**
  * POST /api/clients/[id]/070/request-queue
  * 070 폼 저장 + 구글 시트 행 추가 + 슬랙 알림 (CallCloud 자동화 없음)
+ *
+ * Body:
+ *   isUpdate?: boolean — 정보 변경 요청(연동 완료 거래처). 미전달 시 DB 플래그로 자동 판별.
  */
 
 export const maxDuration = 60;
@@ -49,6 +53,7 @@ export async function POST(
       adminEmail,
       adminPhone,
       smsTextTemplate,
+      isUpdate: isUpdateRequested,
     } = body;
 
     if (!call070Number || !String(call070Number).trim()) {
@@ -62,7 +67,7 @@ export async function POST(
 
     const { data: client, error: clientError } = await supabase
       .from("clients")
-      .select("id, name, slug, partner_id")
+      .select("id, name, slug, partner_id, call_070_connected")
       .eq("id", clientId)
       .single();
 
@@ -72,6 +77,19 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    const { data: existingCfg } = await supabase
+      .from("client_call_070_configs")
+      .select("callcloud_registered")
+      .eq("client_id", clientId)
+      .maybeSingle();
+
+    const requestKind = resolveCall070QueueKind({
+      isUpdateRequested: isUpdateRequested === true,
+      callcloudRegistered: existingCfg?.callcloud_registered ?? false,
+      call070Connected: client.call_070_connected ?? false,
+    });
+    const isUpdate = requestKind === "update";
 
     const { data: partner, error: partnerError } = await supabase
       .from("partners")
@@ -90,22 +108,28 @@ export async function POST(
     const name = client.name ?? "";
     const callTrim = String(call070Number).trim();
 
-    await upsertClientCall070Config(supabase, clientId, {
-      call070Number: callTrim,
-      greetingMessage:
-        greetingMessage ?? `안녕하세요 ${name}에 전화 주셔서 감사합니다.`,
-      industry: industry ?? "화훼",
-      adminName: adminName ?? "",
-      adminEmail: adminEmail ?? "",
-      adminPhone: adminPhone ?? "",
-      smsTextTemplate: smsTextTemplate ?? `안녕하세요 ${name}입니다.`,
-    });
+    await upsertClientCall070Config(
+      supabase,
+      clientId,
+      {
+        call070Number: callTrim,
+        greetingMessage:
+          greetingMessage ?? `안녕하세요 ${name}에 전화 주셔서 감사합니다.`,
+        industry: industry ?? "화훼",
+        adminName: adminName ?? "",
+        adminEmail: adminEmail ?? "",
+        adminPhone: adminPhone ?? "",
+        smsTextTemplate: smsTextTemplate ?? `안녕하세요 ${name}입니다.`,
+      },
+      { preserveRegistration: isUpdate }
+    );
 
     const requestedAtKst = formatKstTimestamp(new Date());
 
     let sheetRow: number | null = null;
     try {
       const { updatedRange } = await append070QueueRow({
+        requestKind,
         requestedAtKst,
         clientId,
         clientName: name,
@@ -128,6 +152,7 @@ export async function POST(
         message: err.message,
         name: err.name,
         clientId,
+        requestKind,
         spreadsheetIdSet: Boolean(process.env.GOOGLE_SHEETS_070_SPREADSHEET_ID?.trim()),
         spreadsheetIdTail: process.env.GOOGLE_SHEETS_070_SPREADSHEET_ID?.trim()?.slice(-8),
         tabName:
@@ -153,6 +178,7 @@ export async function POST(
         clientId,
         sheetRow,
         spreadsheetId,
+        requestKind,
       });
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e));
@@ -160,6 +186,7 @@ export async function POST(
         message: err.message,
         clientId,
         sheetRow,
+        requestKind,
       });
       return NextResponse.json(
         {
@@ -174,8 +201,10 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message:
-        "접수되었습니다. 콜게이트 담당자가 시트·슬랙을 확인한 뒤 CallCloud에 등록하고, 시트에서 진행 상태를 완료로 바꾸면 연동 완료로 동기화됩니다.",
+      requestKind,
+      message: isUpdate
+        ? "070 정보 변경 요청이 접수되었습니다. 콜게이트 담당자가 시트·슬랙을 확인한 뒤 CallCloud에서 수정해 주세요. (연동 완료 상태는 유지됩니다.)"
+        : "접수되었습니다. 콜게이트 담당자가 시트·슬랙을 확인한 뒤 CallCloud에 등록하고, 시트에서 진행 상태를 완료로 바꾸면 연동 완료로 동기화됩니다.",
       sheetRow,
     });
   } catch (err) {

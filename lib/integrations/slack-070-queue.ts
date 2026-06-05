@@ -3,11 +3,14 @@
  * 환경변수: SLACK_070_WEBHOOK_URL (Vercel 시크릿, 코드에 하드코딩 금지)
  */
 
+import type { Call070QueueKind } from "@/lib/clients/call-070-queue-kind";
+
 export async function postSlack070QueueNotification(opts: {
   clientName: string;
   clientId: string;
   sheetRow: number | null;
   spreadsheetId: string;
+  requestKind?: Call070QueueKind;
 }): Promise<void> {
   const url =
     process.env.SLACK_070_WEBHOOK_URL?.trim() ||
@@ -18,13 +21,22 @@ export async function postSlack070QueueNotification(opts: {
     );
   }
 
+  const isUpdate = opts.requestKind === "update";
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${opts.spreadsheetId}/edit`;
   const rowHint = opts.sheetRow
-    ? `시트 *${opts.sheetRow}번째 줄*에 새 연동 요청 행이 추가되었습니다.`
-    : "구글 시트에 새 행이 추가되었습니다. (행 번호는 시트에서 확인해 주세요)";
+    ? isUpdate
+      ? `시트 *${opts.sheetRow}번째 줄*에 정보 변경 요청 행이 추가되었습니다.`
+      : `시트 *${opts.sheetRow}번째 줄*에 새 연동 요청 행이 추가되었습니다.`
+    : isUpdate
+      ? "구글 시트에 정보 변경 요청 행이 추가되었습니다. (행 번호는 시트에서 확인해 주세요)"
+      : "구글 시트에 새 행이 추가되었습니다. (행 번호는 시트에서 확인해 주세요)";
+
+  const headline = isUpdate
+    ? "*[070 연동 변경 요청]*"
+    : "*070 신규 연동 요청 접수 안내(콜링크 쇼핑 → 구글스프레드시트 신규 데이터 추가)*";
 
   const text = [
-    "*070 연동 요청 접수 안내(콜링크 쇼핑 → 구글스프레드시트 신규 데이터 추가)*",
+    headline,
     "",
     `• 거래처: *${opts.clientName}* (${opts.clientId})`,
     `• ${rowHint}`,

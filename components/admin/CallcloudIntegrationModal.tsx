@@ -29,6 +29,8 @@ const FOOTER_BTN_CONNECT =
   "inline-flex min-h-[2.5rem] items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-slate-200 bg-white px-5 text-xs font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 const FOOTER_BTN_PENDING =
   "inline-flex min-h-[2.5rem] items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-amber-200/90 bg-amber-50/95 px-5 text-xs font-medium text-amber-950 transition-colors hover:bg-amber-100/90 disabled:cursor-not-allowed disabled:opacity-60";
+const FOOTER_BTN_UPDATE =
+  "inline-flex min-h-[2.5rem] items-center justify-center whitespace-nowrap rounded-lg border border-emerald-200/85 bg-emerald-50/90 px-5 text-sm font-medium text-emerald-950 transition-colors hover:bg-emerald-100/90 disabled:cursor-not-allowed disabled:opacity-60";
 
 interface CallcloudFormConfig {
   call_070_number: string;
@@ -120,17 +122,17 @@ export function CallcloudIntegrationModal({
     void fetchConfig();
   }, [isOpen, clientId, clientName, contactName, contactPhone, contactEmail]);
 
-  const handleRequestQueue = async () => {
+  const submitRequestQueue = async (isUpdate: boolean) => {
     if (!formData.call_070_number?.trim()) {
       alert("서비스 번호(070)는 필수입니다.");
       return;
     }
 
-    if (
-      !confirm(
-        "Callcloud 연동을 요청합니다.\n\n구글 시트에 행이 추가되고 슬랙으로 알림이 갑니다.\n담당자가 Callcloud에 등록한 뒤, 시트에서 진행 상태를 「완료」로 바꾸면 연동 완료로 반영됩니다.\n\n계속할까요?"
-      )
-    ) {
+    const confirmMessage = isUpdate
+      ? "Callcloud 070 정보 변경을 요청합니다.\n\n구글 시트에 변경 요청 행이 추가되고 슬랙으로 [070 연동 변경 요청] 알림이 갑니다.\n콜게이트 담당자가 Callcloud에서 수정합니다.\n(현재 연동 완료 상태는 유지됩니다.)\n\n계속할까요?"
+      : "Callcloud 연동을 요청합니다.\n\n구글 시트에 행이 추가되고 슬랙으로 알림이 갑니다.\n담당자가 Callcloud에 등록한 뒤, 시트에서 진행 상태를 「완료」로 바꾸면 연동 완료로 반영됩니다.\n\n계속할까요?";
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -141,6 +143,7 @@ export function CallcloudIntegrationModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          isUpdate,
           call070Number: formData.call_070_number,
           greetingMessage: formData.greeting_message,
           industry: formData.industry,
@@ -338,7 +341,7 @@ export function CallcloudIntegrationModal({
           {!formData.callcloud_registered ? (
             <button
               type="button"
-              onClick={() => void handleRequestQueue()}
+              onClick={() => void submitRequestQueue(false)}
               disabled={requestingQueue}
               className={entry === "pending" ? FOOTER_BTN_PENDING : FOOTER_BTN_CONNECT}
             >
@@ -361,9 +364,14 @@ export function CallcloudIntegrationModal({
               )}
             </button>
           ) : (
-            <div className="inline-flex min-h-[2.5rem] items-center justify-center whitespace-nowrap rounded-lg border border-emerald-200/85 bg-emerald-50/90 px-5 text-sm font-medium text-emerald-950">
-              Callcloud 정보 변경
-            </div>
+            <button
+              type="button"
+              onClick={() => void submitRequestQueue(true)}
+              disabled={requestingQueue}
+              className={FOOTER_BTN_UPDATE}
+            >
+              {requestingQueue ? "접수 중…" : "Callcloud 정보 변경"}
+            </button>
           )}
         </DialogFooter>
       </DialogContent>
