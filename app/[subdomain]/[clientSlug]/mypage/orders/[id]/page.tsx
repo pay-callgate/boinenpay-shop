@@ -129,6 +129,7 @@ interface Order {
   ribbon_message?: string | null;
   client: Client;
   user?: OrderUser | null;
+  guest_orderer_email?: string | null;
 }
 
 export default function MyOrderDetailPage() {
@@ -214,7 +215,7 @@ export default function MyOrderDetailPage() {
     if (!order || order.payment_status !== "pending" || paymentSubmitting) return;
     const buyerName = (order.user?.name || order.shipping_name || "").trim();
     const buyerPhone = (order.user?.phone || order.shipping_phone || "").trim();
-    const buyerEmail = (order.user?.email || "").trim() || "noreply@callgate.com";
+    const buyerEmail = (order.user?.email || order.guest_orderer_email || "").trim();
     if (!buyerName || !buyerPhone) {
       toast("결제자 정보가 없습니다. 배송지 정보로 결제를 시도합니다.", "error");
     }

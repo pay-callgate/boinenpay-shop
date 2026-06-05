@@ -276,21 +276,24 @@ export function buildStartpayBody(params: ViewpayStartpayParams): Record<string,
     stripNonBmpCharsForViewpay(buyerName.trim()) || "구매자";
   const buyrTelSafe = stripNonBmpCharsForViewpay(buyerPhone.trim());
   const sendTelSafe = stripNonBmpCharsForViewpay(sendTel.trim());
-  const buyrMailSafe =
-    stripNonBmpCharsForViewpay(buyerEmail.trim()) || "noreply@calllink.com";
+  const buyrMailSafe = stripNonBmpCharsForViewpay(buyerEmail.trim());
   const metaSafe = metaData != null ? stripNonBmpCharsForViewpay(metaData.trim()) : "";
+
+  const customer: Record<string, string> = {
+    buyrName: buyr,
+    buyrTel: buyrTelSafe,
+    sendTel: sendTelSafe,
+  };
+  if (buyrMailSafe) {
+    customer.buyrMail = buyrMailSafe;
+  }
 
   return {
     products: {
       orderNo: orderNoWithTs,
       cmmdName: cmmd,
     },
-    customer: {
-      buyrName: buyr,
-      buyrTel: buyrTelSafe,
-      sendTel: sendTelSafe,
-      buyrMail: buyrMailSafe,
-    },
+    customer,
     channelId: channelId,
     storeId: merchantId,
     pgId: "",
