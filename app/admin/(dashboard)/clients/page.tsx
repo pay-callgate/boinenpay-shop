@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ChevronDown, Link2, Link as LinkIcon, Phone, Settings } from "lucide-react";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
 import { CallcloudIntegrationModal, type CallcloudModalEntry } from "@/components/admin/CallcloudIntegrationModal";
+import { formatCallLinkPhoneDisplay } from "@/lib/format-call-link-phone";
 import { getStorefrontUrl } from "@/lib/app-url";
 import { adminFetch } from "@/lib/admin-fetch";
 
@@ -158,18 +159,6 @@ export default function ClientsPage() {
     setCallcloudModalEntry(entry);
     setShow070Modal(true);
   };
-  // 070 번호 표시 포맷: 07045070414 → 070-4507-0414
-  const format070Display = (num: string) => {
-    const digits = num.replace(/\D/g, "");
-    if (digits.length >= 11 && digits.startsWith("070")) {
-      return `070-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
-    }
-    if (digits.length >= 8) {
-      return `070-${digits.slice(0, 4)}-${digits.slice(4, 8)}`;
-    }
-    return num;
-  };
-
   const close070Modal = () => {
     setShow070Modal(false);
     setSelected070Client(null);
@@ -550,7 +539,7 @@ export default function ClientsPage() {
                                 >
                                   <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-700" strokeWidth={2} />
                                   <span className="shrink-0 tabular-nums tracking-tight">
-                                    {format070Display(call070Number)}
+                                    {formatCallLinkPhoneDisplay(call070Number)}
                                   </span>
                                   <Badge
                                     variant="active"

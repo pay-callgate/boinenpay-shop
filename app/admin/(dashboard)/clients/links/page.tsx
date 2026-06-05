@@ -6,6 +6,7 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Badge } from "@/components/ui/badge";
 import { ClientRegistrationModal } from "@/components/admin/ClientRegistrationModal";
 import { CallcloudIntegrationModal, type CallcloudModalEntry } from "@/components/admin/CallcloudIntegrationModal";
+import { formatCallLinkPhoneDisplay } from "@/lib/format-call-link-phone";
 import { LinkNotificationModal } from "@/components/admin/LinkNotificationModal";
 import { adminFetch } from "@/lib/admin-fetch";
 
@@ -143,18 +144,6 @@ export default function ClientsLinksPage() {
     return `/${partnerSubdomain}/${slug}`;
   };
 
-  // 070 번호 표시 포맷: 07045070414 → 070-4507-0414
-  const format070Display = (num: string) => {
-    const digits = num.replace(/\D/g, "");
-    if (digits.length >= 11 && digits.startsWith("070")) {
-      return `070-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
-    }
-    if (digits.length >= 8) {
-      return `070-${digits.slice(0, 4)}-${digits.slice(4, 8)}`;
-    }
-    return num;
-  };
-
   // 클립보드 복사
   const copyToClipboard = async (clientId: string, slug: string) => {
     const url = getOrderLink(slug);
@@ -238,7 +227,7 @@ export default function ClientsLinksPage() {
           assigned070Number={
             linkModalClient.call_070_connected &&
             linkModalClient.client_call_070_configs?.[0]?.call_070_number
-              ? format070Display(linkModalClient.client_call_070_configs[0].call_070_number)
+              ? formatCallLinkPhoneDisplay(linkModalClient.client_call_070_configs[0].call_070_number)
               : ""
           }
           recipientPhone={linkModalClient.contact_phone ?? ""}
@@ -553,7 +542,7 @@ export default function ClientsLinksPage() {
                                 >
                                   <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-700" strokeWidth={2} />
                                   <span className="shrink-0 tabular-nums tracking-tight">
-                                    {format070Display(call070Number)}
+                                    {formatCallLinkPhoneDisplay(call070Number)}
                                   </span>
                                   <Badge
                                     variant="active"

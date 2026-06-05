@@ -1,7 +1,7 @@
 -- =============================================================================
 -- CallLink ShoppingMaster — 우리부고(Uribugo) 거래처·공통 안내 템플릿 Seed
 -- 트랜잭션(orders/link_kakao_notifications 등) 제외
--- 생성 시각: 2026-06-04T23:50:55.802Z
+-- 생성 시각: 2026-06-05T00:53:52.274Z
 -- Storage URL 대상: https://dauzaeogqwxiwfmvhfux.supabase.co
 -- 선행: 01_schema → 02_uribugo_seed_data 적용 후 실행
 -- =============================================================================
@@ -154,7 +154,7 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at;
 
 INSERT INTO public.client_call_070_configs (id, client_id, call_070_number, greeting_message, industry, admin_name, admin_email, admin_phone, sms_text_template, callcloud_registered, created_at, updated_at)
-VALUES ('5a1ed0d9-7bf6-400b-bc27-09634779ef8c', '81031eff-b383-4ccd-b498-cca61a3329e4', '07045044181', '안녕하세요 (주)제이에스브라더스에 전화 주셔서 감사합니다.', '화훼', '전병권', 'ddd831025@hanmail.net', '010-4544-7740', '안녕하세요 (주)제이에스브라더스입니다.', TRUE, '2026-05-21T00:00:09.953148+00:00', '2026-05-21T00:02:55.31+00:00')
+VALUES ('5a1ed0d9-7bf6-400b-bc27-09634779ef8c', '81031eff-b383-4ccd-b498-cca61a3329e4', '050827935382', '안녕하세요 (주)제이에스브라더스에 전화 주셔서 감사합니다.', '화훼', '전병권', 'ddd831025@hanmail.net', '010-4544-7740', '안녕하세요 (주)제이에스브라더스입니다.', TRUE, '2026-05-21T00:00:09.953148+00:00', '2026-06-05T00:53:31.609+00:00')
 ON CONFLICT (id) DO UPDATE SET
   call_070_number = EXCLUDED.call_070_number,
   greeting_message = EXCLUDED.greeting_message,

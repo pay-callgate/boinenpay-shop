@@ -32,21 +32,13 @@ export const KAKAO_ALIMTALK_LINK_TEMPLATE_CASE2 = `안녕하세요.
 
 export type LinkKakaoAlimtalkCase = "case1" | "case2";
 
+import { formatCallLinkPhoneDisplay } from "@/lib/format-call-link-phone";
+
 /**
- * 070 등 안심번호 표기: 3자리-4자리-4자리 (예: 070-4504-4182)
+ * 070·050 등 CallLink 연동 번호 표기 (예: 070-4504-4182, 0508-2793-5382)
  */
 export function formatAlimtalk070Display(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length >= 11 && digits.startsWith("070")) {
-    return `070-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
-  }
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
-  }
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-  }
-  return raw.trim();
+  return formatCallLinkPhoneDisplay(raw);
 }
 
 export function resolveLinkAlimtalkMessage(params: {
