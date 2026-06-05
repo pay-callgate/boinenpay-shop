@@ -33,6 +33,10 @@ import {
   formatFloristShippingAddressForCustomerUI,
   parseFloristMetaFromShippingDetail,
 } from "@/lib/checkout-florist-fields";
+import {
+  getShopCustomerServiceTel,
+  getShopCustomerServiceTelHref,
+} from "@/lib/shop-customer-service";
 
 const PRIMARY = "#D6A8E0";
 
@@ -636,10 +640,10 @@ export default function MyOrderDetailPage() {
               <p style={{ margin: "0 0 12px", fontWeight: 600 }}>
                 📞 고객센터:{" "}
                 <a
-                  href="tel:1666-5382"
+                  href={getShopCustomerServiceTelHref()}
                   style={{ color: "#7C3AED", textDecoration: "underline", fontWeight: 700 }}
                 >
-                  1666-5382
+                  {getShopCustomerServiceTel()}
                 </a>
               </p>
               <ul

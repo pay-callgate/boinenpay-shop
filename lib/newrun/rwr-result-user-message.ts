@@ -3,13 +3,12 @@
  * 고객 쇼핑몰 마이페이지 안내는 사용하지 않음.
  */
 
-/** 전화번호는 `.env`에만 두고 Git 미포함 — `NEXT_PUBLIC_WOORIBUGO_CS_TEL` */
+/** 전화번호 — `NEXT_PUBLIC_WOORIBUGO_CS_TEL` 또는 {@link SHOP_CS_TEL_DEFAULT} */
+import { getShopCustomerServiceTel } from "@/lib/shop-customer-service";
+
 export function wooribugoCustomerServiceLine(): string {
-  const tel = process.env.NEXT_PUBLIC_WOORIBUGO_CS_TEL?.trim();
-  if (tel) {
-    return `동일 증상이 계속되면 우리부고 고객센터(${tel})로 연락해 주세요.`;
-  }
-  return "동일 증상이 계속되면 우리부고 고객센터로 연락해 주세요.";
+  const tel = getShopCustomerServiceTel();
+  return `동일 증상이 계속되면 우리부고 고객센터(${tel})로 연락해 주세요.`;
 }
 
 export function newrunPoReturnHeadline(rwr_result: string): string {

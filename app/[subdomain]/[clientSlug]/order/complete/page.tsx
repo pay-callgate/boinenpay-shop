@@ -26,6 +26,10 @@ import {
   logViewpayPgReturnSnapshot,
 } from "@/lib/viewpay";
 import { resolveViewpayFailureRedirectPath } from "@/lib/resolve-checkout-return-url";
+import {
+  getShopCustomerServiceTel,
+  SHOP_CS_HOURS_WEEKDAY,
+} from "@/lib/shop-customer-service";
 
 /**
  * Phase E1: 주문 완료 페이지 (ViewPay returnUrl 리다이렉트 대상)
@@ -738,8 +742,10 @@ export default function OrderCompletePage() {
             </button>
           </div>
           <footer className="mt-4 flex flex-col items-center justify-center border-t border-gray-100 pb-6 pt-5 text-center">
-            <p className="mb-1 text-lg font-bold text-gray-800">고객센터 1666-5382</p>
-            <p className="mb-4 text-xs text-gray-500">운영시간 : 평일 08:30 ~ 19:00</p>
+            <p className="mb-1 text-lg font-bold text-gray-800">
+              고객센터 {getShopCustomerServiceTel()}
+            </p>
+            <p className="mb-4 text-xs text-gray-500">운영시간 : {SHOP_CS_HOURS_WEEKDAY}</p>
             <p className="text-[10px] uppercase tracking-wider text-gray-400">
               Copyright © {footerCopyrightOwner}. All rights reserved.
             </p>
