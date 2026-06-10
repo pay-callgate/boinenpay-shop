@@ -1,8 +1,0 @@
--- 리본/카드 메시지 구분 (협회 화면과 유사 UX)
-
-ALTER TABLE orders
-  ADD COLUMN IF NOT EXISTS ribbon_message_kind VARCHAR(20) NOT NULL DEFAULT 'ribbon',
-  ADD COLUMN IF NOT EXISTS ribbon_card_message TEXT;
-
-COMMENT ON COLUMN orders.ribbon_message_kind IS 'ribbon | card | both — 리본/카드/동시';
-COMMENT ON COLUMN orders.ribbon_card_message IS '카드 문구 — both 일 때 rw_card(리본은 ribbon_message → rw_kyungjo); card 전용은 ribbon_message만 사용';

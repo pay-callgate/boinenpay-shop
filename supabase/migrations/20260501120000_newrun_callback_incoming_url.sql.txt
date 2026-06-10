@@ -1,8 +1,0 @@
--- var_ret 관측: 프록시/런타임 이전 원시 URL·쿼리 보존 (EUC-KR 디코딩 디버깅용)
-
-ALTER TABLE newrun_callback_results
-  ADD COLUMN IF NOT EXISTS incoming_request_url TEXT,
-  ADD COLUMN IF NOT EXISTS incoming_search_raw TEXT;
-
-COMMENT ON COLUMN newrun_callback_results.incoming_request_url IS '요청 시점 request.url (길이 제한은 앱에서 truncate)';
-COMMENT ON COLUMN newrun_callback_results.incoming_search_raw IS '후보 쿼리스트링 조각(앱에서 join·truncate)';

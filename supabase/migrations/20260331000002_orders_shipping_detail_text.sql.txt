@@ -1,3 +1,0 @@
--- 리본·장소 안내 등 긴 비회원 주문 메모를 저장하기 위해 shipping_detail 확장
-ALTER TABLE orders
-  ALTER COLUMN shipping_detail TYPE TEXT;

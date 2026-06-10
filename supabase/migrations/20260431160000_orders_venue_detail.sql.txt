@@ -1,6 +1,0 @@
--- 화훼 배달: 장소 상세(빈소·홀 등) 별도 보관 — 발주 payload detailPlace 매핑용
-
-ALTER TABLE orders
-  ADD COLUMN IF NOT EXISTS venue_detail TEXT;
-
-COMMENT ON COLUMN orders.venue_detail IS '화훼 배달 장소 상세(테스트·발주용 detailPlace)';
